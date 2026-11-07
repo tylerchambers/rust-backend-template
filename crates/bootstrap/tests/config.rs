@@ -7,6 +7,8 @@ fn production_rejects_insecure_origin_and_capture_mail() {
         "https://",
         "https://user:secret@example.com",
         "https://example.com/path",
+        "https://example.com/",
+        "https://example.com#fragment",
         "https://example.com?token=x",
         "http://localhost:58039@evil.test",
     ] {

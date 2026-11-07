@@ -53,6 +53,7 @@ dependencies = [
  "chrono",
  "domain",
  "serde",
+ "tokio",
  "uuid",
 ]
 
@@ -1019,6 +1020,7 @@ dependencies = [
  "sqlx",
  "tokio",
  "tracing",
+ "tracing-subscriber",
  "uuid",
 ]
 

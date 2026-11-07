@@ -73,6 +73,37 @@ async fn concurrent_invitation_acceptance_has_one_winner_and_is_email_bound() {
         service.accept(&actors[1], org, invitation, &token)
     );
     assert_eq!(usize::from(a.is_ok()) + usize::from(b.is_ok()), 1);
+    // An invitation is a join grant, not an alternate role-change operation.
+    let proof = secrets.token();
+    db.issue_proof(&actors[0], "invite", org.into_uuid(), org, &proof)
+        .await
+        .unwrap();
+    let duplicate = service
+        .invite(&actors[0], org, &emails[1], Role::Owner, &proof)
+        .await
+        .unwrap();
+    let token = secrets.token();
+    db.prepare_invitation_delivery(org.into_uuid(), duplicate.into_uuid(), &token)
+        .await
+        .unwrap();
+    service
+        .accept(&actors[1], org, duplicate, &token)
+        .await
+        .unwrap();
+    let role: String =
+        sqlx::query_scalar("SELECT role FROM memberships WHERE organization_id=$1 AND user_id=$2")
+            .bind(org.into_uuid())
+            .bind(actors[1].user_id.into_uuid())
+            .fetch_one(&db.pool)
+            .await
+            .unwrap();
+    assert_eq!(role, "member");
+    assert!(
+        service
+            .accept(&actors[1], org, duplicate, &token)
+            .await
+            .is_err()
+    );
     let proof = secrets.token();
     db.issue_proof(&actors[0], "invite", org.into_uuid(), org, &proof)
         .await

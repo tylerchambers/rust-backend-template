@@ -7,8 +7,8 @@ use async_trait::async_trait;
 use domain::{Error, Role};
 use domain::{InvitationId, OrganizationId, UserId};
 use uuid::Uuid;
-fn storage(_: sqlx::Error) -> Error {
-    Error::Unavailable
+fn storage(error: sqlx::Error) -> Error {
+    crate::storage::unavailable(error, "memberships")
 }
 impl Database {
     pub async fn prepare_invitation_delivery(
@@ -23,7 +23,7 @@ impl Database {
         Ok(email)
     }
 }
-fn role(value: &str) -> Result<Role, Error> {
+pub(crate) fn role(value: &str) -> Result<Role, Error> {
     match value {
         "owner" => Ok(Role::Owner),
         "admin" => Ok(Role::Admin),
@@ -73,6 +73,18 @@ impl ReauthenticationRepository for Database {
 }
 #[async_trait]
 impl MembershipRepository for TenantWork {
+    async fn retire_sessions(&mut self, user: UserId) -> Result<(), Error> {
+        // Login upserts this same user before publishing a session. The second
+        // statement gets a fresh snapshot after any concurrent login commits.
+        sqlx::query("SELECT id FROM users WHERE id=$1 FOR UPDATE")
+            .bind(user.into_uuid())
+            .fetch_one(&mut *self.tx)
+            .await
+            .map_err(storage)?;
+        sqlx::query("UPDATE sessions SET revoked_at=clock_timestamp() WHERE user_id=$1 AND revoked_at IS NULL")
+            .bind(user.into_uuid()).execute(&mut *self.tx).await.map_err(storage)?;
+        Ok(())
+    }
     async fn revoke_invitation(&mut self, id: InvitationId) -> Result<(), Error> {
         let n=sqlx::query("UPDATE invitations SET revoked_at=clock_timestamp() WHERE id=$1 AND organization_id=$2 AND accepted_at IS NULL").bind(id.into_uuid()).bind(self.organization).execute(&mut *self.tx).await.map_err(storage)?.rows_affected();
         if n == 1 { Ok(()) } else { Err(Error::NotFound) }

@@ -45,6 +45,14 @@ async fn bound_proof_is_single_use_and_last_owner_is_guarded() {
         .execute(&pool)
         .await
         .unwrap();
+    let target_login = secret.token();
+    let target_session = secret.token();
+    db.issue_login(&format!("{target}@example.test"), &target_login)
+        .await
+        .unwrap();
+    db.consume_login(&target_login, &target_session)
+        .await
+        .unwrap();
     let proof = secret.token();
     db.issue_proof(&actor, "change_role", target, org, &proof)
         .await
@@ -64,6 +72,11 @@ async fn bound_proof_is_single_use_and_last_owner_is_guarded() {
         .change_role(&actor, org, target.into(), Role::Admin, &proof)
         .await
         .unwrap();
+    assert!(
+        db.authenticate(&target_session).await.is_err(),
+        "pre-elevation credential remains live"
+    );
+    assert!(db.authenticate(&session).await.is_ok());
     assert!(
         service
             .change_role(&actor, org, target.into(), Role::Member, &proof)

@@ -14,8 +14,8 @@ pub(crate) struct TenantWork {
     pub(crate) organization: Uuid,
     pub(crate) db: Database,
 }
-fn storage(_: sqlx::Error) -> Error {
-    Error::Unavailable
+fn storage(error: sqlx::Error) -> Error {
+    crate::storage::unavailable(error, "projects")
 }
 #[async_trait]
 impl UnitOfWork for Database {
@@ -36,6 +36,44 @@ impl UnitOfWork for Database {
 }
 #[async_trait]
 impl OrganizationRepository for TenantWork {
+    async fn list_organizations(
+        &mut self,
+        actor: &Actor,
+        after: Option<OrganizationId>,
+    ) -> Result<Vec<application::projects::OrganizationSummary>, Error> {
+        self.validate_actor(actor).await?;
+        sqlx::query("SELECT set_config('app.discovery_user_id',$1,true)")
+            .bind(actor.user_id.to_string())
+            .execute(&mut *self.tx)
+            .await
+            .map_err(storage)?;
+        let rows: Vec<(Uuid, String, String)> = sqlx::query_as("SELECT o.id,o.name,m.role FROM organizations o JOIN memberships m ON m.organization_id=o.id WHERE m.user_id=$1 AND ($2::uuid IS NULL OR o.id>$2) ORDER BY o.id LIMIT 50")
+            .bind(actor.user_id.into_uuid()).bind(after.map(OrganizationId::into_uuid)).fetch_all(&mut *self.tx).await.map_err(storage)?;
+        rows.into_iter()
+            .map(|(id, name, value)| {
+                Ok(application::projects::OrganizationSummary {
+                    id: id.into(),
+                    name,
+                    role: crate::memberships::role(&value)?,
+                })
+            })
+            .collect()
+    }
+    async fn list_members(
+        &mut self,
+        after: Option<UserId>,
+    ) -> Result<Vec<application::projects::MemberSummary>, Error> {
+        let rows: Vec<(Uuid,String)> = sqlx::query_as("SELECT user_id,role FROM memberships WHERE organization_id=$1 AND ($2::uuid IS NULL OR user_id>$2) ORDER BY user_id LIMIT 50")
+            .bind(self.organization).bind(after.map(UserId::into_uuid)).fetch_all(&mut *self.tx).await.map_err(storage)?;
+        rows.into_iter()
+            .map(|(id, value)| {
+                Ok(application::projects::MemberSummary {
+                    user_id: id.into(),
+                    role: crate::memberships::role(&value)?,
+                })
+            })
+            .collect()
+    }
     async fn validate_actor(&mut self, actor: &Actor) -> Result<(), Error> {
         let live:Option<Uuid>=sqlx::query_scalar("SELECT u.id FROM users u JOIN sessions s ON s.user_id=u.id WHERE u.id=$1 AND s.id=$2 AND NOT u.disabled AND s.revoked_at IS NULL AND s.expires_at>clock_timestamp() AND s.last_seen_at>clock_timestamp()-interval '30 minutes' FOR SHARE OF u,s").bind(actor.user_id.into_uuid()).bind(actor.session_id.into_uuid()).fetch_optional(&mut *self.tx).await.map_err(storage)?;
         live.map(|_| ()).ok_or(Error::Unauthenticated)

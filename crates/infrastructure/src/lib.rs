@@ -4,6 +4,7 @@ pub mod mail;
 mod memberships;
 mod projects;
 pub mod redis;
+mod storage;
 use riverqueue::{Client, JobArgs};
 use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, Postgres, Transaction};

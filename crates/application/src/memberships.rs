@@ -79,6 +79,8 @@ pub trait MembershipRepository: Send {
     async fn member_role(&mut self, user: UserId) -> Result<Role, Error>;
     async fn owner_count(&mut self) -> Result<i64, Error>;
     async fn set_role(&mut self, user: UserId, role: Role) -> Result<(), Error>;
+    /// Retire existing credentials atomically with an authority change.
+    async fn retire_sessions(&mut self, user: UserId) -> Result<(), Error>;
     async fn consume_proof(
         &mut self,
         actor: &Actor,
@@ -253,6 +255,9 @@ impl Memberships {
             return Err(Error::Conflict);
         }
         tx.set_role(user, role).await?;
+        if old != role {
+            tx.retire_sessions(user).await?;
+        }
         tx.audit(actor, "membership.role_changed", user.into_uuid())
             .await?;
         tx.commit().await

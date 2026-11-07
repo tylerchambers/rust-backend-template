@@ -5,8 +5,24 @@ use domain::{OrganizationId, ProjectId, UserId};
 use std::sync::Arc;
 use uuid::Uuid;
 
+pub struct OrganizationSummary {
+    pub id: OrganizationId,
+    pub name: String,
+    pub role: Role,
+}
+pub struct MemberSummary {
+    pub user_id: UserId,
+    pub role: Role,
+}
+
 #[async_trait]
 pub trait OrganizationRepository: Send {
+    async fn list_organizations(
+        &mut self,
+        actor: &Actor,
+        after: Option<OrganizationId>,
+    ) -> Result<Vec<OrganizationSummary>, Error>;
+    async fn list_members(&mut self, after: Option<UserId>) -> Result<Vec<MemberSummary>, Error>;
     async fn validate_actor(&mut self, actor: &Actor) -> Result<(), Error>;
     async fn insert_organization(&mut self, id: OrganizationId, name: &str) -> Result<(), Error>;
     async fn insert_owner(
@@ -52,6 +68,31 @@ pub struct Organizations {
     ids: Arc<dyn crate::IdGenerator>,
 }
 impl Organizations {
+    pub async fn list(
+        &self,
+        actor: &Actor,
+        after: Option<OrganizationId>,
+    ) -> Result<Vec<OrganizationSummary>, Error> {
+        // No tenant is selected for account-scoped discovery. The adapter enables
+        // only self-membership SELECT visibility after validating the session.
+        let mut tx = self.uow.begin(Uuid::nil().into()).await?;
+        tx.validate_actor(actor).await?;
+        let rows = tx.list_organizations(actor, after).await?;
+        tx.commit().await?;
+        Ok(rows)
+    }
+    pub async fn members(
+        &self,
+        actor: &Actor,
+        org: OrganizationId,
+        after: Option<UserId>,
+    ) -> Result<Vec<MemberSummary>, Error> {
+        let mut tx = self.uow.begin(org).await?;
+        tx.current_role(actor, org).await?;
+        let rows = tx.list_members(after).await?;
+        tx.commit().await?;
+        Ok(rows)
+    }
     pub fn new(uow: Arc<dyn UnitOfWork>, ids: Arc<dyn crate::IdGenerator>) -> Self {
         Self { uow, ids }
     }

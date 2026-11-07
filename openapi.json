@@ -234,6 +234,37 @@
       }
     },
     "/v1/organizations": {
+      "get": {
+        "tags": [],
+        "operationId": "list_organizations",
+        "parameters": [
+          {
+            "name": "after",
+            "in": "query",
+            "description": "Exclusive organization ID cursor; at most 50 rows",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OrganizationSummaryResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
       "post": {
         "tags": [],
         "operationId": "create_org",
@@ -384,6 +415,48 @@
         "responses": {
           "204": {
             "description": ""
+          }
+        }
+      }
+    },
+    "/v1/organizations/{organization}/members": {
+      "get": {
+        "tags": [],
+        "operationId": "list_members",
+        "parameters": [
+          {
+            "name": "organization",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "description": "Exclusive user ID cursor; at most 50 rows",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MemberSummaryResponse"
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -681,6 +754,22 @@
         },
         "additionalProperties": false
       },
+      "MemberSummaryResponse": {
+        "type": "object",
+        "required": [
+          "user_id",
+          "role"
+        ],
+        "properties": {
+          "role": {
+            "type": "string"
+          },
+          "user_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
       "NameRequest": {
         "type": "object",
         "required": [
@@ -702,6 +791,26 @@
           "id": {
             "type": "string",
             "format": "uuid"
+          }
+        }
+      },
+      "OrganizationSummaryResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "role"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
           }
         }
       },

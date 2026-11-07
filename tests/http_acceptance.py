@@ -78,13 +78,48 @@ request("/v1/auth/confirmation")
 request("/v1/auth/request", "POST", {"email": invitee}, 202)
 login_match = re.search(r"confirmation#([a-f0-9]{64})", captured_text(invitee, "Confirm sign in"))
 assert login_match is not None
-request("/v1/auth/confirm", "POST", {"token": login_match.group(1)})
+invitee_identity = request("/v1/auth/confirm", "POST", {"token": login_match.group(1)})
 accept_path = f"/v1/organizations/{org}/invitations/{invitation}/accept"
 request(accept_path, "POST", {"token": invite_token}, 204)
 request(accept_path, "POST", {"token": invite_token}, 403)
 assert len(request(path)) == 1
 request(path, "POST", {"name": "Viewer denial"}, 403)
+invitee_cookies = cookies.copy()
+assert request("/v1/organizations") == [{"id": org, "name": "HTTP tenant", "role": "viewer"}]
+assert len(request(f"/v1/organizations/{org}/members")) == 2
+request(f"/v1/organizations/{uuid.uuid4()}/members", expected=403)
 cookies = owner_cookies
+# Exercise actual bounded HTTP traversal, not only a storage cursor.
+expected_ids = {project["id"]}
+for index in range(50):
+    expected_ids.add(request(path, "POST", {"name": f"Page {index}"}, 201)["id"])
+seen = []
+cursor = ""
+while True:
+    page = request(path + cursor)
+    assert len(page) <= 50
+    if not page:
+        break
+    seen.extend(row["id"] for row in page)
+    cursor = "?after=" + page[-1]["id"]
+assert len(seen) == len(set(seen)) == 51 and set(seen) == expected_ids
+# Foreign-tenant cursors are ordering values, never tenant authority.
+other_org = request("/v1/organizations", "POST", {"name": "Other HTTP tenant"}, 201)["id"]
+foreign = request(f"/v1/organizations/{other_org}/projects", "POST", {"name": "Foreign"}, 201)
+assert all(row["organization_id"] == org for row in request(path + "?after=" + foreign["id"]))
+assert len(request("/v1/organizations")) == 2
+assert len(request("/v1/organizations?after=" + org)) == 1
+request("/v1/organizations?after=invalid", expected=400)
+request(f"/v1/organizations/{org}/members?after=invalid", expected=400)
+request("/v1/auth/reauth/request", "POST", {"action": "change_role", "target": invitee_identity["user_id"], "organization_id": org}, 202)
+role_match = re.search(r"confirmation#([a-f0-9]{64})", captured_text(email, "Confirm privileged operation"))
+assert role_match is not None
+role_proof = role_match.group(1)
+request(f"/v1/organizations/{org}/members/{invitee_identity['user_id']}/role", "POST", {"role": "member", "proof": role_proof}, 204)
+cookies = invitee_cookies
+request(path, expected=401)
+cookies = owner_cookies
+assert len(request(path)) == 50
 old_rotation = cookies["__Host-session"]
 request("/v1/auth/sessions/rotate", "POST", {}, 204)
 rotated = cookies["__Host-session"]

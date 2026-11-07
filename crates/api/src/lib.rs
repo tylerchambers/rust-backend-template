@@ -409,6 +409,62 @@ async fn rename_project(
             .into(),
     ))
 }
+#[derive(Serialize, ToSchema)]
+pub struct OrganizationSummaryResponse {
+    id: Uuid,
+    name: String,
+    #[schema(value_type = String)]
+    role: domain::Role,
+}
+#[derive(Serialize, ToSchema)]
+pub struct MemberSummaryResponse {
+    user_id: Uuid,
+    #[schema(value_type = String)]
+    role: domain::Role,
+}
+#[utoipa::path(get,path="/v1/organizations",params(("after"=Option<Uuid>,Query,description="Exclusive organization ID cursor; at most 50 rows")),responses((status=200,body=Vec<OrganizationSummaryResponse>)))]
+async fn list_organizations(
+    Extract(state): Extract<State>,
+    Query(page): Query<ProjectPage>,
+    headers: HeaderMap,
+) -> Result<Json<Vec<OrganizationSummaryResponse>>, ApiError> {
+    let actor = actor(&state, &headers).await?;
+    Ok(Json(
+        state
+            .organizations
+            .list(&actor, page.after.map(Into::into))
+            .await?
+            .into_iter()
+            .map(|row| OrganizationSummaryResponse {
+                id: row.id.into_uuid(),
+                name: row.name,
+                role: row.role,
+            })
+            .collect(),
+    ))
+}
+#[utoipa::path(get,path="/v1/organizations/{organization}/members",params(("organization"=Uuid,Path),("after"=Option<Uuid>,Query,description="Exclusive user ID cursor; at most 50 rows")),responses((status=200,body=Vec<MemberSummaryResponse>)))]
+async fn list_members(
+    Extract(state): Extract<State>,
+    Path(org): Path<Uuid>,
+    Query(page): Query<ProjectPage>,
+    headers: HeaderMap,
+) -> Result<Json<Vec<MemberSummaryResponse>>, ApiError> {
+    let actor = actor(&state, &headers).await?;
+    Ok(Json(
+        state
+            .organizations
+            .members(&actor, org.into(), page.after.map(Into::into))
+            .await?
+            .into_iter()
+            .map(|row| MemberSummaryResponse {
+                user_id: row.user_id.into_uuid(),
+                role: row.role,
+            })
+            .collect(),
+    ))
+}
+
 #[derive(OpenApi)]
 #[openapi(
     paths(
@@ -417,6 +473,8 @@ async fn rename_project(
         confirmation,
         logout,
         create_org,
+        list_organizations,
+        list_members,
         create_project,
         list_projects,
         rename_project,
@@ -511,7 +569,14 @@ pub fn router(state: State) -> Router {
             "/v1/organizations/{organization}/members/{user}/remove",
             post(memberships::remove_member),
         )
-        .route("/v1/organizations", post(create_org))
+        .route(
+            "/v1/organizations",
+            get(list_organizations).post(create_org),
+        )
+        .route(
+            "/v1/organizations/{organization}/members",
+            get(list_members),
+        )
         .route(
             "/v1/organizations/{organization}/projects",
             get(list_projects).post(create_project),

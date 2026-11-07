@@ -182,7 +182,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        get: operations["list_organizations"];
         put?: never;
         post: operations["create_org"];
         delete?: never;
@@ -233,6 +233,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["revoke_invitation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organization}/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_members"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -325,12 +341,23 @@ export interface components {
         LoginRequest: {
             email: string;
         };
+        MemberSummaryResponse: {
+            role: string;
+            /** Format: uuid */
+            user_id: string;
+        };
         NameRequest: {
             name: string;
         };
         OrganizationResponse: {
             /** Format: uuid */
             id: string;
+        };
+        OrganizationSummaryResponse: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            role: string;
         };
         PrivilegedRequest: {
             proof: string;
@@ -600,6 +627,28 @@ export interface operations {
             };
         };
     };
+    list_organizations: {
+        parameters: {
+            query?: {
+                /** @description Exclusive organization ID cursor; at most 50 rows */
+                after?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationSummaryResponse"][];
+                };
+            };
+        };
+    };
     create_org: {
         parameters: {
             query?: never;
@@ -693,6 +742,30 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    list_members: {
+        parameters: {
+            query?: {
+                /** @description Exclusive user ID cursor; at most 50 rows */
+                after?: string;
+            };
+            header?: never;
+            path: {
+                organization: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemberSummaryResponse"][];
+                };
             };
         };
     };

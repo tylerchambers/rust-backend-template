@@ -35,8 +35,8 @@ impl Secrets for SystemSecrets {
 pub fn token_hash(value: &str) -> Vec<u8> {
     Sha256::digest(value.as_bytes()).to_vec()
 }
-fn storage(_: sqlx::Error) -> Error {
-    Error::Unavailable
+fn storage(error: sqlx::Error) -> Error {
+    crate::storage::unavailable(error, "auth")
 }
 
 #[async_trait]
@@ -71,6 +71,21 @@ impl IdentityRepository for Database {
     async fn consume_login(&self, token: &str, session: &str) -> Result<Actor, Error> {
         if token.len() != 64 {
             return Err(Error::Unauthenticated);
+        }
+        // The token, not caller-supplied email, determines the mailbox bucket.
+        // Admission commits outside consumption so failed/replayed attempts count.
+        let mailbox: Option<String> =
+            sqlx::query_scalar("SELECT email FROM magic_links WHERE token_hash=$1")
+                .bind(token_hash(token))
+                .fetch_optional(&self.pool)
+                .await
+                .map_err(storage)?;
+        if let Some(email) = mailbox {
+            let attempts: i32 = sqlx::query_scalar("INSERT INTO auth_limits(key_hash,window_start,attempts) VALUES($1,clock_timestamp(),1) ON CONFLICT(key_hash) DO UPDATE SET attempts=CASE WHEN auth_limits.window_start < clock_timestamp()-interval '15 minutes' THEN 1 ELSE auth_limits.attempts+1 END, window_start=CASE WHEN auth_limits.window_start < clock_timestamp()-interval '15 minutes' THEN clock_timestamp() ELSE auth_limits.window_start END RETURNING attempts")
+                .bind(token_hash(&format!("confirm-email:{email}"))).fetch_one(&self.pool).await.map_err(storage)?;
+            if attempts > 5 {
+                return Err(Error::RateLimited);
+            }
         }
         let mut tx = riverqueue::database::begin_postgres(&self.pool)
             .await
@@ -110,11 +125,22 @@ impl IdentityRepository for Database {
         .ok_or(Error::Unauthenticated)
     }
     async fn revoke(&self, token: &str) -> Result<(), Error> {
-        sqlx::query("UPDATE sessions SET revoked_at=clock_timestamp() WHERE token_hash=$1 OR id IN (SELECT session_id FROM session_revocation_handles WHERE token_hash=$1)").bind(token_hash(token)).execute(&self.pool).await.map_err(storage)?;
+        // Resolve immutable identity before waiting on a rotating session row. A
+        // single UPDATE can recheck the new hash against a pre-rotation snapshot
+        // that cannot yet see the revocation handle and silently miss the row.
+        let id: Option<Uuid> = sqlx::query_scalar("SELECT id FROM sessions WHERE token_hash=$1 UNION SELECT session_id FROM session_revocation_handles WHERE token_hash=$1")
+            .bind(token_hash(token)).fetch_optional(&self.pool).await.map_err(storage)?;
+        if let Some(id) = id {
+            sqlx::query("UPDATE sessions SET revoked_at=clock_timestamp() WHERE id=$1")
+                .bind(id)
+                .execute(&self.pool)
+                .await
+                .map_err(storage)?;
+        }
         Ok(())
     }
     async fn list_sessions(&self, actor: &Actor) -> Result<Vec<SessionId>, Error> {
-        sqlx::query_scalar::<_, Uuid>("SELECT id FROM sessions WHERE user_id=$1 AND revoked_at IS NULL AND expires_at>clock_timestamp() ORDER BY created_at DESC LIMIT 100").bind(actor.user_id.into_uuid()).fetch_all(&self.pool).await.map(|rows| rows.into_iter().map(SessionId::from).collect()).map_err(storage)
+        sqlx::query_scalar::<_, Uuid>("SELECT id FROM sessions WHERE user_id=$1 AND revoked_at IS NULL AND expires_at>clock_timestamp() AND last_seen_at>clock_timestamp()-interval '30 minutes' ORDER BY created_at DESC LIMIT 100").bind(actor.user_id.into_uuid()).fetch_all(&self.pool).await.map(|rows| rows.into_iter().map(SessionId::from).collect()).map_err(storage)
     }
     async fn rotate(&self, actor: &Actor, old: &str, new: &str) -> Result<(), Error> {
         let mut tx = riverqueue::database::begin_postgres(&self.pool)

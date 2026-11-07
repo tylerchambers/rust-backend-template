@@ -41,7 +41,7 @@ async fn scanner_get_does_not_authenticate_and_mutations_require_csrf() {
             std::sync::Arc::new(infrastructure::auth::SystemClock),
         )),
         Arc::new(application::memberships::Reauthentication::new(
-            db,
+            db.clone(),
             Arc::new(
                 infrastructure::mail::SmtpMailer::local_capture(
                     "127.0.0.1",
@@ -59,6 +59,40 @@ async fn scanner_get_does_not_authenticate_and_mutations_require_csrf() {
             1234,
         ),
     )));
+    use application::{IdentityRepository, Secrets};
+    let login = infrastructure::auth::SystemSecrets.token();
+    let session = infrastructure::auth::SystemSecrets.token();
+    db.issue_login(&format!("{}@example.test", uuid::Uuid::now_v7()), &login)
+        .await
+        .unwrap();
+    let owner = db.consume_login(&login, &session).await.unwrap();
+    let org = Organizations::new(db.clone(), Arc::new(infrastructure::auth::SystemIds))
+        .create(&owner, "Discoverable".into())
+        .await
+        .unwrap();
+    for path in [
+        "/v1/organizations".to_string(),
+        format!("/v1/organizations/{org}/members"),
+    ] {
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri(&path)
+                    .header("cookie", format!("__Host-session={session}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), 200, "discovery route {path}");
+        let body = axum::body::to_bytes(response.into_body(), 16384)
+            .await
+            .unwrap();
+        let rows: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(rows.as_array().unwrap().len(), 1);
+        assert_eq!(rows[0]["role"], "owner");
+    }
     let response = app
         .clone()
         .oneshot(
@@ -106,6 +140,15 @@ async fn scanner_get_does_not_authenticate_and_mutations_require_csrf() {
         serde_json::from_slice::<serde_json::Value>(&body).unwrap()["code"],
         "invalid_input"
     );
+    // Distinct mailboxes still consume the same trusted socket budget.
+    for _ in 0..60 {
+        let response = app.clone().oneshot(Request::builder().method("POST")
+            .uri("/v1/auth/request").header("content-type", "application/json")
+            .header("origin", "http://localhost:58039").header("cookie", format!("csrf={csrf}"))
+            .header("x-csrf-token", csrf).header("x-forwarded-for", uuid::Uuid::now_v7().to_string())
+            .body(Body::from(serde_json::json!({"email":format!("{}@example.test",uuid::Uuid::now_v7())}).to_string())).unwrap()).await.unwrap();
+        assert_eq!(response.status(), 202);
+    }
     let mut limited = false;
     for _ in 0..125 {
         let response = app
@@ -119,7 +162,9 @@ async fn scanner_get_does_not_authenticate_and_mutations_require_csrf() {
                     .header("cookie", format!("csrf={csrf}"))
                     .header("x-csrf-token", csrf)
                     .header("x-forwarded-for", uuid::Uuid::now_v7().to_string())
-                    .body(Body::from(r#"{"token":"invalid"}"#))
+                    .body(Body::from(
+                        serde_json::json!({"token":"f".repeat(64)}).to_string(),
+                    ))
                     .unwrap(),
             )
             .await
@@ -159,6 +204,7 @@ async fn scanner_get_does_not_authenticate_and_mutations_require_csrf() {
         .unwrap();
     assert_eq!(response.status(), 401);
     let response = app
+        .clone()
         .oneshot(
             Request::builder()
                 .uri("/metrics/http")
@@ -173,4 +219,67 @@ async fn scanner_get_does_not_authenticate_and_mutations_require_csrf() {
     let metrics = std::str::from_utf8(&body).unwrap();
     assert!(metrics.contains("http_request_duration_seconds_sum "));
     assert!(metrics.contains("authentication_rate_limited_total 1"));
+    let post_request = |path: &str| {
+        Request::builder()
+            .method("POST")
+            .uri(path)
+            .header("origin", "http://localhost:58039")
+            .header("cookie", format!("csrf={csrf}; __Host-session={session}"))
+            .header("x-csrf-token", csrf)
+            .header("content-type", "application/json")
+            .body(Body::from("{}"))
+            .unwrap()
+    };
+    let limited = app
+        .clone()
+        .oneshot(post_request("/v1/auth/request"))
+        .await
+        .unwrap();
+    assert_eq!(
+        limited.status(),
+        429,
+        "initiation must share socket admission even for new addresses"
+    );
+    // Hold the rotated response in the test instead of delivering its cookie to
+    // the browser; logout still arrives with the original cookie.
+    let rotated = app
+        .clone()
+        .oneshot(post_request("/v1/auth/sessions/rotate"))
+        .await
+        .unwrap();
+    assert_eq!(rotated.status(), 204);
+    let replacement = rotated
+        .headers()
+        .get("set-cookie")
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .split(';')
+        .next()
+        .unwrap();
+    let replay = || {
+        Request::builder()
+            .uri("/v1/auth/sessions")
+            .header("cookie", replacement)
+            .body(Body::empty())
+            .unwrap()
+    };
+    assert_eq!(
+        app.clone().oneshot(replay()).await.unwrap().status(),
+        200,
+        "live no-logout control"
+    );
+    assert_eq!(
+        app.clone()
+            .oneshot(post_request("/v1/auth/logout"))
+            .await
+            .unwrap()
+            .status(),
+        204
+    );
+    assert_eq!(
+        app.oneshot(replay()).await.unwrap().status(),
+        401,
+        "delayed replacement cookie survived logout"
+    );
 }
