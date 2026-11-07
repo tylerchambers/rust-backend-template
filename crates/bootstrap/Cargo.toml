@@ -1,0 +1,17 @@
+[package]
+name = "bootstrap"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+application.workspace = true
+infrastructure.workspace = true
+api.workspace = true
+axum.workspace = true
+domain.workspace = true
+tokio.workspace = true
+sqlx.workspace = true
+riverqueue.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
