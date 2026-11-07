@@ -25,11 +25,21 @@ async fn scanner_get_does_not_authenticate_and_mutations_require_csrf() {
             Arc::new(Mail),
             secrets.clone(),
         )),
-        Arc::new(Organizations::new(db.clone())),
-        Arc::new(Projects::new(db.clone())),
+        Arc::new(Organizations::new(
+            db.clone(),
+            std::sync::Arc::new(infrastructure::auth::SystemIds),
+        )),
+        Arc::new(Projects::new(
+            db.clone(),
+            std::sync::Arc::new(infrastructure::auth::SystemIds),
+        )),
         secrets.clone(),
         "http://localhost:58039".into(),
-        Arc::new(application::memberships::Memberships::new(db.clone())),
+        Arc::new(application::memberships::Memberships::new(
+            db.clone(),
+            std::sync::Arc::new(infrastructure::auth::SystemIds),
+            std::sync::Arc::new(infrastructure::auth::SystemClock),
+        )),
         Arc::new(application::memberships::Reauthentication::new(
             db,
             Arc::new(
@@ -43,7 +53,12 @@ async fn scanner_get_does_not_authenticate_and_mutations_require_csrf() {
             secrets,
         )),
     );
-    let app = api::router(state);
+    let app = api::router(state).layer(axum::Extension(axum::extract::ConnectInfo(
+        std::net::SocketAddr::new(
+            std::net::IpAddr::V6(std::net::Ipv6Addr::from(uuid::Uuid::now_v7().as_u128())),
+            1234,
+        ),
+    )));
     let response = app
         .clone()
         .oneshot(
@@ -63,6 +78,62 @@ async fn scanner_get_does_not_authenticate_and_mutations_require_csrf() {
         .unwrap();
     assert!(cookie.starts_with("csrf="));
     assert!(!cookie.contains("session="));
+    let csrf = cookie
+        .split(';')
+        .next()
+        .unwrap()
+        .strip_prefix("csrf=")
+        .unwrap();
+    let malformed = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/v1/auth/confirm")
+                .header("content-type", "application/json")
+                .header("origin", "http://localhost:58039")
+                .header("cookie", format!("csrf={csrf}"))
+                .header("x-csrf-token", csrf)
+                .body(Body::from("{"))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let body = axum::body::to_bytes(malformed.into_body(), 4096)
+        .await
+        .unwrap();
+    assert_eq!(
+        serde_json::from_slice::<serde_json::Value>(&body).unwrap()["code"],
+        "invalid_input"
+    );
+    let mut limited = false;
+    for _ in 0..125 {
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/v1/auth/confirm")
+                    .header("content-type", "application/json")
+                    .header("origin", "http://localhost:58039")
+                    .header("cookie", format!("csrf={csrf}"))
+                    .header("x-csrf-token", csrf)
+                    .header("x-forwarded-for", uuid::Uuid::now_v7().to_string())
+                    .body(Body::from(r#"{"token":"invalid"}"#))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        if response.status() == 429 {
+            limited = true;
+            break;
+        }
+        assert_eq!(response.status(), 401);
+    }
+    assert!(
+        limited,
+        "confirmation guessing must be limited by socket IP, not forwarded headers"
+    );
     let response = app
         .clone()
         .oneshot(
@@ -77,6 +148,7 @@ async fn scanner_get_does_not_authenticate_and_mutations_require_csrf() {
         .unwrap();
     assert_eq!(response.status(), 403);
     let response = app
+        .clone()
         .oneshot(
             Request::builder()
                 .uri("/v1/organizations/00000000-0000-0000-0000-000000000001/projects")
@@ -86,4 +158,19 @@ async fn scanner_get_does_not_authenticate_and_mutations_require_csrf() {
         .await
         .unwrap();
     assert_eq!(response.status(), 401);
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/metrics/http")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let body = axum::body::to_bytes(response.into_body(), 4096)
+        .await
+        .unwrap();
+    let metrics = std::str::from_utf8(&body).unwrap();
+    assert!(metrics.contains("http_request_duration_seconds_sum "));
+    assert!(metrics.contains("authentication_rate_limited_total 1"));
 }

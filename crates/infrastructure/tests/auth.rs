@@ -41,7 +41,7 @@ async fn magic_tokens_are_single_use_identity_is_unique_and_logout_revokes() {
         Err(Error::Unauthenticated)
     ));
     sqlx::query("UPDATE users SET disabled=true WHERE id=$1")
-        .bind(session.user_id)
+        .bind(session.user_id.into_uuid())
         .execute(&pool)
         .await
         .unwrap();

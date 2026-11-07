@@ -6,7 +6,7 @@ mod memberships;
 use axum::{
     Json, Router,
     extract::Request,
-    extract::{DefaultBodyLimit, Path, State as Extract},
+    extract::{DefaultBodyLimit, Path, Query, State as Extract},
     http::{HeaderMap, StatusCode, header},
     middleware::{self, Next},
     response::{Html, IntoResponse, Response},
@@ -14,12 +14,25 @@ use axum::{
 };
 use domain::Error;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
+use std::sync::{
+    Arc,
+    atomic::{AtomicU64, Ordering},
+};
+#[derive(Default)]
+struct HttpMetrics {
+    requests: AtomicU64,
+    duration_micros: AtomicU64,
+    rate_limited: AtomicU64,
+    authentication_denials: AtomicU64,
+    authorization_denials: AtomicU64,
+}
+
 use utoipa::{OpenApi, ToSchema};
 use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct State {
+    metrics: Arc<HttpMetrics>,
     auth: Arc<Authentication>,
     organizations: Arc<Organizations>,
     projects: Arc<Projects>,
@@ -39,6 +52,7 @@ impl State {
         reauthentication: Arc<Reauthentication>,
     ) -> Self {
         Self {
+            metrics: Arc::new(HttpMetrics::default()),
             auth,
             organizations,
             projects,
@@ -90,12 +104,24 @@ fn cookie<'a>(headers: &'a HeaderMap, name: &str) -> Option<&'a str> {
         .find_map(|(k, v)| (k == name).then_some(v))
 }
 async fn actor(state: &State, headers: &HeaderMap) -> Result<Actor, ApiError> {
-    Ok(state
+    let mut actor = state
         .auth
         .authenticate(cookie(headers, "__Host-session").ok_or(Error::Unauthenticated)?)
-        .await?)
+        .await?;
+    actor.correlation_id = headers
+        .get("x-request-id")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.parse().ok())
+        .ok_or(Error::Unavailable)?;
+    Ok(actor)
 }
-async fn security(Extract(state): Extract<State>, request: Request, next: Next) -> Response {
+async fn security(Extract(state): Extract<State>, mut request: Request, next: Next) -> Response {
+    let request_id = Uuid::now_v7();
+    request.headers_mut().insert(
+        "x-request-id",
+        request_id.to_string().parse().expect("UUID header"),
+    );
+    let mut csrf_denied = false;
     if !matches!(
         *request.method(),
         axum::http::Method::GET | axum::http::Method::HEAD | axum::http::Method::OPTIONS
@@ -107,10 +133,95 @@ async fn security(Extract(state): Extract<State>, request: Request, next: Next) 
             || csrf.map(str::len) != Some(64)
             || csrf != cookie(headers, "csrf")
         {
-            return ApiError(Error::Forbidden).into_response();
+            csrf_denied = true;
         }
     }
-    let mut response = next.run(request).await;
+    let route = request
+        .extensions()
+        .get::<axum::extract::MatchedPath>()
+        .map(|p| p.as_str())
+        .unwrap_or("unmatched")
+        .to_owned();
+    let start = std::time::Instant::now();
+    use tracing::Instrument;
+    let span = tracing::info_span!("http", %request_id, route);
+    let admission = if !csrf_denied
+        && request.method() == axum::http::Method::POST
+        && matches!(
+            route.as_str(),
+            "/v1/auth/request" | "/v1/auth/confirm" | "/v1/auth/reauth/request"
+        ) {
+        match request
+            .extensions()
+            .get::<axum::extract::ConnectInfo<std::net::SocketAddr>>()
+        {
+            Some(peer) => state.auth.admit_source(&peer.ip().to_string()).await,
+            None => Err(Error::Unavailable),
+        }
+    } else {
+        Ok(())
+    };
+    let mut response = if csrf_denied {
+        ApiError(Error::Forbidden).into_response()
+    } else if let Err(error) = admission {
+        ApiError(error).into_response()
+    } else {
+        match tokio::time::timeout(
+            std::time::Duration::from_secs(15),
+            next.run(request).instrument(span),
+        )
+        .await
+        {
+            Ok(response) => response,
+            Err(_) => ApiError(Error::Unavailable).into_response(),
+        }
+    };
+    if response.status().is_client_error()
+        && response
+            .headers()
+            .get(header::CONTENT_TYPE)
+            .and_then(|v| v.to_str().ok())
+            != Some("application/json")
+    {
+        let status = response.status();
+        response = (
+            status,
+            Json(ErrorBody {
+                code: if status == StatusCode::NOT_FOUND {
+                    "not_found"
+                } else {
+                    "invalid_input"
+                }
+                .into(),
+            }),
+        )
+            .into_response();
+    }
+    state.metrics.requests.fetch_add(1, Ordering::Relaxed);
+    state.metrics.duration_micros.fetch_add(
+        u64::try_from(start.elapsed().as_micros()).unwrap_or(u64::MAX),
+        Ordering::Relaxed,
+    );
+    if response.status() == StatusCode::TOO_MANY_REQUESTS {
+        state.metrics.rate_limited.fetch_add(1, Ordering::Relaxed);
+    }
+    if response.status() == StatusCode::UNAUTHORIZED {
+        state
+            .metrics
+            .authentication_denials
+            .fetch_add(1, Ordering::Relaxed);
+    }
+    if response.status() == StatusCode::FORBIDDEN {
+        state
+            .metrics
+            .authorization_denials
+            .fetch_add(1, Ordering::Relaxed);
+    }
+    tracing::info!(operation="http.request",%request_id,route,status=response.status().as_u16(),duration_ms=start.elapsed().as_millis() as u64);
+    response.headers_mut().insert(
+        "x-request-id",
+        request_id.to_string().parse().expect("UUID header"),
+    );
     response
         .headers_mut()
         .insert(header::CACHE_CONTROL, "no-store".parse().unwrap());
@@ -162,8 +273,8 @@ pub struct ProjectResponse {
 impl From<domain::Project> for ProjectResponse {
     fn from(p: domain::Project) -> Self {
         Self {
-            id: p.id,
-            organization_id: p.organization_id,
+            id: p.id.into_uuid(),
+            organization_id: p.organization_id.into_uuid(),
             name: p.name,
             version: p.version,
             archived: p.archived,
@@ -192,7 +303,7 @@ async fn confirm(
     Ok((
         [(header::SET_COOKIE, value)],
         Json(IdentityResponse {
-            user_id: session.user_id,
+            user_id: session.user_id.into_uuid(),
         }),
     )
         .into_response())
@@ -201,7 +312,7 @@ async fn confirm(
 async fn confirmation(Extract(state): Extract<State>) -> Response {
     let csrf = state.secrets.token();
     let html = format!(
-        r#"<!doctype html><meta charset="utf-8"><title>Confirm sign in</title><button id="confirm">Confirm sign in</button><pre id="result"></pre><script>const token=location.hash.slice(1);history.replaceState(null,'',location.pathname);document.getElementById('confirm').onclick=async()=>{{const r=await fetch('/v1/auth/confirm',{{method:'POST',headers:{{'content-type':'application/json','x-csrf-token':'{csrf}'}},body:JSON.stringify({{token}})}});document.getElementById('result').textContent=r.ok?'Signed in':'Link invalid or expired';}};</script>"#
+        r#"<!doctype html><meta charset="utf-8"><title>Confirm sign in</title><button id="confirm">Confirm sign in</button><pre id="result"></pre><script>let token='';function capture(){{if(location.hash){{token=location.hash.slice(1);history.replaceState(null,'',location.pathname);}}}}capture();addEventListener('hashchange',capture);document.getElementById('confirm').onclick=async()=>{{const r=await fetch('/v1/auth/confirm',{{method:'POST',headers:{{'content-type':'application/json','x-csrf-token':'{csrf}'}},body:JSON.stringify({{token}})}});document.getElementById('result').textContent=r.ok?'Signed in':'Link invalid or expired';}};</script>"#
     );
     (
         [(
@@ -235,7 +346,10 @@ async fn create_org(
 ) -> Result<(StatusCode, Json<OrganizationResponse>), ApiError> {
     let actor = actor(&state, &headers).await?;
     let id = state.organizations.create(&actor, input.name).await?;
-    Ok((StatusCode::CREATED, Json(OrganizationResponse { id })))
+    Ok((
+        StatusCode::CREATED,
+        Json(OrganizationResponse { id: id.into_uuid() }),
+    ))
 }
 #[utoipa::path(post,path="/v1/organizations/{organization}/projects",params(("organization"=Uuid,Path)),request_body=NameRequest,responses((status=201,body=ProjectResponse)))]
 async fn create_project(
@@ -247,20 +361,32 @@ async fn create_project(
     let actor = actor(&state, &headers).await?;
     Ok((
         StatusCode::CREATED,
-        Json(state.projects.create(&actor, org, input.name).await?.into()),
+        Json(
+            state
+                .projects
+                .create(&actor, org.into(), input.name)
+                .await?
+                .into(),
+        ),
     ))
 }
-#[utoipa::path(get,path="/v1/organizations/{organization}/projects",params(("organization"=Uuid,Path)),responses((status=200,body=Vec<ProjectResponse>)))]
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ProjectPage {
+    after: Option<Uuid>,
+}
+#[utoipa::path(get,path="/v1/organizations/{organization}/projects",params(("organization"=Uuid,Path),("after"=Option<Uuid>,Query,description="Exclusive project ID cursor; at most 50 rows")),responses((status=200,body=Vec<ProjectResponse>)))]
 async fn list_projects(
     Extract(state): Extract<State>,
     Path(org): Path<Uuid>,
+    Query(page): Query<ProjectPage>,
     headers: HeaderMap,
 ) -> Result<Json<Vec<ProjectResponse>>, ApiError> {
     let actor = actor(&state, &headers).await?;
     Ok(Json(
         state
             .projects
-            .list(&actor, org, None)
+            .list(&actor, org.into(), page.after.map(Into::into))
             .await?
             .into_iter()
             .map(Into::into)
@@ -278,7 +404,7 @@ async fn rename_project(
     Ok(Json(
         state
             .projects
-            .rename(&actor, org, id, input.version, input.name)
+            .rename(&actor, org.into(), id.into(), input.version, input.name)
             .await?
             .into(),
     ))
@@ -295,12 +421,15 @@ async fn rename_project(
         list_projects,
         rename_project,
         memberships::request_proof,
+        memberships::revoke_invitation,
+        memberships::remove_member,
         memberships::invite,
         memberships::accept,
         memberships::change_role,
         memberships::sessions,
         memberships::rotate,
         memberships::revoke_all,
+        memberships::revoke_session,
         memberships::proof_confirmation,
         memberships::invitation_confirmation
     ),
@@ -321,9 +450,20 @@ pub fn openapi() -> String {
         .to_pretty_json()
         .expect("serializable contract")
 }
+async fn http_metrics(Extract(state): Extract<State>) -> String {
+    format!(
+        "http_request_duration_seconds_sum {}\nauthentication_rate_limited_total {}\nhttp_requests_total {}\nauthentication_denials_total {}\nauthorization_denials_total {}\n",
+        state.metrics.duration_micros.load(Ordering::Relaxed) as f64 / 1_000_000.0,
+        state.metrics.rate_limited.load(Ordering::Relaxed),
+        state.metrics.requests.load(Ordering::Relaxed),
+        state.metrics.authentication_denials.load(Ordering::Relaxed),
+        state.metrics.authorization_denials.load(Ordering::Relaxed)
+    )
+}
 pub fn router(state: State) -> Router {
     Router::new()
         .route("/health", get(|| async { StatusCode::OK }))
+        .route("/metrics/http", get(http_metrics))
         .route(
             "/openapi.json",
             get(|| async { ([(header::CONTENT_TYPE, "application/json")], openapi()) }),
@@ -342,6 +482,10 @@ pub fn router(state: State) -> Router {
             get(memberships::invitation_confirmation),
         )
         .route("/v1/auth/sessions", get(memberships::sessions))
+        .route(
+            "/v1/auth/sessions/{session}/revoke",
+            post(memberships::revoke_session),
+        )
         .route("/v1/auth/sessions/rotate", post(memberships::rotate))
         .route(
             "/v1/auth/sessions/revoke-all",
@@ -358,6 +502,14 @@ pub fn router(state: State) -> Router {
         .route(
             "/v1/organizations/{organization}/members/{user}/role",
             post(memberships::change_role),
+        )
+        .route(
+            "/v1/organizations/{organization}/invitations/{invitation}/revoke",
+            post(memberships::revoke_invitation),
+        )
+        .route(
+            "/v1/organizations/{organization}/members/{user}/remove",
+            post(memberships::remove_member),
         )
         .route("/v1/organizations", post(create_org))
         .route(

@@ -48,11 +48,30 @@ impl SmtpMailer {
         from: String,
         origin: String,
     ) -> Result<Self, Error> {
+        Self::production_endpoint(host, 587, username, password, from, origin, None)
+    }
+    pub fn production_endpoint(
+        host: &str,
+        port: u16,
+        username: String,
+        password: String,
+        from: String,
+        origin: String,
+        ca: Option<&[u8]>,
+    ) -> Result<Self, Error> {
+        use lettre::transport::smtp::client::{Certificate, Tls, TlsParameters};
         if !origin.starts_with("https://") {
             return Err(Error::Invalid);
         }
+        let mut tls = TlsParameters::builder(host.into());
+        if let Some(ca) = ca {
+            tls = tls.add_root_certificate(Certificate::from_pem(ca).map_err(|_| Error::Invalid)?);
+        }
+        let tls = tls.build().map_err(|_| Error::Invalid)?;
         let transport = AsyncSmtpTransport::<Tokio1Executor>::starttls_relay(host)
             .map_err(|_| Error::Invalid)?
+            .port(port)
+            .tls(Tls::Required(tls))
             .credentials(Credentials::new(username, password))
             .timeout(Some(Duration::from_secs(10)))
             .build();
@@ -68,8 +87,8 @@ impl application::memberships::InvitationMailer for SmtpMailer {
     async fn send_invitation(
         &self,
         email: &str,
-        org: uuid::Uuid,
-        id: uuid::Uuid,
+        org: domain::OrganizationId,
+        id: domain::InvitationId,
         token: &str,
     ) -> Result<(), Error> {
         self.send_message(email,"Organization invitation",format!("Sign in as this email address, then confirm the invitation.\n{}/v1/invitations/confirmation#{}:{}:{}",self.origin,org,id,token)).await
@@ -82,7 +101,7 @@ impl application::memberships::ReauthenticationMailer for SmtpMailer {
         email: &str,
         action: &str,
         target: uuid::Uuid,
-        org: uuid::Uuid,
+        org: domain::OrganizationId,
         token: &str,
     ) -> Result<(), Error> {
         self.send_message(email,"Confirm privileged operation",format!("This proof authorizes {action} on {target} in organization {org}. It expires in five minutes and is bound to your requesting session.\n{}/v1/auth/reauth/confirmation#{}",self.origin,token)).await

@@ -1,3 +1,36 @@
+#[derive(Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PrivilegedRequest {
+    proof: String,
+}
+#[utoipa::path(post,path="/v1/organizations/{organization}/invitations/{invitation}/revoke",params(("organization"=Uuid,Path),("invitation"=Uuid,Path)),request_body=PrivilegedRequest,responses((status=204)))]
+pub async fn revoke_invitation(
+    Extract(state): Extract<State>,
+    Path((org, id)): Path<(Uuid, Uuid)>,
+    headers: HeaderMap,
+    Json(input): Json<PrivilegedRequest>,
+) -> Result<StatusCode, ApiError> {
+    let actor = actor(&state, &headers).await?;
+    state
+        .memberships
+        .revoke_invitation(&actor, org.into(), id.into(), &input.proof)
+        .await?;
+    Ok(StatusCode::NO_CONTENT)
+}
+#[utoipa::path(post,path="/v1/organizations/{organization}/members/{user}/remove",params(("organization"=Uuid,Path),("user"=Uuid,Path)),request_body=PrivilegedRequest,responses((status=204)))]
+pub async fn remove_member(
+    Extract(state): Extract<State>,
+    Path((org, user)): Path<(Uuid, Uuid)>,
+    headers: HeaderMap,
+    Json(input): Json<PrivilegedRequest>,
+) -> Result<StatusCode, ApiError> {
+    let actor = actor(&state, &headers).await?;
+    state
+        .memberships
+        .remove(&actor, org.into(), user.into(), &input.proof)
+        .await?;
+    Ok(StatusCode::NO_CONTENT)
+}
 use super::*;
 #[derive(Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
@@ -37,7 +70,12 @@ pub async fn request_proof(
     let actor = actor(&state, &headers).await?;
     state
         .reauthentication
-        .request(&actor, &input.action, input.target, input.organization_id)
+        .request(
+            &actor,
+            &input.action,
+            input.target,
+            input.organization_id.into(),
+        )
         .await?;
     Ok(StatusCode::ACCEPTED)
 }
@@ -51,9 +89,18 @@ pub async fn invite(
     let actor = actor(&state, &headers).await?;
     let id = state
         .memberships
-        .invite(&actor, org, &input.email, role(&input.role)?, &input.proof)
+        .invite(
+            &actor,
+            org.into(),
+            &input.email,
+            role(&input.role)?,
+            &input.proof,
+        )
         .await?;
-    Ok((StatusCode::CREATED, Json(OrganizationResponse { id })))
+    Ok((
+        StatusCode::CREATED,
+        Json(OrganizationResponse { id: id.into_uuid() }),
+    ))
 }
 #[utoipa::path(post,path="/v1/organizations/{organization}/invitations/{invitation}/accept",params(("organization"=Uuid,Path),("invitation"=Uuid,Path)),request_body=ConfirmRequest,responses((status=204)))]
 pub async fn accept(
@@ -65,7 +112,7 @@ pub async fn accept(
     let actor = actor(&state, &headers).await?;
     state
         .memberships
-        .accept(&actor, org, id, &input.token)
+        .accept(&actor, org.into(), id.into(), &input.token)
         .await?;
     Ok(StatusCode::NO_CONTENT)
 }
@@ -79,7 +126,13 @@ pub async fn change_role(
     let actor = actor(&state, &headers).await?;
     state
         .memberships
-        .change_role(&actor, org, user, role(&input.role)?, &input.proof)
+        .change_role(
+            &actor,
+            org.into(),
+            user.into(),
+            role(&input.role)?,
+            &input.proof,
+        )
         .await?;
     Ok(StatusCode::NO_CONTENT)
 }
@@ -92,8 +145,26 @@ pub async fn sessions(
         state
             .auth
             .sessions(cookie(&headers, "__Host-session").ok_or(Error::Unauthenticated)?)
-            .await?,
+            .await?
+            .into_iter()
+            .map(domain::SessionId::into_uuid)
+            .collect(),
     ))
+}
+#[utoipa::path(post,path="/v1/auth/sessions/{session}/revoke",params(("session"=Uuid,Path)),responses((status=204),(status=404,body=ErrorBody)))]
+pub async fn revoke_session(
+    Extract(state): Extract<State>,
+    Path(session): Path<Uuid>,
+    headers: HeaderMap,
+) -> Result<StatusCode, ApiError> {
+    state
+        .auth
+        .revoke_session(
+            cookie(&headers, "__Host-session").ok_or(Error::Unauthenticated)?,
+            session.into(),
+        )
+        .await?;
+    Ok(StatusCode::NO_CONTENT)
 }
 #[utoipa::path(post,path="/v1/auth/sessions/revoke-all",responses((status=204)))]
 pub async fn revoke_all(

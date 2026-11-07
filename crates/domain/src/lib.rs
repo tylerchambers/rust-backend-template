@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
+mod ids;
+pub use ids::{InvitationId, OrganizationId, ProjectId, SessionId, UserId};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
 pub enum Error {
@@ -21,14 +22,18 @@ pub enum Error {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Project {
-    pub id: Uuid,
-    pub organization_id: Uuid,
+    pub id: ProjectId,
+    pub organization_id: OrganizationId,
     pub name: String,
     pub version: i64,
     pub archived: bool,
 }
 impl Project {
-    pub fn new(id: Uuid, organization_id: Uuid, name: String) -> Result<Self, Error> {
+    pub fn new(
+        id: ProjectId,
+        organization_id: OrganizationId,
+        name: String,
+    ) -> Result<Self, Error> {
         validate_name(&name)?;
         Ok(Self {
             id,

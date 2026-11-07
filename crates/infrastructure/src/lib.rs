@@ -13,10 +13,10 @@ pub type InfraResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
 /// Application migrations and River migrations have independent ownership.
 pub async fn migrate(pool: &PgPool) -> InfraResult<()> {
-    sqlx::migrate!("../../migrations").run(pool).await?;
     riverqueue::migrate::PostgresMigrator::new(pool.clone())
         .migrate_up()
         .await?;
+    sqlx::migrate!("../../migrations").run(pool).await?;
     Ok(())
 }
 
@@ -26,6 +26,25 @@ pub struct Database {
     pub jobs: Client,
 }
 impl Database {
+    pub async fn ready(&self) -> bool {
+        matches!(
+            tokio::time::timeout(
+                std::time::Duration::from_secs(2),
+                sqlx::query("SELECT 1").execute(&self.pool)
+            )
+            .await,
+            Ok(Ok(_))
+        )
+    }
+    pub async fn operational_metrics(&self) -> Result<String, domain::Error> {
+        let (queued,retry,dead):(i64,i64,i64)=sqlx::query_as("SELECT count(*) FILTER(WHERE state IN ('available','scheduled')),count(*) FILTER(WHERE state='retryable'),count(*) FILTER(WHERE state='discarded') FROM river_job").fetch_one(&self.pool).await.map_err(|_|domain::Error::Unavailable)?;
+        let (lag, retries): (f64, i64) = sqlx::query_as("SELECT coalesce(max(greatest(0,extract(epoch FROM clock_timestamp()-scheduled_at))) FILTER(WHERE state IN ('available','retryable')),0)::float8, coalesce(sum(greatest(attempt-1,0)),0)::bigint FROM river_job").fetch_one(&self.pool).await.map_err(|_|domain::Error::Unavailable)?;
+        Ok(format!(
+            "river_queue_lag_seconds {lag}\nriver_attempt_retries {retries}\nriver_jobs_queued {queued}\nriver_jobs_retryable {retry}\nriver_jobs_discarded {dead}\ndb_pool_connections {}\ndb_pool_idle {}\n",
+            self.pool.size(),
+            self.pool.num_idle()
+        ))
+    }
     pub fn new(pool: PgPool) -> InfraResult<Self> {
         let jobs = Client::builder(pool.clone()).build()?;
         Ok(Self { pool, jobs })
@@ -47,8 +66,19 @@ impl Database {
         organization_id: Uuid,
         project_id: Uuid,
     ) -> InfraResult<()> {
+        self.enqueue_project_correlated(tx, organization_id, project_id, Uuid::now_v7())
+            .await
+    }
+    pub async fn enqueue_project_correlated(
+        &self,
+        tx: &mut Transaction<'_, Postgres>,
+        organization_id: Uuid,
+        project_id: Uuid,
+        correlation_id: Uuid,
+    ) -> InfraResult<()> {
         self.jobs
             .insert(ProjectChanged {
+                correlation_id,
                 organization_id,
                 project_id,
             })
@@ -61,6 +91,8 @@ impl Database {
 #[derive(Clone, Debug, Serialize, Deserialize, JobArgs)]
 #[river(kind = "project_changed_v1")]
 pub struct ProjectChanged {
+    #[serde(default)]
+    pub correlation_id: Uuid,
     pub organization_id: Uuid,
     pub project_id: Uuid,
 }

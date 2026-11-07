@@ -34,7 +34,7 @@ async fn expiry_limits_and_hashed_storage_are_enforced() {
     db.issue_login(&email, &token).await.unwrap();
     let actor = db.consume_login(&token, &session).await.unwrap();
     let hash: Vec<u8> = sqlx::query_scalar("SELECT token_hash FROM sessions WHERE id=$1")
-        .bind(actor.session_id)
+        .bind(actor.session_id.into_uuid())
         .fetch_one(&pool)
         .await
         .unwrap();
@@ -43,9 +43,11 @@ async fn expiry_limits_and_hashed_storage_are_enforced() {
     sqlx::query(
         "UPDATE sessions SET last_seen_at=clock_timestamp()-interval '31 minutes' WHERE id=$1",
     )
-    .bind(actor.session_id)
+    .bind(actor.session_id.into_uuid())
     .execute(&pool)
     .await
     .unwrap();
+    assert!(db.authenticate(&session).await.is_err());
+    sqlx::query("UPDATE sessions SET last_seen_at=clock_timestamp(),expires_at=clock_timestamp()-interval '1 second' WHERE id=$1").bind(actor.session_id.into_uuid()).execute(&pool).await.unwrap();
     assert!(db.authenticate(&session).await.is_err());
 }

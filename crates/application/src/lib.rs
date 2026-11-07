@@ -3,22 +3,36 @@ pub mod optional;
 pub mod projects;
 use async_trait::async_trait;
 use domain::Error;
+use domain::{SessionId, UserId};
 pub use projects::{Organizations, Projects};
 use std::sync::Arc;
 use uuid::Uuid;
 
 pub struct Session {
     pub token: String,
-    pub user_id: Uuid,
-    pub id: Uuid,
+    pub user_id: UserId,
+    pub id: SessionId,
 }
 #[derive(Clone)]
 pub struct Actor {
-    pub user_id: Uuid,
-    pub session_id: Uuid,
+    /// Non-secret server-generated identifier for this invocation.
+    pub correlation_id: Uuid,
+    pub user_id: UserId,
+    pub session_id: SessionId,
 }
 
-/// Tokens deliberately have no Debug implementation and never enter log fields.
+/// Application-owned identity generation; callers can inject deterministic IDs.
+pub trait IdGenerator: Send + Sync {
+    fn organization(&self) -> domain::OrganizationId;
+    fn project(&self) -> domain::ProjectId;
+    fn invitation(&self) -> domain::InvitationId;
+}
+
+pub trait Clock: Send + Sync {
+    fn now(&self) -> chrono::DateTime<chrono::Utc>;
+}
+
+/// Secret token generation is injected and never enters tracing fields.
 pub trait Secrets: Send + Sync {
     fn token(&self) -> String;
 }
@@ -28,12 +42,15 @@ pub trait LoginMailer: Send + Sync {
 }
 #[async_trait]
 pub trait IdentityRepository: Send + Sync {
+    /// Bound untrusted authentication traffic independently of account existence.
+    async fn admit_source(&self, source: &str) -> Result<(), Error>;
     async fn issue_login(&self, email: &str, token: &str) -> Result<(), Error>;
     async fn consume_login(&self, token: &str, session: &str) -> Result<Actor, Error>;
     async fn authenticate(&self, token: &str) -> Result<Actor, Error>;
     async fn revoke(&self, token: &str) -> Result<(), Error>;
-    async fn list_sessions(&self, actor: &Actor) -> Result<Vec<Uuid>, Error>;
+    async fn list_sessions(&self, actor: &Actor) -> Result<Vec<SessionId>, Error>;
     async fn rotate(&self, actor: &Actor, old: &str, new: &str) -> Result<(), Error>;
+    async fn revoke_session(&self, actor: &Actor, session: SessionId) -> Result<(), Error>;
     async fn revoke_all(&self, actor: &Actor) -> Result<(), Error>;
 }
 
@@ -59,6 +76,9 @@ impl Authentication {
     pub fn with_limiter(mut self, limiter: Arc<dyn optional::SecurityLimiter>) -> Self {
         self.limiter = Some(limiter);
         self
+    }
+    pub async fn admit_source(&self, source: &str) -> Result<(), Error> {
+        self.identities.admit_source(source).await
     }
     pub async fn request(&self, email: &str) -> Result<(), Error> {
         let email = email.trim().to_lowercase();
@@ -88,9 +108,13 @@ impl Authentication {
     pub async fn authenticate(&self, token: &str) -> Result<Actor, Error> {
         self.identities.authenticate(token).await
     }
-    pub async fn sessions(&self, token: &str) -> Result<Vec<Uuid>, Error> {
+    pub async fn sessions(&self, token: &str) -> Result<Vec<SessionId>, Error> {
         let actor = self.authenticate(token).await?;
         self.identities.list_sessions(&actor).await
+    }
+    pub async fn revoke_session(&self, token: &str, session: SessionId) -> Result<(), Error> {
+        let actor = self.authenticate(token).await?;
+        self.identities.revoke_session(&actor, session).await
     }
     pub async fn revoke_all(&self, token: &str) -> Result<(), Error> {
         let actor = self.authenticate(token).await?;

@@ -1,0 +1,2 @@
+# Preserve raw command output, including cargo's final blank line.
+docs/evidence/*.log whitespace=-blank-at-eof

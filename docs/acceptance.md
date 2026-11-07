@@ -1,45 +1,50 @@
 # Acceptance ledger
 
-All statuses require executable evidence, not file existence. User magic-link overrides supersede historical WebAuthn text.
+The live Notion hub and all eleven linked specification pages were read without modification and refreshed under `docs/spec/`. The current scope is email magic-link login and fresh, action-bound email proofs: one verified primary address, no passkeys, email changes, additional addresses or recovery. Notion ticket statuses are not implementation evidence.
 
-| Ticket | Requirement | Status | Original acceptance |
+**Local verification:** `just check` completed all 24 gates successfully on the final code snapshot. `docs/evidence/results.json` records commands, durations and exits. Cargo reports 25 passing test results, including the subprocess entry helper and compile-fail typed-ID doctest; many integration tests contain multiple adversarial scenarios. Native and OCI HTTP, SDK and real Chromium journeys all passed. This is not independent acceptance or production certification.
+
+| Ticket | Requirement | Status | Executable evidence / qualification |
 |---|---|---|---|
-| ACL-01 | Implement permission vocabulary and policy evaluator | Not verified | Table-driven role matrix and resource policy tests pass. |
-| ACL-02 | Implement organization creation use case | Not verified | Organization and owner membership commit together or rollback; invalid states rejected. |
-| ACL-03 | Implement invitation and membership lifecycle | Not verified | Cross-tenant invitation abuse blocked; revocation effective immediately; concurrent acceptance safe. |
-| ACL-04 | Tenant switching and authorization freshness | Not verified | Switching tenant never retains prior tenant permissions; revoked membership loses access. |
-| AUTH-01 | Implement WebAuthn registration and login | Not verified | Realistic browser tests cover successful ceremony, invalid origin/challenge and replay. |
-| AUTH-02 | Implement server-side sessions | Not verified | Revoked/expired sessions rejected; session fixation and CSRF tests pass; no raw tokens in logs. |
-| AUTH-03 | Implement WebAuthn step-up assurance | Not verified | Privileged action denied without fresh proof; challenge cannot authorize another action or be replayed. |
-| AUTH-04 | Account recovery and credential management | Not verified | Last credential removal guarded; compromised session recovery tested; account takeover paths reviewed. |
-| OPS-01 | Build layered test harness | Not verified | Parallel deterministic tests and one-command local CI; no production DB required. |
-| OPS-02 | Adversarial security test suite | Not verified | All negative tests reject malicious requests and prove no cross-tenant disclosure. |
-| OPS-03 | Observability and production process lifecycle | Not verified | Correlated HTTP/job traces; secrets redacted; health reflects dependencies. |
-| OPS-04 | Build OCI artifacts and deployment example | Not verified | Fresh deployment bootstraps successfully; rollback/runbook and supply-chain checks documented. |
-| OPS-05 | Release gate and developer onboarding | Not verified | Independent agent reproduces full setup and passes all tests from fresh checkout. |
-| ARC-01 | Initialize Cargo workspace and reproducible toolchain | Not verified | cargo check --workspace and just dev work on clean checkout; domain dependency graph excludes infrastructure. |
-| ARC-02 | Implement composition root and error taxonomy | Not verified | Fake adapters can be injected into use cases; invalid config fails fast; errors have stable codes. |
-| ARC-03 | Enforce architecture fitness functions | Not verified | Intentional boundary violation fails CI; documented architecture graph matches Cargo dependencies. |
-| ARC-04 | Create ADRs and agent contribution protocol | Not verified | New agent can follow documented workflow without conflicting edits. |
-| JOB-01 | Integrate River and prove transactional enqueue | Not verified | Business write and job enqueue commit/rollback atomically; failed workers recover; no custom queue machinery. |
-| JOB-02 | Implement invitation delivery and retry policy | Not verified | Retry does not duplicate external effect where provider supports idempotency; terminal failure observable. |
-| JOB-03 | Introduce optional Redis adapters | Not verified | API operates without Redis for noncritical paths; security limiter failure policy tested; cache keys tenant-scoped. |
-| JOB-04 | Implement periodic jobs and operations | Not verified | Lease recovery, graceful shutdown and scheduled execution verified. |
-| API-01 | Build Axum transport boundary | Not verified | Handlers have no SQL; malformed requests return stable errors; CSRF and origin tests pass. |
-| API-02 | Define OpenAPI contract and client generation | Not verified | Generated client builds and matches server; CI fails on contract drift. |
-| API-03 | Expose identity and organization endpoints | Not verified | End-to-end API tests cover happy path, unauthenticated, unauthorized and cross-tenant cases. |
-| API-04 | Implement sample Project aggregate end-to-end | Not verified | Full vertical slice demonstrates approved architecture and handles concurrency and tenant isolation. |
-| DB-01 | Provision PostgreSQL and migration pipeline | Not verified | Fresh and upgraded databases migrate; modified applied migration detected; queries compile offline. |
-| DB-02 | Create identity and tenancy schema | Not verified | Uniqueness/FKs and lifecycle invariants enforced; repeatable fixtures. |
-| DB-03 | Implement transaction-local tenant context and RLS | Not verified | Cross-tenant select/update/delete denied even for direct SQL; pooled connection reuse cannot leak tenant context. |
-| DB-04 | Prototype UoW and repository transaction ergonomics | Not verified | One use case writes multiple repositories atomically; rollback and conflict tests pass; ADR records tradeoffs. |
-| DB-05 | Add optimistic concurrency and migration evolution tests | Not verified | Lost update prevented; schema compatibility validated with two app revisions. |
+| ACL-01 | Permission vocabulary and evaluator | Locally verified | `domain/tests/permissions.rs`: deny-by-default role matrix; project and membership service policy tests. |
+| ACL-02 | Atomic organization creation | Locally verified | `infrastructure/tests/projects.rs`: organization/owner membership, forced failure rollback and injected identity. |
+| ACL-03 | Invitation and membership lifecycle | Locally verified | `invitations.rs`, `memberships.rs`, `proof_binding.rs`; HTTP invitation acceptance, email binding, replay and removal. |
+| ACL-04 | Tenant switching and fresh authority | Locally verified | Native/OCI HTTP cross-tenant reads/writes and immediate membership revocation; transaction-time authority checks. |
+| AUTH-01 | Magic-link registration and login | Locally verified | `auth.rs`, `security.rs`, API tests and native/OCI Chromium: inert GET, explicit CSRF POST, first/returning identity, expiry/replay, source limits, rejected redirect field, capture mail and verified STARTTLS test peer. No redirect feature is exposed. |
+| AUTH-02 | Server-side sessions | Locally verified | `sessions.rs`, `security.rs`, HTTP: rotation, idle/absolute expiry, account/owner-scoped targeted revocation, logout, Secure HttpOnly cookie and CSRF. |
+| AUTH-03 | Fresh action-bound email proof | Locally verified | `proof_binding.rs` uses live authorized alternate users/sessions to reject wrong user/session/action/target/tenant, expiry and replay. `proof_limits.rs` races issuance. Native/OCI Chromium proves inert proof GET, explicit confirmation, CSRF enforcement and one-use privileged POST. |
+| AUTH-04 | Single verified primary identity | Locally verified | Concurrent first-login uniqueness, returning identity, disabled users and hashed storage; `audit.rs` excludes credential material. Excluded account-change/recovery features are absent. |
+| OPS-01 | Layered real-service test harness | Locally verified | `scripts/verify.py`: fresh disposable dependencies, Rust/HTTP/SDK/browser/native/OCI gates; fixtures seeded twice. Tests use actual PostgreSQL/Redis/SMTP capture, not replacement application adapters. |
+| OPS-02 | Adversarial security | Locally verified | Tenant/RLS, proof-binding, authentication-limit, CSRF/origin, malformed-input, concurrency and secret-redaction cases; native/OCI tests. This is bounded regression coverage, not a security audit. |
+| OPS-03 | Observability and lifecycle | Locally verified | `observability.py` joins real HTTP/job request IDs and scans logs; readiness/Redis/API tests assert pool, queue lag/retries, HTTP duration/rate-limit and Redis error/duration metrics. `dev_lifecycle.py` verifies terminal-group SIGINT/SIGTERM cleanup. |
+| OPS-04 | OCI and deployment example | Locally verified; example not deployed | OCI build plus identical HTTP/SDK/Chromium/telemetry gates; nonroot read-only runtime, pinned images, Rust/Bun audits. `deploy/compose.yaml` and operations runbook document external infrastructure and rollback. No production deployment performed. |
+| OPS-05 | Independent release gate/onboarding | Pending independent acceptance | README, contribution protocol, just recipes and workflow are present; local fresh-dependency gate passes. Parent must reproduce a fresh checkout. Forgejo Actions is disabled; hosted CI has not run and no runner/service was installed. |
+| ARC-01 | Workspace/toolchain | Locally verified | Locked offline workspace tests, Clippy, release build; architecture graph check; `just dev` lifecycle tests. Exact installed current stable toolchain is pinned, not an old MSRV. Environment deviation below remains disclosed. |
+| ARC-02 | Composition, typed contracts/errors | Locally verified | Typed entity IDs with compile-fail noninterchangeability; injected fixed ID/clock tests; production config rejection and stable HTTP error envelopes. Database time remains authoritative for security expiry/consumption. |
+| ARC-03 | Architecture fitness | Locally verified | `scripts/architecture.py` checks Cargo edges and rejects deliberate SQLx and HTTP-framework domain mutations; HTTP SQL exclusion. `architecture-red.log` preserves the missing HTTP-edge guard regression. |
+| ARC-04 | ADR/contribution protocol | Documented; independent use pending | `docs/adr-001.md`, `CONTRIBUTING.md`: narrow ports/UoW, ownership, verification and honest evidence. Independent workflow acceptance belongs to OPS-05. |
+| JOB-01 | Official River and transactional enqueue | Locally verified | `transaction.rs`: business/enqueue commit and rollback; `jobs.rs`: real worker SIGKILL, stale-attempt rescue by River and successful restart. No custom queue state machine. |
+| JOB-02 | Invitation delivery and retries | Locally verified with SMTP limitation | Real capture delivery and bounded failure-to-discard assertions; terminal errors/metrics observable. Ordinary SMTP has no provider idempotency key: crash-after-send can redeliver. No exactly-once email claim. |
+| JOB-03 | Optional Redis | Locally verified | `redis.rs`: tenant keys, TTL, unavailable cache miss, fail-closed security limiter and command-error metrics; normal API acceptance runs with Redis disabled. |
+| JOB-04 | Periodic work and recovery | Locally verified | Leader-scheduled cleanup, actual worker crash/rescue, terminal retries and controlled shutdown. Tests accelerate only persisted schedule/attempt timestamps; River executes transitions. |
+| API-01 | Axum boundary | Locally verified | Architecture gate and native/OCI malformed JSON/UUID, CSRF and origin/error tests; no SQL in handlers. |
+| API-02 | OpenAPI/generated SDK | Locally verified | Committed contract generated from route metadata; verifier checks drift, regenerates SDK and checks TypeScript, then executes SDK against native/OCI APIs. |
+| API-03 | Identity/organization endpoints | Locally verified | Native/OCI HTTP and SDK journeys cover authentication, organization creation, authorization, invitations and revocation. |
+| API-04 | Project vertical slice | Locally verified | Real create/read/list/update/delete, UUID keyset cursor, validation, optimistic conflict, wrong-tenant rejection and atomic durable change job/projection. |
+| DB-01 | Migration pipeline | Locally verified | Fresh database, migration checksum mutation rejection, SQLx offline build and real two-revision upgrade. |
+| DB-02 | Identity/tenancy schema | Locally verified | Uniqueness/FKs, first-login/invitation races, last-owner protection, repeated seeds. Closed roles and a single primary email deliberately avoid configurable permission/multiple-email tables; ADR records the choice. |
+| DB-03 | Transaction-local RLS | Locally verified | `rls.rs`: actual nonowner NOBYPASSRLS role, missing-context/cross-tenant SELECT/INSERT/UPDATE/DELETE rejection and transaction/pool context isolation. |
+| DB-04 | Narrow UoW/repository transactions | Locally verified | Atomic project/audit/job writes, rollback, locked membership policy and optimistic conflict tests; ADR explains the transaction-lifetime design. |
+| DB-05 | Concurrency and evolution | Locally verified | Lost-update rejection; `revision_compatibility.py` builds baseline `1b266ba502ae8e207a667aa27681913264341ec6` and current executables in separate target directories, creates live old-schema state, upgrades and exercises both binaries. |
 
-## Evidence so far
-- Official River 0.6.0 + SQLx 0.9: real Postgres transaction commit/rollback test passed.
-- Nonowner NOBYPASSRLS role: direct SQL missing-context and cross-tenant SELECT/UPDATE/DELETE/INSERT denial and failed-transaction context clearing passed.
-- Role matrix and Project validation/revision tests: RED then GREEN.
-- Workspace compile passed (entrypoints still placeholders at this checkpoint).
+## Evidence interpretation
+
+- Final gate results are `docs/evidence/results.json` and its named logs. Earlier `*-red.log` files intentionally contain failing regression/compiler output; targeted older green logs do not supersede the final gate.
+- SQLx/River migration 9 is expand-only. The compatibility claim is this recorded adjacent revision and live fixture, not arbitrary historical downgrade safety.
+- JSON spans are correlated locally; no collector/export deployment is claimed. Queue retry metrics describe persisted attempts, not a complete historical counter after retention.
+- SMTP STARTTLS uses a real isolated TLS peer and trusted test CA plus untrusted-certificate rejection. No external mailbox or real-provider delivery was attempted.
+- `postgres-readiness-repro.log` proves an official-image startup race: the temporary Unix-socket bootstrap server is ready while TCP refuses. Dependency and revision readiness probes now explicitly use TCP.
 
 ## Environment deviation
-First cargo invocation automatically installed the exact Rust 1.99.1 rustup toolchain because only its stable alias was installed. This was unintended and contrary to the no-host-binary-install instruction; no service installation or deployment occurred. All further dependencies are project/container scoped.
+
+The previous worker's first cargo invocation automatically installed exact Rust 1.99.1 through rustup because only the stable alias was installed. This was unintended and violated the no-host-install instruction. It was not undone or hidden. Subsequent preflight explicitly refuses implicit toolchain installation; optional tooling and dependencies are checkout/container scoped. No host service, production deployment, external real email or Notion edit was performed.

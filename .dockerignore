@@ -1,0 +1,7 @@
+**
+!target/
+!target/release/
+!target/release/server
+!target/release/worker
+!target/release/cli
+!Dockerfile

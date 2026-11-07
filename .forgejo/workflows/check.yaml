@@ -1,0 +1,25 @@
+name: backend acceptance
+on:
+  push:
+    branches: [main, feat/saas-backend]
+  pull_request:
+concurrency:
+  group: backend-disposable-ports
+  cancel-in-progress: false
+jobs:
+  check:
+    # Dedicated trusted runner; never expose this label to untrusted fork code.
+    runs-on: rust-backend-template
+    timeout-minutes: 30
+    steps:
+      - uses: https://github.com/actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          fetch-depth: 0
+      - name: Verify preinstalled toolchain (no automatic host installation)
+        run: |
+          rustup toolchain list | grep '^1.99.1-'
+          bun --version
+          podman info
+          python3 --version
+      - name: Full acceptance
+        run: python3 scripts/verify.py

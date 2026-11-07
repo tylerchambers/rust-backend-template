@@ -14,11 +14,17 @@ pub struct Config {
 }
 impl Config {
     pub fn validate(origin: &str, mail: &str, development: bool) -> Result<(), domain::Error> {
+        let url = url::Url::parse(origin).map_err(|_| domain::Error::Invalid)?;
         if !matches!(mail, "smtp" | "capture")
-            || (!development && (mail == "capture" || !origin.starts_with("https://")))
-            || (origin.starts_with("http://")
-                && !origin.starts_with("http://localhost:")
-                && !origin.starts_with("http://127.0.0.1:"))
+            || !matches!(url.scheme(), "http" | "https")
+            || url.origin().ascii_serialization() != origin
+            || !url.username().is_empty()
+            || url.password().is_some()
+            || url.query().is_some()
+            || url.fragment().is_some()
+            || (!development && (mail == "capture" || url.scheme() != "https"))
+            || (url.scheme() == "http"
+                && !matches!(url.host_str(), Some("localhost" | "127.0.0.1")))
         {
             return Err(domain::Error::Invalid);
         }
@@ -43,6 +49,9 @@ impl Config {
         Ok(PgPoolOptions::new()
             .max_connections(10)
             .acquire_timeout(Duration::from_secs(5))
+            .after_connect(|connection,_metadata|Box::pin(async move {
+                sqlx::raw_sql("SET statement_timeout='5s'; SET lock_timeout='3s'; SET idle_in_transaction_session_timeout='10s'").execute(connection).await?;Ok(())
+            }))
             .connect(&self.database)
             .await?)
     }
@@ -70,7 +79,7 @@ fn logging() {
     let _ = tracing_subscriber::fmt()
         .json()
         .with_writer(std::io::stderr)
-        .with_env_filter("bootstrap=info")
+        .with_env_filter("bootstrap=info,api=info,infrastructure=info")
         .try_init();
 }
 async fn shutdown() {
@@ -100,29 +109,77 @@ pub async fn server() -> InfraResult<()> {
     let db = Arc::new(Database::new(pool.clone())?);
     let secrets = Arc::new(SystemSecrets);
     let mut auth = Authentication::new(db.clone(), config.mail()?, secrets.clone());
-    let mut projects = Projects::new(db.clone());
+    let mut projects = Projects::new(
+        db.clone(),
+        std::sync::Arc::new(infrastructure::auth::SystemIds),
+    );
+    let mut redis_metrics = None;
     if let Ok(url) = std::env::var("REDIS_URL") {
         let redis = Arc::new(
             infrastructure::redis::RedisAdapters::connect(&url, &std::env::var("ENVIRONMENT")?)
                 .await?,
         );
         auth = auth.with_limiter(redis.clone());
+        redis_metrics = Some(redis.clone());
         projects = projects.with_cache(redis);
     }
     let state = api::State::new(
         Arc::new(auth),
-        Arc::new(Organizations::new(db.clone())),
+        Arc::new(Organizations::new(
+            db.clone(),
+            std::sync::Arc::new(infrastructure::auth::SystemIds),
+        )),
         Arc::new(projects),
         secrets.clone(),
         config.origin.clone(),
-        Arc::new(Memberships::new(db.clone())),
-        Arc::new(Reauthentication::new(db, config.mail()?, secrets)),
+        Arc::new(Memberships::new(
+            db.clone(),
+            std::sync::Arc::new(infrastructure::auth::SystemIds),
+            std::sync::Arc::new(infrastructure::auth::SystemClock),
+        )),
+        Arc::new(Reauthentication::new(db.clone(), config.mail()?, secrets)),
     );
     let listener = tokio::net::TcpListener::bind(config.bind).await?;
     tracing::info!(operation = "server.ready");
-    axum::serve(listener, api::router(state))
-        .with_graceful_shutdown(shutdown())
-        .await?;
+    let readiness = db.clone();
+    let metrics = db;
+    let router = api::router(state)
+        .route(
+            "/ready",
+            axum::routing::get(move || {
+                let db = readiness.clone();
+                async move {
+                    if db.ready().await {
+                        axum::http::StatusCode::OK
+                    } else {
+                        axum::http::StatusCode::SERVICE_UNAVAILABLE
+                    }
+                }
+            }),
+        )
+        .route(
+            "/metrics",
+            axum::routing::get(move || {
+                let db = metrics.clone();
+                let redis = redis_metrics.clone();
+                async move {
+                    let mut output = db
+                        .operational_metrics()
+                        .await
+                        .map_err(|_| axum::http::StatusCode::SERVICE_UNAVAILABLE)?;
+                    if let Some(redis) = redis {
+                        output.push_str(&redis.operational_metrics());
+                    }
+                    Ok::<_, axum::http::StatusCode>(output)
+                }
+            }),
+        );
+    axum::serve(
+        listener,
+        router.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+    )
+    .with_graceful_shutdown(shutdown())
+    .await?;
     pool.close().await;
     Ok(())
 }
