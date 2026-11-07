@@ -1,3 +1,9 @@
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    reason = "Test setup and assertions must fail immediately on unexpected errors"
+)]
+
 use std::{fs, path::PathBuf};
 #[tokio::test]
 async fn sqlx_rejects_modified_applied_migration() {
@@ -9,7 +15,7 @@ async fn sqlx_rejects_modified_applied_migration() {
     let temp = PathBuf::from(std::env::var("TMPDIR").expect("scratch directory required"))
         .join(format!("rbt-migrations-{}", uuid::Uuid::now_v7()));
     fs::create_dir(&temp).unwrap();
-    let result = async {
+    async {
         for entry in fs::read_dir(root).unwrap() {
             let entry = entry.unwrap();
             fs::copy(entry.path(), temp.join(entry.file_name())).unwrap();
@@ -20,10 +26,11 @@ async fn sqlx_rejects_modified_applied_migration() {
         let migrator = sqlx::migrate::Migrator::new(temp.as_path()).await.unwrap();
         assert!(matches!(
             migrator.run(&pool).await,
-            Err(sqlx::migrate::MigrateError::VersionMismatch(202611070001))
+            Err(sqlx::migrate::MigrateError::VersionMismatch(
+                202_611_070_001
+            ))
         ));
     }
     .await;
     fs::remove_dir_all(temp).unwrap();
-    result
 }

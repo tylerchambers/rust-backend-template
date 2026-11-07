@@ -22,6 +22,8 @@ pub struct InvitationEmail {
 }
 
 /// River owns execution, election, retry, scheduling and stuck-job rescue.
+/// # Errors
+/// Returns River worker-registration, schedule or client-configuration errors.
 pub fn worker_client(
     db: Database,
     mail: Arc<dyn application::memberships::InvitationMailer>,

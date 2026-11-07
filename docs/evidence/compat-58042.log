@@ -1,5 +1,5 @@
-{"timestamp":"2026-11-07T21:26:59.216719Z","level":"INFO","fields":{"operation":"server.ready"},"target":"bootstrap"}
-{"timestamp":"2026-11-07T21:26:59.253745Z","level":"INFO","fields":{"operation":"http.request","request_id":"01a1b7e8-55b5-7063-955c-eac65a849bf0","route":"/health","status":200,"duration_ms":0},"target":"api"}
-{"timestamp":"2026-11-07T21:26:59.274424Z","level":"INFO","fields":{"operation":"http.request","request_id":"01a1b7e8-55b6-7625-a768-5d5fbded3308","route":"/v1/auth/sessions","status":200,"duration_ms":19},"target":"api"}
-{"timestamp":"2026-11-07T21:26:59.293475Z","level":"INFO","fields":{"operation":"http.request","request_id":"01a1b7e8-55d7-75db-8352-7fb8c9ec68da","route":"/v1/organizations/{organization}/projects","status":200,"duration_ms":5},"target":"api"}
-{"timestamp":"2026-11-07T21:26:59.302615Z","level":"INFO","fields":{"operation":"http.request","request_id":"01a1b7e8-55de-7441-8b08-33f5df3f2b93","route":"/v1/organizations/{organization}/projects","status":201,"duration_ms":8},"target":"api"}
+{"timestamp":"2026-11-07T23:34:42.409425Z","level":"INFO","fields":{"operation":"server.ready"},"target":"bootstrap"}
+{"timestamp":"2026-11-07T23:34:42.446058Z","level":"INFO","fields":{"operation":"http.request","request_id":"01a1b85d-440e-7053-bf87-2669b4067d9d","route":"/health","status":200,"duration_ms":0},"target":"api"}
+{"timestamp":"2026-11-07T23:34:42.466309Z","level":"INFO","fields":{"operation":"http.request","request_id":"01a1b85d-440e-7053-bf87-266a577bfc43","route":"/v1/auth/sessions","status":200,"duration_ms":19},"target":"api"}
+{"timestamp":"2026-11-07T23:34:42.484588Z","level":"INFO","fields":{"operation":"http.request","request_id":"01a1b85d-442e-7220-a973-d17841064c8f","route":"/v1/organizations/{organization}/projects","status":200,"duration_ms":5},"target":"api"}
+{"timestamp":"2026-11-07T23:34:42.493685Z","level":"INFO","fields":{"operation":"http.request","request_id":"01a1b85d-4435-7057-a9d2-950dd69e338c","route":"/v1/organizations/{organization}/projects","status":201,"duration_ms":8},"target":"api"}

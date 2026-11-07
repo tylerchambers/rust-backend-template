@@ -32,6 +32,7 @@ impl Secrets for SystemSecrets {
         hex::encode(rand::rng().random::<[u8; 32]>())
     }
 }
+#[must_use]
 pub fn token_hash(value: &str) -> Vec<u8> {
     Sha256::digest(value.as_bytes()).to_vec()
 }

@@ -7,7 +7,7 @@
       "up"
     ],
     "exit_code": 0,
-    "seconds": 2.05
+    "seconds": 2.11
   },
   {
     "gate": "seed",
@@ -16,7 +16,7 @@
       "scripts/seed.py"
     ],
     "exit_code": 0,
-    "seconds": 0.28
+    "seconds": 0.22
   },
   {
     "gate": "seed-idempotency",
@@ -25,7 +25,7 @@
       "scripts/seed.py"
     ],
     "exit_code": 0,
-    "seconds": 0.28
+    "seconds": 0.34
   },
   {
     "gate": "sdk-install",
@@ -35,19 +35,26 @@
       "--frozen-lockfile"
     ],
     "exit_code": 0,
-    "seconds": 0.01
+    "seconds": 0.0
   },
   {
-    "gate": "cargo-audit",
+    "gate": "lint",
     "command": [
-      "/home/hermes/rust-backend-template/.local/tools/bin/cargo-audit",
-      "audit",
-      "--db",
-      ".local/advisory-db",
-      "--json"
+      "python3",
+      "scripts/lint.py",
+      "check"
     ],
     "exit_code": 0,
-    "seconds": 0.98
+    "seconds": 0.79
+  },
+  {
+    "gate": "lint-negative-controls",
+    "command": [
+      "python3",
+      "tests/lint_policy.py"
+    ],
+    "exit_code": 0,
+    "seconds": 1.56
   },
   {
     "gate": "bun-audit",
@@ -56,18 +63,7 @@
       "audit"
     ],
     "exit_code": 0,
-    "seconds": 0.18
-  },
-  {
-    "gate": "format",
-    "command": [
-      "cargo",
-      "fmt",
-      "--all",
-      "--check"
-    ],
-    "exit_code": 0,
-    "seconds": 0.08
+    "seconds": 0.19
   },
   {
     "gate": "architecture",
@@ -79,20 +75,6 @@
     "seconds": 0.05
   },
   {
-    "gate": "clippy",
-    "command": [
-      "cargo",
-      "clippy",
-      "--workspace",
-      "--all-targets",
-      "--",
-      "-D",
-      "warnings"
-    ],
-    "exit_code": 0,
-    "seconds": 0.14
-  },
-  {
     "gate": "rust-tests",
     "command": [
       "cargo",
@@ -101,7 +83,7 @@
       "--workspace"
     ],
     "exit_code": 0,
-    "seconds": 59.11
+    "seconds": 55.91
   },
   {
     "gate": "dev-lifecycle",
@@ -110,7 +92,7 @@
       "tests/dev_lifecycle.py"
     ],
     "exit_code": 0,
-    "seconds": 1.19
+    "seconds": 0.48
   },
   {
     "gate": "release",
@@ -122,7 +104,7 @@
       "--workspace"
     ],
     "exit_code": 0,
-    "seconds": 8.21
+    "seconds": 0.1
   },
   {
     "gate": "sdk-generate",
@@ -132,7 +114,7 @@
       "generate"
     ],
     "exit_code": 0,
-    "seconds": 0.37
+    "seconds": 0.35
   },
   {
     "gate": "sdk-types",
@@ -183,7 +165,7 @@
       "browser.mjs"
     ],
     "exit_code": 0,
-    "seconds": 1.45
+    "seconds": 1.3
   },
   {
     "gate": "native-observability",
@@ -202,7 +184,7 @@
       "tests/revision_compatibility.py"
     ],
     "exit_code": 0,
-    "seconds": 2.82
+    "seconds": 2.48
   },
   {
     "gate": "oci-build",
@@ -214,7 +196,7 @@
       "."
     ],
     "exit_code": 0,
-    "seconds": 0.74
+    "seconds": 0.39
   },
   {
     "gate": "oci-http",
@@ -223,7 +205,7 @@
       "tests/http_acceptance.py"
     ],
     "exit_code": 0,
-    "seconds": 1.04
+    "seconds": 1.14
   },
   {
     "gate": "oci-sdk",
@@ -255,7 +237,7 @@
       "browser.mjs"
     ],
     "exit_code": 0,
-    "seconds": 1.39
+    "seconds": 1.29
   },
   {
     "gate": "oci-observability",

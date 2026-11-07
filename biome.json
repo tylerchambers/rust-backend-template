@@ -1,0 +1,27 @@
+{
+	"root": true,
+	"$schema": "https://biomejs.dev/schemas/2.6.6/schema.json",
+	"files": {
+		"includes": [
+			"sdk/**/*.{js,jsx,ts,tsx,cjs,mjs,cts,mts}",
+			"!sdk/src/schema.d.ts",
+			"!sdk/node_modules/**"
+		]
+	},
+	"formatter": {
+		"enabled": true
+	},
+	"linter": {
+		"enabled": true,
+		"rules": {
+			"preset": "recommended"
+		}
+	},
+	"assist": {
+		"actions": {
+			"source": {
+				"organizeImports": "on"
+			}
+		}
+	}
+}

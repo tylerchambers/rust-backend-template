@@ -31,7 +31,7 @@ pub async fn project_contract(
         Err(Error::Forbidden)
     ));
     assert!(matches!(
-        service.create(owner, org, "".into()).await,
+        service.create(owner, org, String::new()).await,
         Err(Error::Invalid)
     ));
     let rows = service.list(owner, org, None).await.unwrap();

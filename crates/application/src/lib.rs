@@ -73,13 +73,22 @@ impl Authentication {
             limiter: None,
         }
     }
+    #[must_use]
     pub fn with_limiter(mut self, limiter: Arc<dyn optional::SecurityLimiter>) -> Self {
         self.limiter = Some(limiter);
         self
     }
+    /// Admit an authentication request against the source budget.
+    ///
+    /// # Errors
+    /// Returns rate-limit or repository availability errors.
     pub async fn admit_source(&self, source: &str) -> Result<(), Error> {
         self.identities.admit_source(source).await
     }
+    /// Issue a login link for a normalized email address.
+    ///
+    /// # Errors
+    /// Rejects invalid email or exhausted budgets; propagates storage and delivery errors.
     pub async fn request(&self, email: &str) -> Result<(), Error> {
         let email = email.trim().to_lowercase();
         if email.len() > 254
@@ -96,6 +105,10 @@ impl Authentication {
         self.identities.issue_login(&email, &token).await?;
         self.mail.send_login(&email, &token).await
     }
+    /// Consume a login proof and create a session.
+    ///
+    /// # Errors
+    /// Propagates expired, invalid or replayed proof and repository errors.
     pub async fn confirm(&self, token: &str) -> Result<Session, Error> {
         let session = self.secrets.token();
         let actor = self.identities.consume_login(token, &session).await?;
@@ -105,21 +118,41 @@ impl Authentication {
             id: actor.session_id,
         })
     }
+    /// Resolve a currently valid session.
+    ///
+    /// # Errors
+    /// Rejects invalid, revoked or expired credentials; propagates repository errors.
     pub async fn authenticate(&self, token: &str) -> Result<Actor, Error> {
         self.identities.authenticate(token).await
     }
+    /// List the authenticated account's live sessions.
+    ///
+    /// # Errors
+    /// Propagates authentication and repository errors.
     pub async fn sessions(&self, token: &str) -> Result<Vec<SessionId>, Error> {
         let actor = self.authenticate(token).await?;
         self.identities.list_sessions(&actor).await
     }
+    /// Revoke one session belonging to the authenticated account.
+    ///
+    /// # Errors
+    /// Propagates authentication, ownership and repository errors.
     pub async fn revoke_session(&self, token: &str, session: SessionId) -> Result<(), Error> {
         let actor = self.authenticate(token).await?;
         self.identities.revoke_session(&actor, session).await
     }
+    /// Revoke all sessions belonging to the authenticated account.
+    ///
+    /// # Errors
+    /// Propagates authentication and repository errors.
     pub async fn revoke_all(&self, token: &str) -> Result<(), Error> {
         let actor = self.authenticate(token).await?;
         self.identities.revoke_all(&actor).await
     }
+    /// Rotate credentials while retaining revocation-only lineage.
+    ///
+    /// # Errors
+    /// Propagates authentication and repository errors.
     pub async fn rotate(&self, token: &str) -> Result<Session, Error> {
         let actor = self.authenticate(token).await?;
         let new = self.secrets.token();
@@ -130,6 +163,10 @@ impl Authentication {
             id: actor.session_id,
         })
     }
+    /// Revoke a session through its current token or revocation lineage.
+    ///
+    /// # Errors
+    /// Propagates repository errors.
     pub async fn logout(&self, token: &str) -> Result<(), Error> {
         self.identities.revoke(token).await
     }

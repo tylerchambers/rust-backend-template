@@ -18,7 +18,13 @@ seed:
     python3 scripts/seed.py
 
 fmt:
-    cargo fmt --all
+    python3 scripts/lint.py fmt
+
+lint:
+    python3 scripts/lint.py check
+
+lint-controls:
+    python3 tests/lint_policy.py
 
 # DATABASE_URL must be the deployment/migration credential, not the runtime role.
 migrate:

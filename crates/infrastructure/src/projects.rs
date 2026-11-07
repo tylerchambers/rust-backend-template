@@ -120,6 +120,10 @@ impl OrganizationRepository for TenantWork {
         }
     }
 }
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "Consumes rows directly as an iterator mapping function"
+)]
 fn project(row: sqlx::postgres::PgRow) -> Project {
     Project {
         id: row.get::<Uuid, _>("id").into(),

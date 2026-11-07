@@ -1,7 +1,17 @@
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    reason = "Test setup and assertions must fail immediately on unexpected errors"
+)]
+
 use sqlx::PgPool;
 use uuid::Uuid;
 
 #[tokio::test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "One ordered integration journey retains shared state and security assertions"
+)]
 async fn every_tenant_table_hides_other_tenants_and_discovery_is_read_only_local() {
     let pool = PgPool::connect(&std::env::var("TEST_DATABASE_URL").unwrap())
         .await

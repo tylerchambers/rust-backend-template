@@ -1,3 +1,9 @@
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    reason = "Test setup and assertions must fail immediately on unexpected errors"
+)]
+
 use application::{IdentityRepository, Secrets};
 #[tokio::test]
 async fn identity_lifecycle_is_audited_without_credentials() {

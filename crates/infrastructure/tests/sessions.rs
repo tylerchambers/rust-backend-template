@@ -1,3 +1,9 @@
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    reason = "Test setup and assertions must fail immediately on unexpected errors"
+)]
+
 use application::{IdentityRepository, Secrets};
 use infrastructure::{Database, auth::SystemSecrets};
 use uuid::Uuid;
@@ -149,5 +155,8 @@ async fn targeted_revocation_is_owner_scoped_and_preserves_other_sessions() {
     .execute(&db.pool)
     .await
     .unwrap();
-    assert!(db.list_sessions(actor).await.unwrap().is_empty());
+    assert_eq!(
+        db.list_sessions(actor).await.unwrap(),
+        [] as [domain::SessionId; 0]
+    );
 }

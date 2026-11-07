@@ -1,4 +1,11 @@
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    reason = "Test setup and assertions must fail immediately on unexpected errors"
+)]
+
 use application::{Authentication, LoginMailer, Organizations, Projects};
+use application::{IdentityRepository, Secrets};
 use async_trait::async_trait;
 use axum::{body::Body, http::Request};
 use domain::Error;
@@ -12,6 +19,10 @@ impl LoginMailer for Mail {
     }
 }
 #[tokio::test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "One ordered integration journey retains shared state and security assertions"
+)]
 async fn scanner_get_does_not_authenticate_and_mutations_require_csrf() {
     let pool = sqlx::PgPool::connect(&std::env::var("TEST_DATABASE_URL").unwrap())
         .await
@@ -59,7 +70,6 @@ async fn scanner_get_does_not_authenticate_and_mutations_require_csrf() {
             1234,
         ),
     )));
-    use application::{IdentityRepository, Secrets};
     let login = infrastructure::auth::SystemSecrets.token();
     let session = infrastructure::auth::SystemSecrets.token();
     db.issue_login(&format!("{}@example.test", uuid::Uuid::now_v7()), &login)

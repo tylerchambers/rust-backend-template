@@ -25,6 +25,10 @@ pub struct RedisAdapters {
     metrics: Arc<Metrics>,
 }
 impl RedisAdapters {
+    /// Connect a namespaced optional cache and fail-closed limiter.
+    ///
+    /// # Errors
+    /// Returns `Invalid` for invalid namespace/URL and `Unavailable` for connection failure or timeout.
     pub async fn connect(url: &str, environment: &str) -> Result<Self, Error> {
         if environment.is_empty()
             || !environment
@@ -45,6 +49,11 @@ impl RedisAdapters {
             metrics: Arc::default(),
         })
     }
+    #[must_use]
+    #[expect(
+        clippy::cast_precision_loss,
+        reason = "Prometheus duration sums are approximate floating-point observations"
+    )]
     pub fn operational_metrics(&self) -> String {
         format!(
             "redis_requests_total {}\nredis_errors_total {}\nredis_operation_duration_seconds_sum {}\n",

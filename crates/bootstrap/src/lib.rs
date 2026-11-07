@@ -13,6 +13,10 @@ pub struct Config {
     capture: bool,
 }
 impl Config {
+    /// Validate the canonical public origin and mail mode.
+    ///
+    /// # Errors
+    /// Returns `Invalid` for unsupported or insecure configuration.
     pub fn validate(origin: &str, mail: &str, development: bool) -> Result<(), domain::Error> {
         let url = url::Url::parse(origin).map_err(|_| domain::Error::Invalid)?;
         if !matches!(mail, "smtp" | "capture")
@@ -82,6 +86,10 @@ fn logging() {
         .with_env_filter("bootstrap=info,api=info,infrastructure=info")
         .try_init();
 }
+#[expect(
+    clippy::expect_used,
+    reason = "Failure to install the OS shutdown handler is a fatal runtime defect"
+)]
 async fn shutdown() {
     #[cfg(unix)]
     {
@@ -101,6 +109,10 @@ async fn enforce_runtime_role(pool: &PgPool) -> InfraResult<()> {
     }
     Ok(())
 }
+/// Compose and serve the HTTP application until shutdown.
+///
+/// # Errors
+/// Propagates configuration, dependency, runtime-role, bind and serving failures.
 pub async fn server() -> InfraResult<()> {
     logging();
     let config = Config::load()?;
@@ -183,6 +195,10 @@ pub async fn server() -> InfraResult<()> {
     pool.close().await;
     Ok(())
 }
+/// Compose and run River workers until shutdown.
+///
+/// # Errors
+/// Propagates configuration, dependency, runtime-role and worker lifecycle failures.
 pub async fn worker() -> InfraResult<()> {
     logging();
     let config = Config::load()?;
@@ -195,6 +211,14 @@ pub async fn worker() -> InfraResult<()> {
     pool.close().await;
     Ok(())
 }
+#[expect(
+    clippy::print_stdout,
+    reason = "The openapi CLI command writes its requested document to stdout"
+)]
+/// Run the migration or contract-export command.
+///
+/// # Errors
+/// Rejects unknown commands; propagates database configuration and migration failures.
 pub async fn cli() -> InfraResult<()> {
     match std::env::args().nth(1).as_deref() {
         Some("openapi") => {

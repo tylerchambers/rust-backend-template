@@ -1,3 +1,6 @@
+[lints]
+workspace = true
+
 [package]
 name = "worker"
 version.workspace = true

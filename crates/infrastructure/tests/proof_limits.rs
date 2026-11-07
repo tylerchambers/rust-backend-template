@@ -1,3 +1,9 @@
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    reason = "Test setup and assertions must fail immediately on unexpected errors"
+)]
+
 use application::{IdentityRepository, Secrets, memberships::ReauthenticationRepository};
 #[tokio::test]
 async fn concurrent_fresh_email_requests_cannot_bypass_limit() {

@@ -41,6 +41,10 @@ impl Failure {
 }
 
 /// The adapter is the sole error-logging owner. HTTP exposes only Unavailable.
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "Consume the sensitive cause at its sole logging and sanitization boundary"
+)]
 pub(crate) fn unavailable(error: sqlx::Error, operation: &'static str) -> domain::Error {
     let category = Failure::classify(&error);
     tracing::error!(

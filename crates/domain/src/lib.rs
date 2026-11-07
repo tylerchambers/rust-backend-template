@@ -29,6 +29,10 @@ pub struct Project {
     pub archived: bool,
 }
 impl Project {
+    /// Create an active project at version one.
+    ///
+    /// # Errors
+    /// Returns `Invalid` when the name is empty, too long or contains control characters.
     pub fn new(
         id: ProjectId,
         organization_id: OrganizationId,
@@ -43,6 +47,10 @@ impl Project {
             archived: false,
         })
     }
+    /// Rename only at the expected version.
+    ///
+    /// # Errors
+    /// Returns `Conflict` for a stale or exhausted version and `Invalid` for an invalid name.
     pub fn rename(&mut self, expected: i64, name: String) -> Result<(), Error> {
         if self.version != expected {
             return Err(Error::Conflict);
@@ -53,6 +61,10 @@ impl Project {
         Ok(())
     }
 }
+/// Validate the shared organization/project name contract.
+///
+/// # Errors
+/// Returns `Invalid` for blank names, control characters or more than 120 characters.
 pub fn validate_name(name: &str) -> Result<(), Error> {
     if name.trim().is_empty() || name.chars().count() > 120 || name.chars().any(char::is_control) {
         Err(Error::Invalid)
@@ -77,6 +89,7 @@ pub enum Permission {
     ManageOwners,
 }
 impl Role {
+    #[must_use]
     pub fn allows(self, permission: Permission) -> bool {
         match permission {
             Permission::ReadProject => true,

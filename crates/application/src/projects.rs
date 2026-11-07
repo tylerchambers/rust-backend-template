@@ -68,6 +68,10 @@ pub struct Organizations {
     ids: Arc<dyn crate::IdGenerator>,
 }
 impl Organizations {
+    /// List one page of the authenticated actor's organizations.
+    ///
+    /// # Errors
+    /// Propagates invalid session and transaction errors.
     pub async fn list(
         &self,
         actor: &Actor,
@@ -81,6 +85,10 @@ impl Organizations {
         tx.commit().await?;
         Ok(rows)
     }
+    /// List one member page after checking current tenant membership.
+    ///
+    /// # Errors
+    /// Propagates session, membership and transaction errors.
     pub async fn members(
         &self,
         actor: &Actor,
@@ -96,6 +104,10 @@ impl Organizations {
     pub fn new(uow: Arc<dyn UnitOfWork>, ids: Arc<dyn crate::IdGenerator>) -> Self {
         Self { uow, ids }
     }
+    /// Create an organization, owner membership and audit record atomically.
+    ///
+    /// # Errors
+    /// Rejects invalid names or sessions; propagates transaction errors.
     pub async fn create(&self, actor: &Actor, name: String) -> Result<OrganizationId, Error> {
         validate_name(&name)?;
         let id = self.ids.organization();
@@ -122,6 +134,7 @@ impl Projects {
             cache: None,
         }
     }
+    #[must_use]
     pub fn with_cache(mut self, cache: Arc<dyn crate::optional::ProjectCache>) -> Self {
         self.cache = Some(cache);
         self
@@ -138,6 +151,10 @@ impl Projects {
         }
         Ok(tx)
     }
+    /// Create a project with an atomic audit record and durable change job.
+    ///
+    /// # Errors
+    /// Rejects invalid names or insufficient authority; propagates transaction errors.
     pub async fn create(
         &self,
         actor: &Actor,
@@ -158,6 +175,11 @@ impl Projects {
         }
         Ok(project)
     }
+    /// Rename a project with optimistic concurrency and atomic publication.
+    ///
+    /// # Errors
+    /// Rejects invalid names, missing projects, stale versions or insufficient authority;
+    /// propagates transaction errors. Cache invalidation is best effort.
     pub async fn rename(
         &self,
         actor: &Actor,
@@ -180,6 +202,10 @@ impl Projects {
         }
         Ok(project)
     }
+    /// List one project page after checking current tenant membership.
+    ///
+    /// # Errors
+    /// Propagates session, membership and transaction errors. Cache failures fall back to storage.
     pub async fn list(
         &self,
         actor: &Actor,

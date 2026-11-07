@@ -1,8 +1,1 @@
-   Compiling application v0.1.0 (/home/hermes/rust-backend-template/crates/application)
-   Compiling infrastructure v0.1.0 (/home/hermes/rust-backend-template/crates/infrastructure)
-   Compiling api v0.1.0 (/home/hermes/rust-backend-template/crates/api)
-   Compiling bootstrap v0.1.0 (/home/hermes/rust-backend-template/crates/bootstrap)
-   Compiling server v0.1.0 (/home/hermes/rust-backend-template/apps/server)
-   Compiling cli v0.1.0 (/home/hermes/rust-backend-template/apps/cli)
-   Compiling worker v0.1.0 (/home/hermes/rust-backend-template/apps/worker)
-    Finished `release` profile [optimized] target(s) in 8.17s
+    Finished `release` profile [optimized] target(s) in 0.07s

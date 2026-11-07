@@ -43,6 +43,10 @@ impl Reauthentication {
             secrets,
         }
     }
+    /// Issue and email a session/action/target-bound proof.
+    ///
+    /// # Errors
+    /// Propagates invalid action, stale session, rate-limit, storage and delivery errors.
     pub async fn request(
         &self,
         actor: &Actor,
@@ -122,6 +126,10 @@ impl Memberships {
     ) -> Self {
         Self { uow, ids, clock }
     }
+    /// Publish an invitation and its delivery job atomically.
+    ///
+    /// # Errors
+    /// Rejects invalid email, insufficient authority or invalid proof; propagates transaction errors.
     pub async fn invite(
         &self,
         actor: &Actor,
@@ -164,6 +172,10 @@ impl Memberships {
         tx.commit().await?;
         Ok(id)
     }
+    /// Consume an invitation with its audit record atomically.
+    ///
+    /// # Errors
+    /// Rejects invalid, expired or mismatched invitations; propagates session and transaction errors.
     pub async fn accept(
         &self,
         actor: &Actor,
@@ -178,6 +190,10 @@ impl Memberships {
             .await?;
         tx.commit().await
     }
+    /// Revoke an invitation under the organization lock.
+    ///
+    /// # Errors
+    /// Rejects insufficient authority or invalid proof; propagates lookup and transaction errors.
     pub async fn revoke_invitation(
         &self,
         actor: &Actor,
@@ -201,6 +217,10 @@ impl Memberships {
             .await?;
         tx.commit().await
     }
+    /// Remove a member without removing the last owner.
+    ///
+    /// # Errors
+    /// Rejects insufficient authority, invalid proof or last-owner removal; propagates transaction errors.
     pub async fn remove(
         &self,
         actor: &Actor,
@@ -229,6 +249,10 @@ impl Memberships {
             .await?;
         tx.commit().await
     }
+    /// Change a role and retire affected credentials atomically.
+    ///
+    /// # Errors
+    /// Rejects insufficient authority, invalid proof or last-owner demotion; propagates transaction errors.
     pub async fn change_role(
         &self,
         actor: &Actor,

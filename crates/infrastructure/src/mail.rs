@@ -27,6 +27,8 @@ impl SmtpMailer {
         Ok(())
     }
     /// Plain SMTP is restricted to an explicitly selected loopback capture endpoint.
+    /// # Errors
+    /// Returns `Invalid` for non-loopback capture hosts.
     pub fn local_capture(host: &str, port: u16, origin: &str) -> Result<Self, Error> {
         if !matches!(host, "127.0.0.1" | "localhost" | "::1") {
             return Err(Error::Invalid);
@@ -41,6 +43,8 @@ impl SmtpMailer {
         })
     }
     /// Production SMTP requires STARTTLS with certificate verification.
+    /// # Errors
+    /// Returns `Invalid` for invalid TLS configuration or a non-HTTPS public origin.
     pub fn production(
         host: &str,
         username: String,
@@ -50,6 +54,10 @@ impl SmtpMailer {
     ) -> Result<Self, Error> {
         Self::production_endpoint(host, 587, username, password, from, origin, None)
     }
+    /// Configure verified STARTTLS with an optional additional trust root.
+    ///
+    /// # Errors
+    /// Returns `Invalid` for invalid origin, host, certificate or TLS configuration.
     pub fn production_endpoint(
         host: &str,
         port: u16,

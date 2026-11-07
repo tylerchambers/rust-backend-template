@@ -2,7 +2,7 @@
 
 The live Notion hub and all eleven linked specification pages were read without modification and refreshed under `docs/spec/`. The current scope is email magic-link login and fresh, action-bound email proofs: one verified primary address, no passkeys, email changes, additional addresses or recovery. Notion ticket statuses are not implementation evidence.
 
-**Local verification:** `just check` completed all 24 gates successfully on the final code snapshot. `docs/evidence/results.json` records commands, durations and exits. Cargo reports 34 passing test results, including the subprocess entry helper and compile-fail typed-ID doctest; many integration tests contain multiple adversarial scenarios. Native and OCI HTTP, SDK and real Chromium journeys all passed. This is not independent acceptance or production certification.
+**Local verification:** `just check` completed all 23 top-level gates successfully on the lint-policy snapshot; the consolidated lint gate contains Rust/Ruff/Biome/dependency checks, and the new negative-control gate exercises rejection. See `docs/evidence/lint-policy.md`. `docs/evidence/results.json` records commands, durations and exits. Cargo reports 34 passing test results, including the subprocess entry helper and compile-fail typed-ID doctest; many integration tests contain multiple adversarial scenarios. Native and OCI HTTP, SDK and real Chromium journeys all passed. This is not independent acceptance or production certification.
 
 | Ticket | Requirement | Status | Executable evidence / qualification |
 |---|---|---|---|

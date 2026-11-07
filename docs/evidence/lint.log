@@ -1,0 +1,18 @@
++ uv sync --locked
+Resolved 2 packages in 0.64ms
+Checked 1 package in 0.02ms
++ bun install --frozen-lockfile
+bun install v1.4.4 (38afee6c8)
+
+Checked 46 installs across 76 packages (no changes) [1.00ms]
++ cargo fmt --all --check
++ /home/hermes/rust-backend-template/.venv/bin/ruff format --check scripts tests
+12 files already formatted
++ /home/hermes/rust-backend-template/.venv/bin/ruff check scripts tests
+All checks passed!
++ bun /home/hermes/rust-backend-template/sdk/node_modules/@biomejs/biome/bin/biome check --config-path /home/hermes/rust-backend-template --error-on-warnings sdk
+Checked 5 files in 3ms. No fixes applied.
++ cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.10s
++ /home/hermes/rust-backend-template/.local/tools/bin/cargo-deny --locked check --deny warnings
+advisories ok, bans ok, licenses ok, sources ok

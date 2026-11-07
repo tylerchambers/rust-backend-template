@@ -1,3 +1,9 @@
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    reason = "Test setup and assertions must fail immediately on unexpected errors"
+)]
+
 use infrastructure::{Database, migrate};
 use sqlx::postgres::PgPoolOptions;
 use uuid::Uuid;

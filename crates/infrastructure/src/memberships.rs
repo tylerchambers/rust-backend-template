@@ -11,6 +11,10 @@ fn storage(error: sqlx::Error) -> Error {
     crate::storage::unavailable(error, "memberships")
 }
 impl Database {
+    /// Replace the token hash only for a still-deliverable invitation.
+    ///
+    /// # Errors
+    /// Returns `Unavailable` on database failure. Missing or inactive invitations return `None`.
     pub async fn prepare_invitation_delivery(
         &self,
         org: Uuid,

@@ -1,3 +1,9 @@
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    reason = "Test setup and assertions must fail immediately on unexpected errors"
+)]
+
 use application::{
     IdentityRepository, Organizations, Secrets,
     memberships::{Memberships, ReauthenticationRepository},
@@ -13,6 +19,10 @@ impl application::Clock for FixedClock {
     }
 }
 #[tokio::test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "One ordered integration journey retains shared state and security assertions"
+)]
 async fn concurrent_invitation_acceptance_has_one_winner_and_is_email_bound() {
     let pool = sqlx::PgPool::connect(&std::env::var("TEST_DATABASE_URL").unwrap())
         .await

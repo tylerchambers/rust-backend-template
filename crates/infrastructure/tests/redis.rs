@@ -1,3 +1,9 @@
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    reason = "Test setup and assertions must fail immediately on unexpected errors"
+)]
+
 use application::optional::{ProjectCache, SecurityLimiter};
 use domain::Project;
 use infrastructure::redis::RedisAdapters;

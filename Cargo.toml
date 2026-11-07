@@ -7,6 +7,19 @@ version = "0.1.0"
 edition = "2024"
 publish = false
 
+# All first-party crates opt in with [lints] workspace = true.
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+unwrap_used = "warn"
+expect_used = "warn"
+dbg_macro = "warn"
+todo = "warn"
+print_stdout = "warn"
+
 [workspace.dependencies]
 domain = { path = "crates/domain" }
 application = { path = "crates/application" }

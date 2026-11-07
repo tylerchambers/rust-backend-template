@@ -1,3 +1,9 @@
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    reason = "Test setup and assertions must fail immediately on unexpected errors"
+)]
+
 use application::{Actor, IdGenerator, Projects, memberships::MembershipRepository, projects::*};
 use async_trait::async_trait;
 use domain::{Error, InvitationId, OrganizationId, Project, ProjectId, Role, UserId};
@@ -196,7 +202,7 @@ async fn memory_obeys_shared_project_contract() {
     let owner = actor();
     let org = Uuid::now_v7().into();
     let memory = Arc::new(Memory {
-        state: Default::default(),
+        state: Arc::default(),
         owner: owner.user_id,
         org,
         fail_audit: false,
@@ -217,7 +223,7 @@ async fn audit_failure_publishes_neither_project_nor_job() {
     let owner = actor();
     let org = Uuid::now_v7().into();
     let memory = Arc::new(Memory {
-        state: Default::default(),
+        state: Arc::default(),
         owner: owner.user_id,
         org,
         fail_audit: true,
@@ -229,6 +235,6 @@ async fn audit_failure_publishes_neither_project_nor_job() {
     ));
     let state = memory.state.lock().unwrap();
     assert!(state.projects.is_empty());
-    assert!(state.jobs.is_empty());
-    assert!(state.audits.is_empty());
+    assert_eq!(state.jobs, [] as [domain::ProjectId; 0]);
+    assert_eq!(state.audits, [] as [std::string::String; 0]);
 }

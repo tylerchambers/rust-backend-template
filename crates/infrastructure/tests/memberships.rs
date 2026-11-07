@@ -1,3 +1,9 @@
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    reason = "Test setup and assertions must fail immediately on unexpected errors"
+)]
+
 use application::{
     Actor, IdentityRepository, Organizations, Secrets,
     memberships::{Memberships, ReauthenticationRepository},
@@ -7,6 +13,10 @@ use infrastructure::{Database, auth::SystemSecrets};
 use std::sync::Arc;
 use uuid::Uuid;
 #[tokio::test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "One ordered integration journey retains shared state and security assertions"
+)]
 async fn bound_proof_is_single_use_and_last_owner_is_guarded() {
     let pool = sqlx::PgPool::connect(&std::env::var("TEST_DATABASE_URL").unwrap())
         .await

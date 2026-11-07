@@ -27,6 +27,7 @@ struct HttpMetrics {
     authorization_denials: AtomicU64,
 }
 
+use tracing::Instrument;
 use utoipa::{OpenApi, ToSchema};
 use uuid::Uuid;
 
@@ -115,6 +116,14 @@ async fn actor(state: &State, headers: &HeaderMap) -> Result<Actor, ApiError> {
         .ok_or(Error::Unavailable)?;
     Ok(actor)
 }
+#[expect(
+    clippy::too_many_lines,
+    reason = "Keep ordered request and response security policy together"
+)]
+#[expect(
+    clippy::expect_used,
+    reason = "UUID display is always a valid ASCII header value"
+)]
 async fn security(Extract(state): Extract<State>, mut request: Request, next: Next) -> Response {
     let request_id = Uuid::now_v7();
     request.headers_mut().insert(
@@ -139,11 +148,9 @@ async fn security(Extract(state): Extract<State>, mut request: Request, next: Ne
     let route = request
         .extensions()
         .get::<axum::extract::MatchedPath>()
-        .map(|p| p.as_str())
-        .unwrap_or("unmatched")
+        .map_or("unmatched", axum::extract::MatchedPath::as_str)
         .to_owned();
     let start = std::time::Instant::now();
-    use tracing::Instrument;
     let span = tracing::info_span!("http", %request_id, route);
     let admission = if !csrf_denied
         && request.method() == axum::http::Method::POST
@@ -217,20 +224,23 @@ async fn security(Extract(state): Extract<State>, mut request: Request, next: Ne
             .authorization_denials
             .fetch_add(1, Ordering::Relaxed);
     }
-    tracing::info!(operation="http.request",%request_id,route,status=response.status().as_u16(),duration_ms=start.elapsed().as_millis() as u64);
+    tracing::info!(operation="http.request",%request_id,route,status=response.status().as_u16(),duration_ms=u64::try_from(start.elapsed().as_millis()).unwrap_or(u64::MAX));
     response.headers_mut().insert(
         "x-request-id",
         request_id.to_string().parse().expect("UUID header"),
     );
-    response
-        .headers_mut()
-        .insert(header::CACHE_CONTROL, "no-store".parse().unwrap());
-    response
-        .headers_mut()
-        .insert("referrer-policy", "no-referrer".parse().unwrap());
-    response
-        .headers_mut()
-        .insert("x-content-type-options", "nosniff".parse().unwrap());
+    response.headers_mut().insert(
+        header::CACHE_CONTROL,
+        axum::http::HeaderValue::from_static("no-store"),
+    );
+    response.headers_mut().insert(
+        "referrer-policy",
+        axum::http::HeaderValue::from_static("no-referrer"),
+    );
+    response.headers_mut().insert(
+        "x-content-type-options",
+        axum::http::HeaderValue::from_static("nosniff"),
+    );
     response
 }
 #[derive(Deserialize, ToSchema)]
@@ -503,11 +513,24 @@ async fn list_members(
     ))
 )]
 pub struct Contract;
+#[must_use]
+/// Serialize the statically derived API contract.
+///
+/// # Panics
+/// Panics if the derived contract cannot be serialized, indicating a schema defect.
+#[expect(
+    clippy::expect_used,
+    reason = "Serialization failure of the static contract is a programmer defect"
+)]
 pub fn openapi() -> String {
     Contract::openapi()
         .to_pretty_json()
         .expect("serializable contract")
 }
+#[expect(
+    clippy::cast_precision_loss,
+    reason = "Prometheus duration sums are approximate floating-point observations"
+)]
 async fn http_metrics(Extract(state): Extract<State>) -> String {
     format!(
         "http_request_duration_seconds_sum {}\nauthentication_rate_limited_total {}\nhttp_requests_total {}\nauthentication_denials_total {}\nauthorization_denials_total {}\n",

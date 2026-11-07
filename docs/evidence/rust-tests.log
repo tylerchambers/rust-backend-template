@@ -1,10 +1,4 @@
-   Compiling infrastructure v0.1.0 (/home/hermes/rust-backend-template/crates/infrastructure)
-   Compiling api v0.1.0 (/home/hermes/rust-backend-template/crates/api)
-   Compiling bootstrap v0.1.0 (/home/hermes/rust-backend-template/crates/bootstrap)
-   Compiling cli v0.1.0 (/home/hermes/rust-backend-template/apps/cli)
-   Compiling worker v0.1.0 (/home/hermes/rust-backend-template/apps/worker)
-   Compiling server v0.1.0 (/home/hermes/rust-backend-template/apps/server)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.76s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.07s
      Running unittests src/lib.rs (target/debug/deps/api-a2a032c246acd23c)
 
 running 0 tests
@@ -16,7 +10,7 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 running 1 test
 test scanner_get_does_not_authenticate_and_mutations_require_csrf ... ok
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.48s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.49s
 
      Running unittests src/lib.rs (target/debug/deps/application-9eb61f9bf7f23034)
 
@@ -116,7 +110,7 @@ running 1 test
 running 1 test
 test river_worker_updates_projection_and_runs_scheduled_cleanup ... ok
 
-test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 49.87s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 50.41s
 
      Running tests/mail.rs (target/debug/deps/mail-749f297266187488)
 
@@ -158,21 +152,21 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 running 1 test
 test project_policy_concurrency_and_organization_atomicity ... ok
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
 
      Running tests/proof_binding.rs (target/debug/deps/proof_binding-71930c074f5154bf)
 
 running 1 test
 test fresh_proof_rejects_live_wrong_user_session_action_target_tenant_expiry_and_replay ... ok
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
 
      Running tests/proof_limits.rs (target/debug/deps/proof_limits-9253d033ab3bf05e)
 
 running 1 test
 test concurrent_fresh_email_requests_cannot_bypass_limit ... ok
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.34s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.33s
 
      Running tests/readiness.rs (target/debug/deps/readiness-fb8108652e7b382c)
 
@@ -207,13 +201,13 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 running 1 test
 test expiry_limits_and_hashed_storage_are_enforced ... ok
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
 
      Running tests/sessions.rs (target/debug/deps/sessions-bd14b2db40a597e2)
 
 running 4 tests
-test confirmation_replays_share_a_mailbox_budget ... ok
 test rotation_retires_old_token_and_account_revocation_retires_all ... ok
+test confirmation_replays_share_a_mailbox_budget ... ok
 test targeted_revocation_is_owner_scoped_and_preserves_other_sessions ... ok
 test logout_waiting_on_rotation_retires_replacement ... ok
 
@@ -238,7 +232,7 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 running 1 test
 test project_and_river_enqueue_share_commit_and_rollback ... ok
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
 
      Running unittests src/main.rs (target/debug/deps/server-616ed8f2f4e46610)
 
@@ -275,7 +269,7 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 running 1 test
 test crates/domain/src/ids.rs - ids::_ (line 35) - compile fail ... ok
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
 
    Doc-tests infrastructure
 

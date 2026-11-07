@@ -1,6 +1,6 @@
-eee2d80d25d8d4769fd53fbea6756ac704fd9b144ae727caabbb29fb93b32978
-378bc329e7329edb8b9a19bf3ab8f9baa4286be0c62fbf1eb776304c8a540470
-3dcb21d6b8f058b78030e1db80c02ed3b8a757202bc77f4dd80cb5f3012714cb
+cc727e560f7c56d24e65dc8889c5ce3c4955c63a337fe6b6a453cd75898fee6a
+21e6cd18c21121bed574427f49813c621cbed187d9ddf5d68f0349da600ece6b
+abb9df9e787079646f83c9811d71f9d4363477246da1171fa3dbd85fd2b9b4c6
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.08s
      Running `target/debug/cli migrate`
 ALTER ROLE
