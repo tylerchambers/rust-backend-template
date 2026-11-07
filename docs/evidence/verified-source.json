@@ -1,12 +1,12 @@
 {
-  "scope": "Index-listed nondocumentation files after passing full gate; .gitattributes added only to preserve raw log EOF whitespace",
-  "aggregate_sha256": "40e0b9355b82e97d91a8c695082d546925e3bc11ad8522c8f58259a665f16e99",
+  "scope": "Index-listed nondocumentation files after passing full gate; post-gate changes only ignore/whitespace metadata and removal of generated Python bytecode",
+  "aggregate_sha256": "ef47541468d038d71674a0d406824bb61eeabad79b6069499dcdd0b164551eaa",
   "files": {
     ".cargo/config.toml": "4d3ceb9617bcf268f886a33a01c8d446f6263b19bc9fe71c75b9cd32c3418c88",
     ".dockerignore": "e37f31dd89e813ffb0eebacefd6ff45f4b31ca21bcb94d4e7fc05485922d79be",
     ".forgejo/workflows/check.yaml": "dab04ae556b021a4946e203beaed6246363f28d6be85cf4e0d02115c93a15706",
     ".gitattributes": "d85e9b5c0797fd56fcd567f7699bde0ef27612067f2cdeedc3697a53cf1928de",
-    ".gitignore": "145a488e1b2067c3fa78f2939631d91955e7566ded5bf814a5e25a15fc4b8bde",
+    ".gitignore": "61c40384eecf8ff627c25ddb9d09b974e050ed5f47a64e69ebe27616b6657eec",
     ".sqlx/query-36338c26970a756ae0993b8bd16d42f03e10af5bc8df5ca4e2b34d0609fbd280.json": "4f28c2da08f3e02ff1dadd6e5404b3876637ff8e9f0dba57f7ffbbd327d2c6a8",
     ".sqlx/query-9ed8bb2e259625bae39e01e48a284e40ed5787d7ceb2011065533db1b5c5b98f.json": "b0b3128162523230d8540675c8a8b11117d030d8de6982024e896d0d472775a0",
     ".sqlx/query-ad75823391e82bb8041d1b28d37f63391d3f438bf4ddcd688b3328a299a0fc92.json": "f9d8c4b9b77c7a1a59dad7be425d8bcb180765a76b4a69f95d01c2b5fccebc20",
@@ -79,7 +79,6 @@
     "migrations/202611070009_correlation.sql": "ddb85ce62d9e30646f3e00ec7efc068857067ab017a0d43e9a3c77084f2e6276",
     "openapi.json": "1b9bae7ca17bd903c474a8bd13337f63c55620eb4b5db346c1d33b25bc99803a",
     "rust-toolchain.toml": "b9c8d2d59f6f46474c0cfa0b8b77bea21d94fc73a30ad93d5bf6385c422197d2",
-    "scripts/__pycache__/preflight.cpython-314.pyc": "4b835d93461c5deb7df4bed8a53980172aaff952d13af1ac63f89cfa576719b2",
     "scripts/architecture.py": "d7270192afc129f8bd9dcce6322ee528234c7a820570b31bcd76512ecc7d482d",
     "scripts/dependencies.py": "7345465970aa11ee26d1453791899cf498e1fba95ed579403d84cc520daff7bf",
     "scripts/dev.py": "0e1a92a952f9e3fa49718d35e9e256648b607b61f0592d537c51991d7396449f",
