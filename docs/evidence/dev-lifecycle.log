@@ -1,0 +1,1 @@
+PASS: active API and worker are reaped on terminal-group SIGINT and SIGTERM

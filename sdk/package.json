@@ -1,0 +1,26 @@
+{
+  "name": "rust-backend-template-sdk",
+  "private": true,
+  "type": "module",
+  "packageManager": "bun@1.4.4",
+  "scripts": {
+    "generate": "bun generate.ts",
+    "check": "bun node_modules/typescript/bin/tsc --noEmit",
+    "test": "bun test"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "openapi-fetch": "0.17.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.6.6",
+    "@types/bun": "1.4.4",
+    "openapi-typescript": "7.13.0",
+    "playwright": "1.61.1",
+    "typescript": "7.0.2",
+    "typescript-compat": "npm:typescript@6.0.3",
+    "zod": "4.6.7"
+  }
+}

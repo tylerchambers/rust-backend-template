@@ -1,0 +1,2 @@
+# Intentionally use stable rustfmt defaults from rust-toolchain.toml.
+# Keep this file so parent-directory configuration cannot change project style.

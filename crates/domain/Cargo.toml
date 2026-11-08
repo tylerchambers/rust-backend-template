@@ -1,0 +1,13 @@
+[lints]
+workspace = true
+
+[package]
+name = "domain"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+serde.workspace = true
+uuid.workspace = true
+thiserror.workspace = true

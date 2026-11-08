@@ -1,0 +1,11 @@
+   Compiling domain v0.1.0 (/home/hermes/rust-backend-template/crates/domain)
+   Compiling application v0.1.0 (/home/hermes/rust-backend-template/crates/application)
+   Compiling infrastructure v0.1.0 (/home/hermes/rust-backend-template/crates/infrastructure)
+error[E0599]: no method named `operational_metrics` found for struct `RedisAdapters` in the current scope
+  --> crates/infrastructure/tests/redis.rs:29:25
+   |
+29 |     let metrics = redis.operational_metrics();
+   |                         ^^^^^^^^^^^^^^^^^^^ method not found in `RedisAdapters`
+
+For more information about this error, try `rustc --explain E0599`.
+error: could not compile `infrastructure` (test "redis") due to 1 previous error

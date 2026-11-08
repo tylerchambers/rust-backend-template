@@ -1,0 +1,36 @@
+   Compiling tracing v0.1.44
+   Compiling tokio-rustls v0.26.6
+   Compiling application v0.1.0 (/home/hermes/rust-backend-template/crates/application)
+   Compiling tracing-serde v0.2.0
+   Compiling sqlx-core v0.9.0
+   Compiling tracing-subscriber v0.3.23
+   Compiling lettre v0.11.23
+   Compiling sqlx-postgres v0.9.0
+   Compiling sqlx-macros-core v0.9.0
+   Compiling sqlx-macros v0.9.0
+   Compiling sqlx v0.9.0
+   Compiling riverqueue-migrate v0.6.0
+   Compiling jiff-sqlx v0.2.1
+   Compiling riverqueue v0.6.0
+   Compiling infrastructure v0.1.0 (/home/hermes/rust-backend-template/crates/infrastructure)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 10.17s
+     Running tests/storage_errors.rs (target/debug/deps/storage_errors-1af9dfff0694e820)
+
+running 1 test
+test storage_failure_is_categorized_without_token_or_cause_leakage ... FAILED
+
+failures:
+
+---- storage_failure_is_categorized_without_token_or_cause_leakage stdout ----
+
+thread 'storage_failure_is_categorized_without_token_or_cause_leakage' (1917356) panicked at crates/infrastructure/tests/storage_errors.rs:19:5:
+missing safe storage category:
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    storage_failure_is_categorized_without_token_or_cause_leakage
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p infrastructure --test storage_errors`

@@ -1,0 +1,23 @@
+   Compiling infrastructure v0.1.0 (/home/hermes/rust-backend-template/crates/infrastructure)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.63s
+     Running tests/invitations.rs (target/debug/deps/invitations-de131d2403ec048f)
+
+running 1 test
+test concurrent_invitation_acceptance_has_one_winner_and_is_email_bound ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+
+     Running tests/projects.rs (target/debug/deps/projects-b6b8adfaca784931)
+
+running 1 test
+test project_policy_concurrency_and_organization_atomicity ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running tests/readiness.rs (target/debug/deps/readiness-c7fa990b33bddb1e)
+
+running 1 test
+test readiness_tracks_database_availability ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+

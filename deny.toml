@@ -1,0 +1,49 @@
+# All workspace roots, dev dependencies and target-specific lockfile dependencies.
+[graph]
+all-features = true
+
+[advisories]
+db-path = ".local/advisory-dbs"
+db-urls = ["https://github.com/rustsec/advisory-db"]
+ignore = []
+unmaintained = "all"
+unsound = "all"
+yanked = "deny"
+
+[licenses]
+confidence-threshold = 0.95
+allow = ["MIT", "Apache-2.0", "BSD-3-Clause", "ISC", "Unicode-3.0", "Zlib", "0BSD", "BSL-1.0", "CDLA-Permissive-2.0"]
+# Only these existing file-level-copyleft dependencies are accepted; not all MPL crates.
+exceptions = [
+    { crate = "riverqueue@0.6.0", allow = ["MPL-2.0"] },
+    { crate = "riverqueue-macros@0.6.0", allow = ["MPL-2.0"] },
+    { crate = "riverqueue-migrate@0.6.0", allow = ["MPL-2.0"] },
+]
+
+[licenses.private]
+# No public license has been selected for our publish=false workspace crates.
+ignore = true
+
+[bans]
+multiple-versions = "deny"
+wildcards = "deny"
+allow-wildcard-paths = true
+# Version-specific upstream incompatibilities; review on lockfile upgrades.
+skip = [
+    { crate = "base64@0.22.1", reason = "SQLx 0.9 uses 0.22; lettre and River use 0.23" },
+    { crate = "block-buffer@0.10.4", reason = "SQLx core SHA-2 0.10 and PostgreSQL SHA-2 0.11 require different crypto generations" },
+    { crate = "cpufeatures@0.2.17", reason = "SQLx SHA-2 0.10 versus current SHA-2/rand" },
+    { crate = "crypto-common@0.1.6", reason = "SQLx core versus PostgreSQL crypto generations" },
+    { crate = "digest@0.10.7", reason = "SQLx core versus PostgreSQL crypto generations" },
+    { crate = "getrandom@0.2.17", reason = "ring 0.17 versus rand 0.10" },
+    { crate = "hashbrown@0.16.1", reason = "SQLx hashlink versus current indexmap" },
+    { crate = "sha2@0.10.9", reason = "SQLx core still requires 0.10; application/River/PostgreSQL use 0.11" },
+    { crate = "syn@2.0.119", reason = "SQLx/tracing/utoipa macros versus current derive ecosystem" },
+    { crate = "windows-sys@0.52.0", reason = "ring 0.17 versus Tokio and current platform adapters" },
+]
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []

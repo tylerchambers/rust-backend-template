@@ -1,0 +1,54 @@
+# Acceptance ledger
+
+The live Notion hub and all eleven linked specification pages were read without modification and refreshed under `docs/spec/`. The current scope is email magic-link login and fresh, action-bound email proofs: one verified primary address, no passkeys, email changes, additional addresses or recovery. Notion ticket statuses are not implementation evidence.
+
+**Local verification:** `just check` completed all 23 top-level gates successfully on the lint-policy snapshot; the consolidated lint gate contains Rust/Ruff/Biome/dependency checks, and the new negative-control gate exercises rejection. See `docs/evidence/lint-policy.md`. `docs/evidence/results.json` records commands, durations and exits. Cargo reports 34 passing test results, including the subprocess entry helper and compile-fail typed-ID doctest; many integration tests contain multiple adversarial scenarios. Native and OCI HTTP, SDK and real Chromium journeys all passed. This is not independent acceptance or production certification.
+
+| Ticket | Requirement | Status | Executable evidence / qualification |
+|---|---|---|---|
+| ACL-01 | Permission vocabulary and evaluator | Locally verified | `domain/tests/permissions.rs`: deny-by-default role matrix; project and membership service policy tests. |
+| ACL-02 | Atomic organization creation | Locally verified | `infrastructure/tests/projects.rs`: organization/owner membership, forced failure rollback and injected identity. |
+| ACL-03 | Invitation and membership lifecycle | Locally verified | `invitations.rs`, `memberships.rs`, `proof_binding.rs`; HTTP invitation acceptance, email binding, replay and removal. |
+| ACL-04 | Tenant switching and fresh authority | Locally verified | Native/OCI HTTP cross-tenant reads/writes, paginated organization/member discovery and immediate membership revocation; transaction-time authority checks. |
+| AUTH-01 | Magic-link registration and login | Locally verified | `auth.rs`, `security.rs`, API tests and native/OCI Chromium: inert GET, explicit CSRF POST, first/returning identity, expiry/replay, source limits, rejected redirect field, capture mail and verified STARTTLS test peer. No redirect feature is exposed. |
+| AUTH-02 | Server-side sessions | Locally verified | `sessions.rs`, `owner_race.rs`, `security.rs`, HTTP: lock-observed logout/rotation race, delayed-cookie replay, privilege-change retirement, idle/absolute expiry, account/owner-scoped targeted revocation, Secure HttpOnly cookie and CSRF. |
+| AUTH-03 | Fresh action-bound email proof | Locally verified | `proof_binding.rs` uses live authorized alternate users/sessions to reject wrong user/session/action/target/tenant, expiry and replay. `proof_limits.rs` races issuance. Native/OCI Chromium proves inert proof GET, explicit confirmation, CSRF enforcement and one-use privileged POST. |
+| AUTH-04 | Single verified primary identity | Locally verified | Concurrent first-login uniqueness, returning identity, disabled users and hashed storage; `audit.rs` excludes credential material. Excluded account-change/recovery features are absent. |
+| OPS-01 | Layered real-service test harness | Locally verified | `scripts/verify.py`: fresh disposable dependencies, Rust/HTTP/SDK/browser/native/OCI gates; fixtures seeded twice. Tests use actual PostgreSQL/Redis/SMTP capture. The application project suite additionally uses a transactional in-memory fake and runs the same observable contract as PostgreSQL; audit-failure rollback is checked without infrastructure. |
+| OPS-02 | Adversarial security | Locally verified | Tenant/RLS, proof-binding, authentication-limit, CSRF/origin, malformed-input, concurrency and secret-redaction cases; native/OCI tests. This is bounded regression coverage, not a security audit. |
+| OPS-03 | Observability and lifecycle | Locally verified | `observability.py` joins real HTTP/job request IDs and scans logs; readiness/Redis/API tests assert pool, queue lag/retries, HTTP duration/rate-limit and Redis error/duration metrics. `dev_lifecycle.py` verifies terminal-group SIGINT/SIGTERM cleanup. |
+| OPS-04 | OCI and deployment example | Locally verified; example not deployed | OCI build plus identical HTTP/SDK/Chromium/telemetry gates; nonroot read-only runtime, pinned images, Rust/Bun audits. `deploy/compose.yaml` and operations runbook document external infrastructure and rollback. No production deployment performed. |
+| OPS-05 | Independent release gate/onboarding | Pending independent acceptance | README, contribution protocol, just recipes and workflow are present; local fresh-dependency gate passes. Parent must reproduce a fresh checkout. Forgejo Actions is disabled; hosted CI has not run and no runner/service was installed. |
+| ARC-01 | Workspace/toolchain | Locally verified | Locked offline workspace tests, Clippy, release build; architecture graph check; `just dev` lifecycle tests. Exact installed current stable toolchain is pinned, not an old MSRV. Environment deviation below remains disclosed. |
+| ARC-02 | Composition, typed contracts/errors | Locally verified | Typed entity IDs with compile-fail noninterchangeability; injected fixed ID/clock tests; production config rejection and stable HTTP error envelopes. Database time remains authoritative for security expiry/consumption. |
+| ARC-03 | Architecture fitness | Locally verified | `scripts/architecture.py` checks Cargo edges and rejects deliberate SQLx and HTTP-framework domain mutations; HTTP SQL exclusion. `architecture-red.log` preserves the missing HTTP-edge guard regression. |
+| ARC-04 | ADR/contribution protocol | Documented; independent use pending | `docs/adr-001.md`, `CONTRIBUTING.md`: narrow ports/UoW, ownership, verification and honest evidence. Independent workflow acceptance belongs to OPS-05. |
+| JOB-01 | Official River and transactional enqueue | Locally verified | `transaction.rs`: business/enqueue commit and rollback; `jobs.rs`: real worker SIGKILL, stale-attempt rescue by River and successful restart. No custom queue state machine. |
+| JOB-02 | Invitation delivery and retries | Locally verified with SMTP limitation | Real capture delivery and bounded failure-to-discard assertions; terminal errors/metrics observable. Ordinary SMTP has no provider idempotency key: crash-after-send can redeliver. No exactly-once email claim. |
+| JOB-03 | Optional Redis | Locally verified | `redis.rs`: tenant keys, TTL, unavailable cache miss, fail-closed security limiter and command-error metrics; normal API acceptance runs with Redis disabled. |
+| JOB-04 | Periodic work and recovery | Locally verified | Leader-scheduled cleanup, actual worker crash/rescue, terminal retries and controlled shutdown. Tests accelerate only persisted schedule/attempt timestamps; River executes transitions. |
+| API-01 | Axum boundary | Locally verified | Architecture gate and native/OCI malformed JSON/UUID, CSRF and origin/error tests; no SQL in handlers. |
+| API-02 | OpenAPI/generated SDK | Locally verified | Committed contract generated from route metadata; verifier checks drift, regenerates SDK and checks TypeScript, then executes SDK against native/OCI APIs. |
+| API-03 | Identity/organization endpoints | Locally verified | Native/OCI HTTP and SDK journeys cover authentication, organization creation, authorization, invitations and revocation. |
+| API-04 | Project vertical slice | Locally verified | Real create/list/update, 51-project HTTP traversal with UUID keyset cursor, validation, optimistic conflict, wrong-tenant rejection and atomic durable change job/projection. |
+| DB-01 | Migration pipeline | Locally verified | Fresh database, migration checksum mutation rejection, SQLx offline build and real two-revision upgrade. |
+| DB-02 | Identity/tenancy schema | Locally verified | Uniqueness/FKs, first-login/invitation races, last-owner protection, repeated seeds. Closed roles and a single primary email deliberately avoid configurable permission/multiple-email tables; ADR records the choice. |
+| DB-03 | Transaction-local RLS | Locally verified | `rls.rs`: actual nonowner NOBYPASSRLS role, missing-context/cross-tenant SELECT/INSERT/UPDATE/DELETE rejection and transaction/pool context isolation. |
+| DB-04 | Narrow UoW/repository transactions | Locally verified | Atomic project/audit/job writes, rollback, locked membership policy and optimistic conflict tests; ADR explains the transaction-lifetime design. |
+| DB-05 | Concurrency and evolution | Locally verified | Lost-update rejection; `revision_compatibility.py` builds baseline `1b266ba502ae8e207a667aa27681913264341ec6` and current executables in separate target directories, creates live old-schema state, upgrades and exercises both binaries. |
+
+## Independent review resolution
+
+`docs/evidence/review-resolution.md` records every finding from the earlier dirty-base review, reproducible RED/GREEN evidence and the final full-gate result. Local fixes do not substitute for the parent's pending clean-checkout qualification or hosted CI.
+
+## Evidence interpretation
+
+- Final gate results are `docs/evidence/results.json` and its named logs. Earlier `*-red.log` files intentionally contain failing regression/compiler output; targeted older green logs do not supersede the final gate.
+- Application migrations 9 (correlation) and 10 (SELECT-only self-discovery policies) are expand-only. The compatibility claim is this recorded adjacent revision and live fixture, not arbitrary historical downgrade safety.
+- JSON spans are correlated locally; no collector/export deployment is claimed. Queue retry metrics describe persisted attempts, not a complete historical counter after retention.
+- SMTP STARTTLS uses a real isolated TLS peer and trusted test CA plus untrusted-certificate rejection. No external mailbox or real-provider delivery was attempted.
+- `postgres-readiness-repro.log` proves an official-image startup race: the temporary Unix-socket bootstrap server is ready while TCP refuses. Dependency and revision readiness probes now explicitly use TCP.
+
+## Environment deviation
+
+The previous worker's first cargo invocation automatically installed exact Rust 1.99.1 through rustup because only the stable alias was installed. This was unintended under the earlier instruction and was not hidden. The user subsequently clarified that Rust toolchain installation is allowed; it is not a remaining blocker. Subsequent preflight explicitly refuses implicit toolchain installation; optional tooling and dependencies are checkout/container scoped. No host service, production deployment, external real email or Notion edit was performed.

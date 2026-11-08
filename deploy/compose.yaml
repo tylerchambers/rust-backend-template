@@ -1,0 +1,41 @@
+# Example only: local verification never starts these production services.
+# BACKEND_IMAGE must be a reviewed digest; supply secrets outside Git.
+services:
+  migrate:
+    image: ${BACKEND_IMAGE:?set reviewed image digest}
+    entrypoint: [/usr/local/bin/cli, migrate]
+    environment:
+      DATABASE_URL: ${MIGRATION_DATABASE_URL:?separate deployment credential required}
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    restart: "no"
+  api:
+    image: ${BACKEND_IMAGE:?set reviewed image digest}
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+    environment: &runtime
+      DATABASE_URL: ${DATABASE_URL:?nonowner NOBYPASSRLS runtime credential required}
+      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:?canonical HTTPS origin required}
+      BIND_ADDRESS: 0.0.0.0:8080
+      ENVIRONMENT: production
+      MAIL_MODE: smtp
+      SMTP_HOST: ${SMTP_HOST:?required}
+      SMTP_USERNAME: ${SMTP_USERNAME:?required}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:?required}
+      SMTP_FROM: ${SMTP_FROM:?required}
+    ports: ["127.0.0.1:8080:8080"]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    stop_grace_period: 30s
+  worker:
+    image: ${BACKEND_IMAGE:?set reviewed image digest}
+    entrypoint: [/usr/local/bin/worker]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+    environment: *runtime
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    stop_grace_period: 30s

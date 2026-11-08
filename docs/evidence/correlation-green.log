@@ -1,0 +1,10 @@
+   Compiling infrastructure v0.1.0 (/home/hermes/rust-backend-template/crates/infrastructure)
+   Compiling application v0.1.0 (/home/hermes/rust-backend-template/crates/application)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.91s
+     Running tests/projects.rs (target/debug/deps/projects-b6b8adfaca784931)
+
+running 1 test
+test project_policy_concurrency_and_organization_atomicity ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+

@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE projects SET name=$1,version=$2,archived=$3 WHERE id=$4 AND organization_id=$5 AND version=$6",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8",
+        "Bool",
+        "Uuid",
+        "Uuid",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "36338c26970a756ae0993b8bd16d42f03e10af5bc8df5ca4e2b34d0609fbd280"
+}
