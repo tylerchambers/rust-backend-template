@@ -73,6 +73,7 @@ def ready():
 def acceptance(prefix):
     ready()
     run(prefix + "-http", ["python3", "tests/http_acceptance.py"])
+    run(prefix + "-metrics", [str(ROOT / ".venv/bin/python"), "tests/metrics.py"])
     run(prefix + "-sdk", ["bun", "test"], ROOT / "sdk")
     run(
         prefix + "-browser",

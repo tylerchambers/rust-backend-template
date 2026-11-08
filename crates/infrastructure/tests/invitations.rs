@@ -58,7 +58,13 @@ async fn concurrent_invitation_acceptance_has_one_winner_and_is_email_bound() {
         .await
         .unwrap();
     let invitation = service
-        .invite(&actors[0], org, &emails[1], Role::Member, &proof)
+        .invite(
+            &actors[0],
+            org,
+            &format!(" {} ", emails[1].to_ascii_uppercase()),
+            Role::Member,
+            &proof,
+        )
         .await
         .unwrap();
     let expires_at: chrono::DateTime<chrono::Utc> =

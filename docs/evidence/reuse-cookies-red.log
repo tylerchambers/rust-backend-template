@@ -1,0 +1,25 @@
+   Compiling infrastructure v0.1.0 (/home/hermes/rust-backend-template-library-reuse/crates/infrastructure)
+   Compiling api v0.1.0 (/home/hermes/rust-backend-template-library-reuse/crates/api)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.72s
+     Running tests/http.rs (target/debug/deps/http-66774cbe02c04d4b)
+
+running 1 test
+test scanner_get_does_not_authenticate_and_mutations_require_csrf ... FAILED
+
+failures:
+
+---- scanner_get_does_not_authenticate_and_mutations_require_csrf stdout ----
+
+thread 'scanner_get_does_not_authenticate_and_mutations_require_csrf' (2101655) panicked at crates/api/tests/http.rs:112:9:
+assertion `left == right` failed: ambiguous session cookies must not authenticate
+  left: 200
+ right: 401
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    scanner_get_does_not_authenticate_and_mutations_require_csrf
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+error: test failed, to rerun pass `-p api --test http`

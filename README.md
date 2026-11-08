@@ -80,7 +80,7 @@ version-specific dependency exceptions. This does **not** choose our project lic
 - `just deps`, `just seed`, `just down` manage only checkout-owned fixtures.
 - `compose.yaml` describes development dependencies; the tested Podman launcher also configures the local STARTTLS peer. `deploy/compose.yaml` is an unexecuted production wiring example, not a deployment.
 
-See [architecture and tradeoffs](docs/adr-001.md), [operations](docs/operations.md), [contribution protocol](CONTRIBUTING.md), [acceptance](docs/acceptance.md) and [handoff](docs/evidence/handoff.md).
+See [architecture and tradeoffs](docs/adr-001.md), [library reuse decisions and acceptance](docs/adr-002-library-reuse.md), [operations](docs/operations.md), [contribution protocol](CONTRIBUTING.md), [acceptance](docs/acceptance.md) and [handoff](docs/evidence/handoff.md).
 
 ## Trust and scope
 

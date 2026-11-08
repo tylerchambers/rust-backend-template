@@ -1,3 +1,16 @@
+#[cfg(test)]
+mod row_tests {
+    #[tokio::test]
+    #[allow(clippy::unwrap_used, reason = "Test setup must fail immediately")]
+    async fn malformed_project_rows_return_decode_errors() {
+        let pool = sqlx::PgPool::connect(&std::env::var("TEST_DATABASE_URL").unwrap())
+            .await
+            .unwrap();
+        let result = sqlx::query_as::<_, super::ProjectRow>("SELECT 'not-a-uuid'::text AS id, gen_random_uuid() AS organization_id, 'name'::text AS name, 1::bigint AS version, false AS archived").fetch_one(&pool).await;
+        assert!(matches!(result, Err(sqlx::Error::ColumnDecode { .. })));
+    }
+}
+
 use crate::Database;
 use application::{
     Actor,
@@ -6,7 +19,7 @@ use application::{
 use async_trait::async_trait;
 use domain::{Error, Project, Role};
 use domain::{OrganizationId, ProjectId, UserId};
-use sqlx::{Postgres, Row, Transaction};
+use sqlx::{Postgres, Transaction};
 use uuid::Uuid;
 
 pub(crate) struct TenantWork {
@@ -111,26 +124,26 @@ impl OrganizationRepository for TenantWork {
     ) -> Result<Role, Error> {
         // Lock session and membership until publication. Revocation serializes with use cases.
         let role:Option<String>=sqlx::query_scalar("SELECT m.role FROM memberships m JOIN users u ON u.id=m.user_id JOIN sessions s ON s.user_id=u.id WHERE m.organization_id=$1 AND m.user_id=$2 AND s.id=$3 AND NOT u.disabled AND s.revoked_at IS NULL AND s.expires_at>clock_timestamp() AND s.last_seen_at>clock_timestamp()-interval '30 minutes' FOR SHARE OF m,u,s").bind(organization.into_uuid()).bind(actor.user_id.into_uuid()).bind(actor.session_id.into_uuid()).fetch_optional(&mut *self.tx).await.map_err(storage)?;
-        match role.as_deref() {
-            Some("owner") => Ok(Role::Owner),
-            Some("admin") => Ok(Role::Admin),
-            Some("member") => Ok(Role::Member),
-            Some("viewer") => Ok(Role::Viewer),
-            _ => Err(Error::Forbidden),
-        }
+        crate::memberships::role(role.as_deref().ok_or(Error::Forbidden)?)
     }
 }
-#[expect(
-    clippy::needless_pass_by_value,
-    reason = "Consumes rows directly as an iterator mapping function"
-)]
-fn project(row: sqlx::postgres::PgRow) -> Project {
-    Project {
-        id: row.get::<Uuid, _>("id").into(),
-        organization_id: row.get::<Uuid, _>("organization_id").into(),
-        name: row.get("name"),
-        version: row.get("version"),
-        archived: row.get("archived"),
+#[derive(sqlx::FromRow)]
+struct ProjectRow {
+    id: Uuid,
+    organization_id: Uuid,
+    name: String,
+    version: i64,
+    archived: bool,
+}
+impl From<ProjectRow> for Project {
+    fn from(row: ProjectRow) -> Self {
+        Self {
+            id: row.id.into(),
+            organization_id: row.organization_id.into(),
+            name: row.name,
+            version: row.version,
+            archived: row.archived,
+        }
     }
 }
 #[async_trait]
@@ -150,14 +163,14 @@ impl ProjectRepository for TenantWork {
         Ok(())
     }
     async fn load_project(&mut self, id: ProjectId) -> Result<Project, Error> {
-        sqlx::query("SELECT id,organization_id,name,version,archived FROM projects WHERE id=$1 AND organization_id=$2").bind(id.into_uuid()).bind(self.organization).fetch_optional(&mut *self.tx).await.map_err(storage)?.map(project).ok_or(Error::NotFound)
+        sqlx::query_as::<_, ProjectRow>("SELECT id,organization_id,name,version,archived FROM projects WHERE id=$1 AND organization_id=$2").bind(id.into_uuid()).bind(self.organization).fetch_optional(&mut *self.tx).await.map_err(storage)?.map(Into::into).ok_or(Error::NotFound)
     }
     async fn save_project(&mut self, p: &Project, expected: i64) -> Result<(), Error> {
         let n=sqlx::query!("UPDATE projects SET name=$1,version=$2,archived=$3 WHERE id=$4 AND organization_id=$5 AND version=$6",p.name,p.version,p.archived,p.id.into_uuid(),self.organization,expected).execute(&mut *self.tx).await.map_err(storage)?.rows_affected();
         if n == 1 { Ok(()) } else { Err(Error::Conflict) }
     }
     async fn list_projects(&mut self, after: Option<ProjectId>) -> Result<Vec<Project>, Error> {
-        Ok(sqlx::query("SELECT id,organization_id,name,version,archived FROM projects WHERE organization_id=$1 AND ($2::uuid IS NULL OR id>$2) ORDER BY id LIMIT 50").bind(self.organization).bind(after.map(ProjectId::into_uuid)).fetch_all(&mut *self.tx).await.map_err(storage)?.into_iter().map(project).collect())
+        Ok(sqlx::query_as::<_, ProjectRow>("SELECT id,organization_id,name,version,archived FROM projects WHERE organization_id=$1 AND ($2::uuid IS NULL OR id>$2) ORDER BY id LIMIT 50").bind(self.organization).bind(after.map(ProjectId::into_uuid)).fetch_all(&mut *self.tx).await.map_err(storage)?.into_iter().map(Into::into).collect())
     }
 }
 #[async_trait]

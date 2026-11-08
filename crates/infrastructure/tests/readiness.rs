@@ -11,7 +11,12 @@ async fn readiness_tracks_database_availability() {
         .unwrap();
     let db = infrastructure::Database::new(pool.clone()).unwrap();
     assert!(db.ready().await);
-    let metrics = db.operational_metrics().await.unwrap();
+    let mut registry = prometheus_client::registry::Registry::default();
+    db.collect_metrics(&mut registry).await.unwrap();
+    let mut metrics = String::new();
+    prometheus_client::encoding::text::encode(&mut metrics, &registry).unwrap();
+    assert!(metrics.contains("# TYPE river_attempt_retries gauge"));
+    assert!(metrics.ends_with("# EOF\n"));
     for name in [
         "river_queue_lag_seconds",
         "river_attempt_retries",

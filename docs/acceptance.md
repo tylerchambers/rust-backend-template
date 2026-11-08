@@ -2,7 +2,7 @@
 
 The live Notion hub and all eleven linked specification pages were read without modification and refreshed under `docs/spec/`. The current scope is email magic-link login and fresh, action-bound email proofs: one verified primary address, no passkeys, email changes, additional addresses or recovery. Notion ticket statuses are not implementation evidence.
 
-**Local verification:** `just check` completed all 23 top-level gates successfully on the lint-policy snapshot; the consolidated lint gate contains Rust/Ruff/Biome/dependency checks, and the new negative-control gate exercises rejection. See `docs/evidence/lint-policy.md`. `docs/evidence/results.json` records commands, durations and exits. Cargo reports 34 passing test results, including the subprocess entry helper and compile-fail typed-ID doctest; many integration tests contain multiple adversarial scenarios. Native and OCI HTTP, SDK and real Chromium journeys all passed. This is not independent acceptance or production certification.
+**Local verification:** `python3 scripts/verify.py` completed all **25 top-level gates** successfully on the library-reuse snapshot, including the two new native/OCI OpenMetrics-parser gates. `docs/evidence/results.json` records commands, durations and exits. Cargo reports **39 passing test results**, including the subprocess entry helper and compile-fail typed-ID doctest; integration tests contain multiple adversarial scenarios. Native and OCI HTTP, SDK and real Chromium journeys all passed. [ADR 002](adr-002-library-reuse.md) records scope, library choices, spike evidence and acceptance. This is not independent acceptance or production certification.
 
 | Ticket | Requirement | Status | Executable evidence / qualification |
 |---|---|---|---|
@@ -36,6 +36,10 @@ The live Notion hub and all eleven linked specification pages were read without 
 | DB-03 | Transaction-local RLS | Locally verified | `rls.rs`: actual nonowner NOBYPASSRLS role, missing-context/cross-tenant SELECT/INSERT/UPDATE/DELETE rejection and transaction/pool context isolation. |
 | DB-04 | Narrow UoW/repository transactions | Locally verified | Atomic project/audit/job writes, rollback, locked membership policy and optimistic conflict tests; ADR explains the transaction-lifetime design. |
 | DB-05 | Concurrency and evolution | Locally verified | Lost-update rejection; `revision_compatibility.py` builds baseline `1b266ba502ae8e207a667aa27681913264341ec6` and current executables in separate target directories, creates live old-schema state, upgrades and exercises both binaries. |
+
+## Library-reuse refactor
+
+[ADR 002](adr-002-library-reuse.md) records the library ownership decisions, explicit email/cookie policy, session/CSRF executable spike, retained narrow exceptions and acceptance matrix. The current `results.json` additionally includes native/OCI OpenMetrics-parser gates. The original ticket contracts are retained; test totals above describe the refactor's final full-gate run.
 
 ## Independent review resolution
 

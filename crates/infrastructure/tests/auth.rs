@@ -27,7 +27,41 @@ async fn magic_tokens_are_single_use_identity_is_unique_and_logout_revokes() {
     infrastructure::migrate(&pool).await.unwrap();
     let db = Arc::new(Database::new(pool.clone()).unwrap());
     let mail = Arc::new(Capture::default());
-    let auth = Authentication::new(db, mail.clone(), Arc::new(SystemSecrets));
+    let auth = Authentication::new(db.clone(), mail.clone(), Arc::new(SystemSecrets));
+    let memberships = application::memberships::Memberships::new(
+        db,
+        Arc::new(infrastructure::auth::SystemIds),
+        Arc::new(infrastructure::auth::SystemClock),
+    );
+    let actor = application::Actor {
+        user_id: Uuid::now_v7().into(),
+        session_id: Uuid::now_v7().into(),
+        correlation_id: Uuid::now_v7(),
+    };
+    for invalid in ["@", "a@@b", "a@", "@example.test", "a..b@example.test"] {
+        let before: (i64, Option<i32>) = sqlx::query_as("SELECT (SELECT count(*) FROM magic_links WHERE email=$1), (SELECT attempts FROM auth_limits WHERE key_hash=$2)")
+            .bind(invalid).bind(infrastructure::auth::token_hash(invalid)).fetch_one(&pool).await.unwrap();
+        assert_eq!(auth.request(invalid).await, Err(Error::Invalid));
+        let after: (i64, Option<i32>) = sqlx::query_as("SELECT (SELECT count(*) FROM magic_links WHERE email=$1), (SELECT attempts FROM auth_limits WHERE key_hash=$2)")
+            .bind(invalid).bind(infrastructure::auth::token_hash(invalid)).fetch_one(&pool).await.unwrap();
+        assert_eq!(
+            before, after,
+            "invalid mailbox mutated credentials or budget"
+        );
+        assert_eq!(
+            memberships
+                .invite(
+                    &actor,
+                    Uuid::now_v7().into(),
+                    invalid,
+                    domain::Role::Member,
+                    "invalid"
+                )
+                .await,
+            Err(Error::Invalid)
+        );
+    }
+    assert!(mail.0.lock().unwrap().is_empty());
     let email = format!("{}@example.test", Uuid::now_v7());
     auth.request(&email).await.unwrap();
     let token = mail.0.lock().unwrap()[0].clone();
@@ -38,7 +72,9 @@ async fn magic_tokens_are_single_use_identity_is_unique_and_logout_revokes() {
         auth.authenticate(&session.token).await.unwrap().user_id,
         session.user_id
     );
-    auth.request(&email).await.unwrap();
+    auth.request(&format!(" {} ", email.to_ascii_uppercase()))
+        .await
+        .unwrap();
     let next = mail.0.lock().unwrap()[1].clone();
     assert_eq!(auth.confirm(&next).await.unwrap().user_id, session.user_id);
     auth.logout(&session.token).await.unwrap();

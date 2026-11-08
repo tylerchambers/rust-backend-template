@@ -138,14 +138,8 @@ impl Memberships {
         role: Role,
         proof: &str,
     ) -> Result<InvitationId, Error> {
-        let email = email.trim().to_lowercase();
-        if email.len() > 254
-            || !email.contains('@')
-            || email.chars().any(char::is_whitespace)
-            || email.chars().any(char::is_control)
-        {
-            return Err(Error::Invalid);
-        }
+        let email = domain::EmailAddress::parse(email)?;
+        let email = email.as_str();
         let mut tx = self.uow.begin(org).await?;
         tx.lock_organization().await?;
         let caller = tx.current_role(actor, org).await?;
@@ -161,7 +155,7 @@ impl Memberships {
         let id = self.ids.invitation();
         tx.insert_invitation(
             id,
-            &email,
+            email,
             role,
             self.clock.now() + chrono::Duration::hours(24),
         )

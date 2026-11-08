@@ -7,6 +7,9 @@ use rand::RngExt;
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
+// Callers retain their own executor and commit boundary.
+const ADMIT_ATTEMPT: &str = "INSERT INTO auth_limits(key_hash,window_start,attempts) VALUES($1,clock_timestamp(),1) ON CONFLICT(key_hash) DO UPDATE SET attempts=CASE WHEN auth_limits.window_start < clock_timestamp()-interval '15 minutes' THEN 1 ELSE auth_limits.attempts+1 END, window_start=CASE WHEN auth_limits.window_start < clock_timestamp()-interval '15 minutes' THEN clock_timestamp() ELSE auth_limits.window_start END RETURNING attempts";
+
 pub struct SystemIds;
 impl application::IdGenerator for SystemIds {
     fn organization(&self) -> domain::OrganizationId {
@@ -44,7 +47,11 @@ fn storage(error: sqlx::Error) -> Error {
 impl IdentityRepository for Database {
     async fn admit_source(&self, source: &str) -> Result<(), Error> {
         let key = token_hash(&format!("auth-source:{source}"));
-        let attempts: i32 = sqlx::query_scalar("INSERT INTO auth_limits(key_hash,window_start,attempts) VALUES($1,clock_timestamp(),1) ON CONFLICT(key_hash) DO UPDATE SET attempts=CASE WHEN auth_limits.window_start < clock_timestamp()-interval '15 minutes' THEN 1 ELSE auth_limits.attempts+1 END, window_start=CASE WHEN auth_limits.window_start < clock_timestamp()-interval '15 minutes' THEN clock_timestamp() ELSE auth_limits.window_start END RETURNING attempts").bind(key).fetch_one(&self.pool).await.map_err(storage)?;
+        let attempts: i32 = sqlx::query_scalar(ADMIT_ATTEMPT)
+            .bind(key)
+            .fetch_one(&self.pool)
+            .await
+            .map_err(storage)?;
         if attempts > 120 {
             Err(Error::RateLimited)
         } else {
@@ -55,8 +62,11 @@ impl IdentityRepository for Database {
         let mut tx = riverqueue::database::begin_postgres(&self.pool)
             .await
             .map_err(storage)?;
-        let attempts:i32=sqlx::query_scalar("INSERT INTO auth_limits(key_hash,window_start,attempts) VALUES($1,clock_timestamp(),1) ON CONFLICT(key_hash) DO UPDATE SET attempts=CASE WHEN auth_limits.window_start < clock_timestamp()-interval '15 minutes' THEN 1 ELSE auth_limits.attempts+1 END, window_start=CASE WHEN auth_limits.window_start < clock_timestamp()-interval '15 minutes' THEN clock_timestamp() ELSE auth_limits.window_start END RETURNING attempts")
-        .bind(token_hash(email)).fetch_one(&mut *tx).await.map_err(storage)?;
+        let attempts: i32 = sqlx::query_scalar(ADMIT_ATTEMPT)
+            .bind(token_hash(email))
+            .fetch_one(&mut *tx)
+            .await
+            .map_err(storage)?;
         if attempts > 5 {
             tx.commit().await.map_err(storage)?;
             return Err(Error::RateLimited);
@@ -82,8 +92,11 @@ impl IdentityRepository for Database {
                 .await
                 .map_err(storage)?;
         if let Some(email) = mailbox {
-            let attempts: i32 = sqlx::query_scalar("INSERT INTO auth_limits(key_hash,window_start,attempts) VALUES($1,clock_timestamp(),1) ON CONFLICT(key_hash) DO UPDATE SET attempts=CASE WHEN auth_limits.window_start < clock_timestamp()-interval '15 minutes' THEN 1 ELSE auth_limits.attempts+1 END, window_start=CASE WHEN auth_limits.window_start < clock_timestamp()-interval '15 minutes' THEN clock_timestamp() ELSE auth_limits.window_start END RETURNING attempts")
-                .bind(token_hash(&format!("confirm-email:{email}"))).fetch_one(&self.pool).await.map_err(storage)?;
+            let attempts: i32 = sqlx::query_scalar(ADMIT_ATTEMPT)
+                .bind(token_hash(&format!("confirm-email:{email}")))
+                .fetch_one(&self.pool)
+                .await
+                .map_err(storage)?;
             if attempts > 5 {
                 return Err(Error::RateLimited);
             }

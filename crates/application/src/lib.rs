@@ -90,20 +90,14 @@ impl Authentication {
     /// # Errors
     /// Rejects invalid email or exhausted budgets; propagates storage and delivery errors.
     pub async fn request(&self, email: &str) -> Result<(), Error> {
-        let email = email.trim().to_lowercase();
-        if email.len() > 254
-            || !email.contains('@')
-            || email.chars().any(char::is_whitespace)
-            || email.chars().any(char::is_control)
-        {
-            return Err(Error::Invalid);
-        }
+        let email = domain::EmailAddress::parse(email)?;
+        let email = email.as_str();
         if let Some(limiter) = &self.limiter {
-            limiter.admit(&email).await?;
+            limiter.admit(email).await?;
         }
         let token = self.secrets.token();
-        self.identities.issue_login(&email, &token).await?;
-        self.mail.send_login(&email, &token).await
+        self.identities.issue_login(email, &token).await?;
+        self.mail.send_login(email, &token).await
     }
     /// Consume a login proof and create a session.
     ///
