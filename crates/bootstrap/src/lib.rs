@@ -155,6 +155,7 @@ pub async fn server() -> InfraResult<()> {
     tracing::info!(operation = "server.ready");
     let readiness = db.clone();
     let metrics = db;
+    let http_metrics = state.clone();
     let router = api::router(state)
         .route(
             "/ready",
@@ -174,15 +175,26 @@ pub async fn server() -> InfraResult<()> {
             axum::routing::get(move || {
                 let db = metrics.clone();
                 let redis = redis_metrics.clone();
+                let http = http_metrics.clone();
                 async move {
-                    let mut output = db
-                        .operational_metrics()
+                    let mut registry = prometheus_client::registry::Registry::default();
+                    db.collect_metrics(&mut registry)
                         .await
                         .map_err(|_| axum::http::StatusCode::SERVICE_UNAVAILABLE)?;
+                    http.register_metrics(&mut registry);
                     if let Some(redis) = redis {
-                        output.push_str(&redis.operational_metrics());
+                        redis.register_metrics(&mut registry);
                     }
-                    Ok::<_, axum::http::StatusCode>(output)
+                    let mut output = String::new();
+                    prometheus_client::encoding::text::encode(&mut output, &registry)
+                        .map_err(|_| axum::http::StatusCode::SERVICE_UNAVAILABLE)?;
+                    Ok::<_, axum::http::StatusCode>((
+                        [(
+                            axum::http::header::CONTENT_TYPE,
+                            "application/openmetrics-text; version=1.0.0; charset=utf-8",
+                        )],
+                        output,
+                    ))
                 }
             }),
         );

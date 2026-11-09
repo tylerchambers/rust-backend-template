@@ -14,20 +14,14 @@ use axum::{
 };
 use domain::Error;
 use serde::{Deserialize, Serialize};
-use std::sync::{
-    Arc,
-    atomic::{AtomicU64, Ordering},
-};
-#[derive(Default)]
-struct HttpMetrics {
-    requests: AtomicU64,
-    duration_micros: AtomicU64,
-    rate_limited: AtomicU64,
-    authentication_denials: AtomicU64,
-    authorization_denials: AtomicU64,
-}
+use std::sync::Arc;
+mod metrics;
+use metrics::HttpMetrics;
+use prometheus_client::{encoding::text::encode, registry::Registry};
 
-use tracing::Instrument;
+mod transport;
+#[cfg(test)]
+mod transport_tests;
 use utoipa::{OpenApi, ToSchema};
 use uuid::Uuid;
 
@@ -43,6 +37,11 @@ pub struct State {
     reauthentication: Arc<Reauthentication>,
 }
 impl State {
+    /// Register this application's instruments in the composition root's registry.
+    pub fn register_metrics(&self, registry: &mut Registry) {
+        self.metrics.register(registry);
+    }
+
     pub fn new(
         auth: Arc<Authentication>,
         organizations: Arc<Organizations>,
@@ -95,19 +94,21 @@ impl IntoResponse for ApiError {
             .into_response()
     }
 }
-fn cookie<'a>(headers: &'a HeaderMap, name: &str) -> Option<&'a str> {
-    headers
-        .get(header::COOKIE)?
-        .to_str()
-        .ok()?
-        .split(';')
-        .filter_map(|p| p.trim().split_once('='))
-        .find_map(|(k, v)| (k == name).then_some(v))
+mod cookies;
+use cookies::{cookie, csrf_cookie, remove_session_cookie, session_cookie};
+fn single_header<'a>(headers: &'a HeaderMap, name: &str) -> Option<&'a str> {
+    let mut values = headers.get_all(name).iter();
+    let value = values.next()?.to_str().ok()?;
+    values.next().is_none().then_some(value)
 }
 async fn actor(state: &State, headers: &HeaderMap) -> Result<Actor, ApiError> {
     let mut actor = state
         .auth
-        .authenticate(cookie(headers, "__Host-session").ok_or(Error::Unauthenticated)?)
+        .authenticate(
+            cookie(headers, "__Host-session")
+                .as_deref()
+                .ok_or(Error::Unauthenticated)?,
+        )
         .await?;
     actor.correlation_id = headers
         .get("x-request-id")
@@ -116,31 +117,18 @@ async fn actor(state: &State, headers: &HeaderMap) -> Result<Actor, ApiError> {
         .ok_or(Error::Unavailable)?;
     Ok(actor)
 }
-#[expect(
-    clippy::too_many_lines,
-    reason = "Keep ordered request and response security policy together"
-)]
-#[expect(
-    clippy::expect_used,
-    reason = "UUID display is always a valid ASCII header value"
-)]
-async fn security(Extract(state): Extract<State>, mut request: Request, next: Next) -> Response {
-    let request_id = Uuid::now_v7();
-    request.headers_mut().insert(
-        "x-request-id",
-        request_id.to_string().parse().expect("UUID header"),
-    );
+async fn security(Extract(state): Extract<State>, request: Request, next: Next) -> Response {
     let mut csrf_denied = false;
     if !matches!(
         *request.method(),
         axum::http::Method::GET | axum::http::Method::HEAD | axum::http::Method::OPTIONS
     ) {
         let headers = request.headers();
-        let csrf = headers.get("x-csrf-token").and_then(|v| v.to_str().ok());
-        if headers.get(header::ORIGIN).and_then(|v| v.to_str().ok()) != Some(state.origin.as_str())
+        let csrf = single_header(headers, "x-csrf-token");
+        if single_header(headers, "origin") != Some(state.origin.as_str())
             || csrf.is_none()
             || csrf.map(str::len) != Some(64)
-            || csrf != cookie(headers, "csrf")
+            || csrf != cookie(headers, "csrf").as_deref()
         {
             csrf_denied = true;
         }
@@ -151,7 +139,6 @@ async fn security(Extract(state): Extract<State>, mut request: Request, next: Ne
         .map_or("unmatched", axum::extract::MatchedPath::as_str)
         .to_owned();
     let start = std::time::Instant::now();
-    let span = tracing::info_span!("http", %request_id, route);
     let admission = if !csrf_denied
         && request.method() == axum::http::Method::POST
         && matches!(
@@ -173,12 +160,7 @@ async fn security(Extract(state): Extract<State>, mut request: Request, next: Ne
     } else if let Err(error) = admission {
         ApiError(error).into_response()
     } else {
-        match tokio::time::timeout(
-            std::time::Duration::from_secs(15),
-            next.run(request).instrument(span),
-        )
-        .await
-        {
+        match tokio::time::timeout(std::time::Duration::from_secs(15), next.run(request)).await {
             Ok(response) => response,
             Err(_) => ApiError(Error::Unavailable).into_response(),
         }
@@ -204,43 +186,21 @@ async fn security(Extract(state): Extract<State>, mut request: Request, next: Ne
         )
             .into_response();
     }
-    state.metrics.requests.fetch_add(1, Ordering::Relaxed);
-    state.metrics.duration_micros.fetch_add(
-        u64::try_from(start.elapsed().as_micros()).unwrap_or(u64::MAX),
-        Ordering::Relaxed,
-    );
+    state.metrics.requests.inc();
+    state
+        .metrics
+        .duration
+        .observe(start.elapsed().as_secs_f64());
     if response.status() == StatusCode::TOO_MANY_REQUESTS {
-        state.metrics.rate_limited.fetch_add(1, Ordering::Relaxed);
+        state.metrics.rate_limited.inc();
     }
     if response.status() == StatusCode::UNAUTHORIZED {
-        state
-            .metrics
-            .authentication_denials
-            .fetch_add(1, Ordering::Relaxed);
+        state.metrics.authentication_denials.inc();
     }
     if response.status() == StatusCode::FORBIDDEN {
-        state
-            .metrics
-            .authorization_denials
-            .fetch_add(1, Ordering::Relaxed);
+        state.metrics.authorization_denials.inc();
     }
-    tracing::info!(operation="http.request",%request_id,route,status=response.status().as_u16(),duration_ms=u64::try_from(start.elapsed().as_millis()).unwrap_or(u64::MAX));
-    response.headers_mut().insert(
-        "x-request-id",
-        request_id.to_string().parse().expect("UUID header"),
-    );
-    response.headers_mut().insert(
-        header::CACHE_CONTROL,
-        axum::http::HeaderValue::from_static("no-store"),
-    );
-    response.headers_mut().insert(
-        "referrer-policy",
-        axum::http::HeaderValue::from_static("no-referrer"),
-    );
-    response.headers_mut().insert(
-        "x-content-type-options",
-        axum::http::HeaderValue::from_static("nosniff"),
-    );
+
     response
 }
 #[derive(Deserialize, ToSchema)]
@@ -306,10 +266,7 @@ async fn confirm(
     Json(input): Json<ConfirmRequest>,
 ) -> Result<Response, ApiError> {
     let session = state.auth.confirm(&input.token).await?;
-    let value = format!(
-        "__Host-session={}; Secure; HttpOnly; SameSite=Lax; Path=/; Max-Age=604800",
-        session.token
-    );
+    let value = session_cookie(session.token).to_string();
     Ok((
         [(header::SET_COOKIE, value)],
         Json(IdentityResponse {
@@ -325,10 +282,7 @@ async fn confirmation(Extract(state): Extract<State>) -> Response {
         r#"<!doctype html><meta charset="utf-8"><title>Confirm sign in</title><button id="confirm">Confirm sign in</button><pre id="result"></pre><script>let token='';function capture(){{if(location.hash){{token=location.hash.slice(1);history.replaceState(null,'',location.pathname);}}}}capture();addEventListener('hashchange',capture);document.getElementById('confirm').onclick=async()=>{{const r=await fetch('/v1/auth/confirm',{{method:'POST',headers:{{'content-type':'application/json','x-csrf-token':'{csrf}'}},body:JSON.stringify({{token}})}});document.getElementById('result').textContent=r.ok?'Signed in':'Link invalid or expired';}};</script>"#
     );
     (
-        [(
-            header::SET_COOKIE,
-            format!("csrf={csrf}; Secure; SameSite=Strict; Path=/"),
-        )],
+        [(header::SET_COOKIE, crate::csrf_cookie(csrf).to_string())],
         Html(html),
     )
         .into_response()
@@ -337,14 +291,15 @@ async fn confirmation(Extract(state): Extract<State>) -> Response {
 async fn logout(Extract(state): Extract<State>, headers: HeaderMap) -> Result<Response, ApiError> {
     state
         .auth
-        .logout(cookie(&headers, "__Host-session").ok_or(Error::Unauthenticated)?)
+        .logout(
+            cookie(&headers, "__Host-session")
+                .as_deref()
+                .ok_or(Error::Unauthenticated)?,
+        )
         .await?;
     Ok((
         StatusCode::NO_CONTENT,
-        [(
-            header::SET_COOKIE,
-            "__Host-session=; Secure; HttpOnly; SameSite=Lax; Path=/; Max-Age=0",
-        )],
+        [(header::SET_COOKIE, remove_session_cookie().to_string())],
     )
         .into_response())
 }
@@ -527,22 +482,22 @@ pub fn openapi() -> String {
         .to_pretty_json()
         .expect("serializable contract")
 }
-#[expect(
-    clippy::cast_precision_loss,
-    reason = "Prometheus duration sums are approximate floating-point observations"
-)]
-async fn http_metrics(Extract(state): Extract<State>) -> String {
-    format!(
-        "http_request_duration_seconds_sum {}\nauthentication_rate_limited_total {}\nhttp_requests_total {}\nauthentication_denials_total {}\nauthorization_denials_total {}\n",
-        state.metrics.duration_micros.load(Ordering::Relaxed) as f64 / 1_000_000.0,
-        state.metrics.rate_limited.load(Ordering::Relaxed),
-        state.metrics.requests.load(Ordering::Relaxed),
-        state.metrics.authentication_denials.load(Ordering::Relaxed),
-        state.metrics.authorization_denials.load(Ordering::Relaxed)
+async fn http_metrics(Extract(state): Extract<State>) -> Result<Response, ApiError> {
+    let mut registry = Registry::default();
+    state.register_metrics(&mut registry);
+    let mut output = String::new();
+    encode(&mut output, &registry).map_err(|_| Error::Unavailable)?;
+    Ok((
+        [(
+            header::CONTENT_TYPE,
+            "application/openmetrics-text; version=1.0.0; charset=utf-8",
+        )],
+        output,
     )
+        .into_response())
 }
 pub fn router(state: State) -> Router {
-    Router::new()
+    let router = Router::new()
         .route("/health", get(|| async { StatusCode::OK }))
         .route("/metrics/http", get(http_metrics))
         .route(
@@ -610,5 +565,6 @@ pub fn router(state: State) -> Router {
         )
         .layer(DefaultBodyLimit::max(16384))
         .layer(middleware::from_fn_with_state(state.clone(), security))
-        .with_state(state)
+        .with_state(state);
+    transport::layers(router)
 }

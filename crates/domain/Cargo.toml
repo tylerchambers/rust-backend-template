@@ -11,3 +11,4 @@ publish.workspace = true
 serde.workspace = true
 uuid.workspace = true
 thiserror.workspace = true
+email_address.workspace = true

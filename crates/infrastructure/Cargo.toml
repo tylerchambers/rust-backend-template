@@ -24,6 +24,7 @@ hex.workspace = true
 redis.workspace = true
 lettre.workspace = true
 tracing.workspace = true
+prometheus-client.workspace = true
 
 [dev-dependencies]
 tracing-subscriber.workspace = true

@@ -89,6 +89,7 @@ async fn scanner_get_does_not_authenticate_and_mutations_require_csrf() {
             .oneshot(
                 Request::builder()
                     .uri(&path)
+                    .header("x-request-id", "untrusted-client-id")
                     .header("cookie", format!("__Host-session={session}"))
                     .body(Body::empty())
                     .unwrap(),
@@ -96,12 +97,44 @@ async fn scanner_get_does_not_authenticate_and_mutations_require_csrf() {
             .await
             .unwrap();
         assert_eq!(response.status(), 200, "discovery route {path}");
+        let request_id = response.headers()["x-request-id"].to_str().unwrap();
+        assert_ne!(request_id, "untrusted-client-id");
+        assert_eq!(
+            uuid::Uuid::parse_str(request_id).unwrap().get_version_num(),
+            7
+        );
+        assert_eq!(response.headers()["cache-control"], "no-store");
+        assert_eq!(response.headers()["referrer-policy"], "no-referrer");
+        assert_eq!(response.headers()["x-content-type-options"], "nosniff");
         let body = axum::body::to_bytes(response.into_body(), 16384)
             .await
             .unwrap();
         let rows: serde_json::Value = serde_json::from_slice(&body).unwrap();
         assert_eq!(rows.as_array().unwrap().len(), 1);
         assert_eq!(rows[0]["role"], "owner");
+    }
+    for cookies in [
+        vec![format!(
+            "__Host-session={session}; __Host-session={session}"
+        )],
+        vec![
+            format!("__Host-session={session}"),
+            format!("__Host-session={session}"),
+        ],
+    ] {
+        let mut request = Request::builder().uri("/v1/auth/sessions");
+        for value in cookies {
+            request = request.header("cookie", value);
+        }
+        assert_eq!(
+            app.clone()
+                .oneshot(request.body(Body::empty()).unwrap())
+                .await
+                .unwrap()
+                .status(),
+            401,
+            "ambiguous session cookies must not authenticate"
+        );
     }
     let response = app
         .clone()
@@ -128,6 +161,30 @@ async fn scanner_get_does_not_authenticate_and_mutations_require_csrf() {
         .unwrap()
         .strip_prefix("csrf=")
         .unwrap();
+    for ambiguous in ["origin", "x-csrf-token", "cookie"] {
+        let mut request = Request::builder()
+            .method("POST")
+            .uri("/v1/auth/logout")
+            .header("origin", "http://localhost:58039")
+            .header("x-csrf-token", csrf)
+            .header("cookie", format!("csrf={csrf}; __Host-session={session}"));
+        request = request.header(
+            ambiguous,
+            match ambiguous {
+                "origin" => "http://localhost:58039".to_owned(),
+                "x-csrf-token" => csrf.to_owned(),
+                _ => format!("csrf={csrf}"),
+            },
+        );
+        assert_eq!(
+            app.clone()
+                .oneshot(request.body(Body::empty()).unwrap())
+                .await
+                .unwrap()
+                .status(),
+            403
+        );
+    }
     let malformed = app
         .clone()
         .oneshot(
@@ -227,6 +284,9 @@ async fn scanner_get_does_not_authenticate_and_mutations_require_csrf() {
         .await
         .unwrap();
     let metrics = std::str::from_utf8(&body).unwrap();
+    assert!(metrics.contains("# TYPE http_request_duration_seconds histogram"));
+    assert!(metrics.contains("http_request_duration_seconds_bucket{le=\"+Inf\"}"));
+    assert!(metrics.ends_with("# EOF\n"));
     assert!(metrics.contains("http_request_duration_seconds_sum "));
     assert!(metrics.contains("authentication_rate_limited_total 1"));
     let post_request = |path: &str| {

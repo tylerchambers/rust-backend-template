@@ -118,13 +118,6 @@ impl application::memberships::ReauthenticationMailer for SmtpMailer {
 #[async_trait]
 impl LoginMailer for SmtpMailer {
     async fn send_login(&self, email: &str, token: &str) -> Result<(), Error> {
-        let message=Message::builder().from(self.from.parse().map_err(|_|Error::Invalid)?).to(email.parse().map_err(|_|Error::Invalid)?).subject("Confirm sign in")
-   .body(format!("Open this link, then explicitly confirm sign in. It expires in 10 minutes.\n{}/v1/auth/confirmation#{}\nIgnore this email if you did not request it.",self.origin,token)).map_err(|_|Error::Invalid)?;
-        // SMTP errors may contain recipient/server data; never log their raw display.
-        self.transport
-            .send(message)
-            .await
-            .map_err(|_| Error::Unavailable)?;
-        Ok(())
+        self.send_message(email, "Confirm sign in", format!("Open this link, then explicitly confirm sign in. It expires in 10 minutes.\n{}/v1/auth/confirmation#{}\nIgnore this email if you did not request it.", self.origin, token)).await
     }
 }

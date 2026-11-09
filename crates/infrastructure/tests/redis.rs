@@ -40,9 +40,14 @@ async fn cache_is_tenant_scoped_and_security_limiter_fails_closed() {
         .await
         .unwrap();
     assert!(redis.admit(&broken).await.is_err());
-    let metrics = redis.operational_metrics();
+    let mut registry = prometheus_client::registry::Registry::default();
+    redis.register_metrics(&mut registry);
+    let mut metrics = String::new();
+    prometheus_client::encoding::text::encode(&mut metrics, &registry).unwrap();
     assert!(metrics.contains("redis_errors_total 1\n"));
     assert!(metrics.contains("redis_operation_duration_seconds_sum "));
+    assert!(metrics.contains("# TYPE redis_operation_duration_seconds histogram"));
+    assert!(metrics.contains("redis_operation_duration_seconds_count 12"));
     redis::cmd("DEL")
         .arg(redis_key)
         .query_async::<()>(&mut connection)

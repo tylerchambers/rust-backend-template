@@ -45,3 +45,7 @@ rand = "0.10"
 hex = "0.4"
 redis = { version = "1.8.1", features = ["tokio-comp", "connection-manager"] }
 lettre = { version = "0.11", default-features = false, features = ["builder", "smtp-transport", "tokio1-rustls-tls"] }
+email_address = { version = "0.2.9", default-features = false }
+cookie = "0.18.2"
+prometheus-client = "0.25.2"
+tower-http = { version = "0.7.1", features = ["trace", "set-header"] }

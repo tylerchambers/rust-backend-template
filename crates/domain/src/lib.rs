@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
+mod email;
 mod ids;
+pub use email::EmailAddress;
 pub use ids::{InvitationId, OrganizationId, ProjectId, SessionId, UserId};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]

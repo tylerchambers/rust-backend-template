@@ -1,1 +1,11 @@
-    Finished `release` profile [optimized] target(s) in 0.07s
+   Compiling email_address v0.2.9
+   Compiling domain v0.1.0 (/home/hermes/rust-backend-template-library-reuse/crates/domain)
+   Compiling lettre v0.11.23
+   Compiling application v0.1.0 (/home/hermes/rust-backend-template-library-reuse/crates/application)
+   Compiling api v0.1.0 (/home/hermes/rust-backend-template-library-reuse/crates/api)
+   Compiling infrastructure v0.1.0 (/home/hermes/rust-backend-template-library-reuse/crates/infrastructure)
+   Compiling bootstrap v0.1.0 (/home/hermes/rust-backend-template-library-reuse/crates/bootstrap)
+   Compiling server v0.1.0 (/home/hermes/rust-backend-template-library-reuse/apps/server)
+   Compiling cli v0.1.0 (/home/hermes/rust-backend-template-library-reuse/apps/cli)
+   Compiling worker v0.1.0 (/home/hermes/rust-backend-template-library-reuse/apps/worker)
+    Finished `release` profile [optimized] target(s) in 9.14s

@@ -1,6 +1,6 @@
 # Implementation handoff (historical d616e7d baseline)
 
-**Superseded verification:** this describes the pre-review implementation. Read `review-resolution.md` for the fixes and current 24-gate / 34-Cargo-result verification. `verified-source.json` now fingerprints the reviewed resolution source; the original aggregate below is historical.
+**Superseded verification:** this describes the pre-review implementation. `review-resolution.md` and `verified-source.json` describe the later historical review-resolution snapshot. The current library-reuse refactor is documented in [ADR 002](../adr-002-library-reuse.md); its executed gates are `results.json`, with separate spike and RED evidence. Neither historical aggregate below fingerprints the current refactor.
 
 ## Outcome and review boundary
 

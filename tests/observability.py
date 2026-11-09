@@ -20,7 +20,7 @@ for process in ["server", "worker"]:
         record = json.loads(line)
         fields = record["fields"]
         if fields.get("operation") == "http.request":
-            http[fields["request_id"]] = fields["route"]
+            http[record["span"]["request_id"]] = record["span"]["route"]
         if fields.get("operation") == "job.completed":
             span = record["span"]
             if span["kind"] in {"project_changed_v1", "invitation_email_v1"}:

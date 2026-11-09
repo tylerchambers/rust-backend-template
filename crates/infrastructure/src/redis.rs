@@ -5,18 +5,27 @@ use domain::{Error, OrganizationId, Project};
 use redis::{AsyncCommands, aio::ConnectionManager};
 use std::{
     future::Future,
-    sync::{
-        Arc,
-        atomic::{AtomicU64, Ordering},
-    },
+    sync::Arc,
     time::{Duration, Instant},
 };
 
-#[derive(Default)]
+use prometheus_client::{
+    metrics::{counter::Counter, histogram::Histogram},
+    registry::Registry,
+};
 struct Metrics {
-    requests: AtomicU64,
-    errors: AtomicU64,
-    duration_micros: AtomicU64,
+    requests: Counter,
+    errors: Counter,
+    duration: Histogram,
+}
+impl Default for Metrics {
+    fn default() -> Self {
+        Self {
+            requests: Counter::default(),
+            errors: Counter::default(),
+            duration: Histogram::new([0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.3, 1.0, 2.0]),
+        }
+    }
 }
 #[derive(Clone)]
 pub struct RedisAdapters {
@@ -49,18 +58,23 @@ impl RedisAdapters {
             metrics: Arc::default(),
         })
     }
-    #[must_use]
-    #[expect(
-        clippy::cast_precision_loss,
-        reason = "Prometheus duration sums are approximate floating-point observations"
-    )]
-    pub fn operational_metrics(&self) -> String {
-        format!(
-            "redis_requests_total {}\nredis_errors_total {}\nredis_operation_duration_seconds_sum {}\n",
-            self.metrics.requests.load(Ordering::Relaxed),
-            self.metrics.errors.load(Ordering::Relaxed),
-            self.metrics.duration_micros.load(Ordering::Relaxed) as f64 / 1_000_000.0
-        )
+    /// Register bounded, unlabelled Redis instruments in the caller's registry.
+    pub fn register_metrics(&self, registry: &mut Registry) {
+        registry.register(
+            "redis_requests",
+            "Completed Redis operations",
+            self.metrics.requests.clone(),
+        );
+        registry.register(
+            "redis_errors",
+            "Unavailable Redis operations",
+            self.metrics.errors.clone(),
+        );
+        registry.register(
+            "redis_operation_duration_seconds",
+            "Redis operation latency",
+            self.metrics.duration.clone(),
+        );
     }
     async fn observe<T>(
         &self,
@@ -68,13 +82,10 @@ impl RedisAdapters {
     ) -> Result<T, Error> {
         let start = Instant::now();
         let result = operation.await;
-        self.metrics.requests.fetch_add(1, Ordering::Relaxed);
-        self.metrics.duration_micros.fetch_add(
-            u64::try_from(start.elapsed().as_micros()).unwrap_or(u64::MAX),
-            Ordering::Relaxed,
-        );
+        self.metrics.requests.inc();
+        self.metrics.duration.observe(start.elapsed().as_secs_f64());
         if matches!(result, Err(Error::Unavailable)) {
-            self.metrics.errors.fetch_add(1, Ordering::Relaxed);
+            self.metrics.errors.inc();
         }
         result
     }

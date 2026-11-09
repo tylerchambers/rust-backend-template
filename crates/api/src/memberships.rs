@@ -148,7 +148,11 @@ pub async fn sessions(
     Ok(Json(
         state
             .auth
-            .sessions(cookie(&headers, "__Host-session").ok_or(Error::Unauthenticated)?)
+            .sessions(
+                cookie(&headers, "__Host-session")
+                    .as_deref()
+                    .ok_or(Error::Unauthenticated)?,
+            )
             .await?
             .into_iter()
             .map(domain::SessionId::into_uuid)
@@ -164,7 +168,9 @@ pub async fn revoke_session(
     state
         .auth
         .revoke_session(
-            cookie(&headers, "__Host-session").ok_or(Error::Unauthenticated)?,
+            cookie(&headers, "__Host-session")
+                .as_deref()
+                .ok_or(Error::Unauthenticated)?,
             session.into(),
         )
         .await?;
@@ -177,7 +183,11 @@ pub async fn revoke_all(
 ) -> Result<StatusCode, ApiError> {
     state
         .auth
-        .revoke_all(cookie(&headers, "__Host-session").ok_or(Error::Unauthenticated)?)
+        .revoke_all(
+            cookie(&headers, "__Host-session")
+                .as_deref()
+                .ok_or(Error::Unauthenticated)?,
+        )
         .await?;
     Ok(StatusCode::NO_CONTENT)
 }
@@ -188,16 +198,17 @@ pub async fn rotate(
 ) -> Result<Response, ApiError> {
     let session = state
         .auth
-        .rotate(cookie(&headers, "__Host-session").ok_or(Error::Unauthenticated)?)
+        .rotate(
+            cookie(&headers, "__Host-session")
+                .as_deref()
+                .ok_or(Error::Unauthenticated)?,
+        )
         .await?;
     Ok((
         StatusCode::NO_CONTENT,
         [(
             header::SET_COOKIE,
-            format!(
-                "__Host-session={}; Secure; HttpOnly; SameSite=Lax; Path=/; Max-Age=604800",
-                session.token
-            ),
+            crate::session_cookie(session.token).to_string(),
         )],
     )
         .into_response())
@@ -215,10 +226,7 @@ pub async fn invitation_confirmation(Extract(state): Extract<State>) -> Response
         r#"<!doctype html><meta charset="utf-8"><title>Accept invitation</title><p>Sign in as the invited email address first.</p><button id="accept">Accept invitation</button><pre id="result"></pre><script>const [org,id,token]=location.hash.slice(1).split(':');history.replaceState(null,'',location.pathname);document.getElementById('accept').onclick=async()=>{{const r=await fetch('/v1/organizations/'+encodeURIComponent(org)+'/invitations/'+encodeURIComponent(id)+'/accept',{{method:'POST',headers:{{'content-type':'application/json','x-csrf-token':'{csrf}'}},body:JSON.stringify({{token}})}});document.getElementById('result').textContent=r.ok?'Accepted':'Sign in or request a new invitation';}};</script>"#
     );
     (
-        [(
-            header::SET_COOKIE,
-            format!("csrf={csrf}; Secure; SameSite=Strict; Path=/"),
-        )],
+        [(header::SET_COOKIE, crate::csrf_cookie(csrf).to_string())],
         Html(html),
     )
         .into_response()
