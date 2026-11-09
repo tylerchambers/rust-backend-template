@@ -1,0 +1,17 @@
+   Compiling application v0.1.0 (/home/hermes/rust-backend-template-thermonuclear/crates/application)
+   Compiling infrastructure v0.1.0 (/home/hermes/rust-backend-template-thermonuclear/crates/infrastructure)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.00s
+     Running tests/identity_locking.rs (target/debug/deps/identity_locking-6bd15508b6d87158)
+
+running 1 test
+test application_change_and_proof_are_atomic_without_deadlock ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+
+     Running tests/proof_lock_order.rs (target/debug/deps/proof_lock_order-3cb213edfdf894cd)
+
+running 1 test
+test proof_issuance_and_session_retirement_do_not_deadlock ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+

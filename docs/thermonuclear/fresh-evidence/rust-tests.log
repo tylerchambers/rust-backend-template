@@ -1,0 +1,360 @@
+   Compiling tokio v1.54.1
+   Compiling domain v0.1.0 (/home/hermes/rust-backend-template-thermonuclear-acceptance/crates/domain)
+   Compiling tokio-stream v0.1.19
+   Compiling tokio-util v0.7.20
+   Compiling tokio-rustls v0.26.6
+   Compiling hyper v1.12.0
+   Compiling tower v0.5.3
+   Compiling lettre v0.11.23
+   Compiling sqlx-core v0.9.0
+   Compiling combine v4.6.9
+   Compiling hyper-util v0.1.21
+   Compiling axum v0.8.9
+   Compiling application v0.1.0 (/home/hermes/rust-backend-template-thermonuclear-acceptance/crates/application)
+   Compiling sqlx-postgres v0.9.0
+   Compiling api v0.1.0 (/home/hermes/rust-backend-template-thermonuclear-acceptance/crates/api)
+   Compiling redis v1.8.1
+   Compiling sqlx v0.9.0
+   Compiling jiff-sqlx v0.2.1
+   Compiling riverqueue-migrate v0.6.0
+   Compiling riverqueue v0.6.0
+   Compiling infrastructure v0.1.0 (/home/hermes/rust-backend-template-thermonuclear-acceptance/crates/infrastructure)
+   Compiling bootstrap v0.1.0 (/home/hermes/rust-backend-template-thermonuclear-acceptance/crates/bootstrap)
+   Compiling worker v0.1.0 (/home/hermes/rust-backend-template-thermonuclear-acceptance/apps/worker)
+   Compiling server v0.1.0 (/home/hermes/rust-backend-template-thermonuclear-acceptance/apps/server)
+   Compiling cli v0.1.0 (/home/hermes/rust-backend-template-thermonuclear-acceptance/apps/cli)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 16.37s
+     Running unittests src/lib.rs (target/debug/deps/api-e702fdee5e1c3c6d)
+
+running 2 tests
+test metrics::tests::registries_are_isolated_and_histograms_count_each_observation ... ok
+test transport_tests::timeout_retains_json_and_outer_transport_policy ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/contract.rs (target/debug/deps/contract-554b5efdd3e5a776)
+
+running 1 test
+test every_operation_describes_errors_and_html_pages_describe_text ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/http.rs (target/debug/deps/http-6c589bad7a1cd58e)
+
+running 1 test
+test scanner_get_does_not_authenticate_and_mutations_require_csrf ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.62s
+
+     Running unittests src/lib.rs (target/debug/deps/application-f55b9b64f2e3390f)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/projects.rs (target/debug/deps/projects-81535d2c1c407aa4)
+
+running 2 tests
+test memory_obeys_shared_project_contract ... ok
+test audit_failure_publishes_neither_project_nor_job ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/bootstrap-f3ecf24136315939)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/config.rs (target/debug/deps/config-59071a2aca66e907)
+
+running 1 test
+test production_rejects_insecure_origin_and_capture_mail ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/cli-6e2a509a0bb7ed15)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/startup.rs (target/debug/deps/startup-a5e8f53ace4bb7f1)
+
+running 1 test
+test invalid_command_reports_fixed_usage_without_echoing_arguments ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/domain-b7f1dd4f940a999e)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/email.rs (target/debug/deps/email-3a612c98de063e9d)
+
+running 1 test
+test mailbox_policy_normalizes_identity_and_rejects_unsupported_syntax ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/identity.rs (target/debug/deps/identity-cce3121a10a2b5c3)
+
+running 1 test
+test project_identity_is_typed_without_changing_uuid_serialization ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/permissions.rs (target/debug/deps/permissions-a2f6508bfd9f9b8c)
+
+running 1 test
+test role_matrix_is_deny_by_default ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/project.rs (target/debug/deps/project-5f5a48ab140321bd)
+
+running 2 tests
+test project_rejects_invalid_names_and_stale_revisions ... ok
+test rejected_rename_preserves_every_project_field ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/infrastructure-d5ad4b6901a69bc0)
+
+running 2 tests
+test storage::tests::sensitive_io_causes_become_closed_categories ... ok
+test projects::row_tests::malformed_project_rows_return_decode_errors ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/audit.rs (target/debug/deps/audit-daae92d374d6e6f6)
+
+running 1 test
+test identity_lifecycle_is_audited_without_credentials ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running tests/auth.rs (target/debug/deps/auth-d7b7769badca599f)
+
+running 1 test
+test magic_tokens_are_single_use_identity_is_unique_and_logout_revokes ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+
+     Running tests/email.rs (target/debug/deps/email-3432f8c9f6a8dee5)
+
+running 1 test
+test accepted_mailbox_subset_builds_delivery_recipients ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/identity_locking.rs (target/debug/deps/identity_locking-6d87a90470c17800)
+
+running 1 test
+test identity_locking_regressions ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.55s
+
+     Running tests/invitations.rs (target/debug/deps/invitations-744f5c5a7040adae)
+
+running 1 test
+test concurrent_invitation_acceptance_has_one_winner_and_is_email_bound ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+
+     Running tests/jobs.rs (target/debug/deps/jobs-f3f6e19e95a54dcd)
+
+running 2 tests
+test crash_worker_process ... ok
+
+running 1 test
+
+running 1 test
+test river_worker_updates_projection_and_runs_scheduled_cleanup ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 52.46s
+
+     Running tests/mail.rs (target/debug/deps/mail-63ecdcb55c399255)
+
+running 1 test
+test smtp_adapter_delivers_to_external_capture ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/memberships.rs (target/debug/deps/memberships-8d549ee1840973f0)
+
+running 1 test
+test bound_proof_is_single_use_and_last_owner_is_guarded ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+
+     Running tests/migrations.rs (target/debug/deps/migrations-337202c96bc7aace)
+
+running 1 test
+test sqlx_rejects_modified_applied_migration ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+
+     Running tests/owner_race.rs (target/debug/deps/owner_race-e20d82a9bb04ce83)
+
+running 1 test
+test concurrent_owner_demotions_leave_one_owner_and_retire_only_changed_credentials ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+
+     Running tests/project_contract.rs (target/debug/deps/project_contract-3239bc0d29848208)
+
+running 1 test
+test postgres_obeys_shared_project_contract ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+
+     Running tests/projects.rs (target/debug/deps/projects-1f6f5db5e8e7e7cc)
+
+running 1 test
+test project_policy_concurrency_and_organization_atomicity ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running tests/proof_binding.rs (target/debug/deps/proof_binding-b311405715e22c93)
+
+running 1 test
+test fresh_proof_rejects_live_wrong_user_session_action_target_tenant_expiry_and_replay ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+
+     Running tests/proof_limits.rs (target/debug/deps/proof_limits-f8b164a8bcd8ca3d)
+
+running 1 test
+test concurrent_fresh_email_requests_cannot_bypass_limit ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.35s
+
+     Running tests/proof_lock_order.rs (target/debug/deps/proof_lock_order-cb34682d56cc5351)
+
+running 1 test
+test proof_issuance_and_session_retirement_do_not_deadlock ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+
+     Running tests/readiness.rs (target/debug/deps/readiness-bf645588a0fc85f5)
+
+running 1 test
+test readiness_tracks_database_availability ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+     Running tests/redis.rs (target/debug/deps/redis-0bf2141125863607)
+
+running 1 test
+test cache_is_tenant_scoped_and_security_limiter_fails_closed ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.01s
+
+     Running tests/rls.rs (target/debug/deps/rls-1cd85059bc8af40c)
+
+running 1 test
+test nonowner_role_denies_unscoped_and_cross_tenant_operations ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+     Running tests/rls_tables.rs (target/debug/deps/rls_tables-76a1739fdc50f947)
+
+running 1 test
+test every_tenant_table_hides_other_tenants_and_discovery_is_read_only_local ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running tests/security.rs (target/debug/deps/security-49398bb58efb0dda)
+
+running 1 test
+test expiry_limits_and_hashed_storage_are_enforced ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running tests/sessions.rs (target/debug/deps/sessions-56d7d8c64e71e2dd)
+
+running 4 tests
+test confirmation_replays_share_a_mailbox_budget ... ok
+test rotation_retires_old_token_and_account_revocation_retires_all ... ok
+test targeted_revocation_is_owner_scoped_and_preserves_other_sessions ... ok
+test logout_waiting_on_rotation_retires_replacement ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+
+     Running tests/smtp_tls.rs (target/debug/deps/smtp_tls-32d615078a48e915)
+
+running 1 test
+test production_smtp_requires_verified_starttls_and_delivers_to_capture ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+     Running tests/storage_errors.rs (target/debug/deps/storage_errors-2fa009fa1980325f)
+
+running 1 test
+test storage_failure_is_categorized_without_token_or_cause_leakage ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/transaction.rs (target/debug/deps/transaction-d08ed1ca5b8f6a89)
+
+running 1 test
+test project_and_river_enqueue_share_commit_and_rollback ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+     Running unittests src/main.rs (target/debug/deps/server-2ea3b7d0ef5015d8)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/startup.rs (target/debug/deps/startup-d2b8ac16b7a34902)
+
+running 2 tests
+test runtime_role_and_listener_failures_are_distinct ... ok
+test startup_failures_are_classified_without_echoing_configuration ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.02s
+
+     Running unittests src/main.rs (target/debug/deps/worker-b3fb22f89f761757)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests api
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests application
+
+running 2 tests
+test crates/application/src/projects.rs - projects::ProjectTransaction (line 67) - compile fail ... ok
+test crates/application/src/projects.rs - projects::ProjectTransaction (line 74) - compile fail ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+   Doc-tests bootstrap
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests domain
+
+running 1 test
+test crates/domain/src/ids.rs - ids::_ (line 35) - compile fail ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+   Doc-tests infrastructure
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

@@ -1,0 +1,270 @@
+[
+  {
+    "gate": "dependencies",
+    "command": [
+      "python3",
+      "scripts/dependencies.py",
+      "up"
+    ],
+    "exit_code": 0,
+    "seconds": 2.14
+  },
+  {
+    "gate": "seed",
+    "command": [
+      "python3",
+      "scripts/seed.py"
+    ],
+    "exit_code": 0,
+    "seconds": 0.23
+  },
+  {
+    "gate": "seed-idempotency",
+    "command": [
+      "python3",
+      "scripts/seed.py"
+    ],
+    "exit_code": 0,
+    "seconds": 0.28
+  },
+  {
+    "gate": "sdk-install",
+    "command": [
+      "bun",
+      "install",
+      "--frozen-lockfile"
+    ],
+    "exit_code": 0,
+    "seconds": 0.01
+  },
+  {
+    "gate": "lint",
+    "command": [
+      "python3",
+      "scripts/lint.py",
+      "check"
+    ],
+    "exit_code": 0,
+    "seconds": 1.32
+  },
+  {
+    "gate": "lint-negative-controls",
+    "command": [
+      "python3",
+      "tests/lint_policy.py"
+    ],
+    "exit_code": 0,
+    "seconds": 1.61
+  },
+  {
+    "gate": "bun-audit",
+    "command": [
+      "bun",
+      "audit"
+    ],
+    "exit_code": 0,
+    "seconds": 0.33
+  },
+  {
+    "gate": "architecture",
+    "command": [
+      "python3",
+      "scripts/architecture.py"
+    ],
+    "exit_code": 0,
+    "seconds": 0.06
+  },
+  {
+    "gate": "rust-tests",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--workspace"
+    ],
+    "exit_code": 0,
+    "seconds": 64.74
+  },
+  {
+    "gate": "dev-lifecycle",
+    "command": [
+      "python3",
+      "tests/dev_lifecycle.py"
+    ],
+    "exit_code": 0,
+    "seconds": 1.29
+  },
+  {
+    "gate": "release",
+    "command": [
+      "cargo",
+      "build",
+      "--locked",
+      "--release",
+      "--workspace"
+    ],
+    "exit_code": 0,
+    "seconds": 9.18
+  },
+  {
+    "gate": "sdk-generate",
+    "command": [
+      "bun",
+      "run",
+      "generate"
+    ],
+    "exit_code": 0,
+    "seconds": 0.39
+  },
+  {
+    "gate": "sdk-types",
+    "command": [
+      "bun",
+      "run",
+      "check"
+    ],
+    "exit_code": 0,
+    "seconds": 0.08
+  },
+  {
+    "gate": "native-http",
+    "command": [
+      "python3",
+      "tests/http_acceptance.py"
+    ],
+    "exit_code": 0,
+    "seconds": 0.82
+  },
+  {
+    "gate": "native-metrics",
+    "command": [
+      "/home/hermes/rust-backend-template-library-reuse/.venv/bin/python",
+      "tests/metrics.py"
+    ],
+    "exit_code": 0,
+    "seconds": 0.06
+  },
+  {
+    "gate": "native-sdk",
+    "command": [
+      "bun",
+      "test"
+    ],
+    "exit_code": 0,
+    "seconds": 0.1
+  },
+  {
+    "gate": "native-browser",
+    "command": [
+      "podman",
+      "run",
+      "--rm",
+      "--network",
+      "host",
+      "--ipc",
+      "private",
+      "--security-opt",
+      "no-new-privileges",
+      "-v",
+      "/home/hermes/rust-backend-template-library-reuse:/app:ro",
+      "-w",
+      "/app/sdk",
+      "mcr.microsoft.com/playwright:v1.61.1-noble@sha256:5b8f294aff9041b7191c34a4bab3ac270157a28774d4b0660e9743297b697e48",
+      "node",
+      "browser.mjs"
+    ],
+    "exit_code": 0,
+    "seconds": 1.82
+  },
+  {
+    "gate": "native-observability",
+    "command": [
+      "python3",
+      "tests/observability.py",
+      "native"
+    ],
+    "exit_code": 0,
+    "seconds": 0.02
+  },
+  {
+    "gate": "revision-compatibility",
+    "command": [
+      "python3",
+      "tests/revision_compatibility.py"
+    ],
+    "exit_code": 0,
+    "seconds": 2.81
+  },
+  {
+    "gate": "oci-build",
+    "command": [
+      "podman",
+      "build",
+      "-t",
+      "localhost/rust-backend-template:test",
+      "."
+    ],
+    "exit_code": 0,
+    "seconds": 0.75
+  },
+  {
+    "gate": "oci-http",
+    "command": [
+      "python3",
+      "tests/http_acceptance.py"
+    ],
+    "exit_code": 0,
+    "seconds": 0.82
+  },
+  {
+    "gate": "oci-metrics",
+    "command": [
+      "/home/hermes/rust-backend-template-library-reuse/.venv/bin/python",
+      "tests/metrics.py"
+    ],
+    "exit_code": 0,
+    "seconds": 0.06
+  },
+  {
+    "gate": "oci-sdk",
+    "command": [
+      "bun",
+      "test"
+    ],
+    "exit_code": 0,
+    "seconds": 0.1
+  },
+  {
+    "gate": "oci-browser",
+    "command": [
+      "podman",
+      "run",
+      "--rm",
+      "--network",
+      "host",
+      "--ipc",
+      "private",
+      "--security-opt",
+      "no-new-privileges",
+      "-v",
+      "/home/hermes/rust-backend-template-library-reuse:/app:ro",
+      "-w",
+      "/app/sdk",
+      "mcr.microsoft.com/playwright:v1.61.1-noble@sha256:5b8f294aff9041b7191c34a4bab3ac270157a28774d4b0660e9743297b697e48",
+      "node",
+      "browser.mjs"
+    ],
+    "exit_code": 0,
+    "seconds": 1.3
+  },
+  {
+    "gate": "oci-observability",
+    "command": [
+      "python3",
+      "tests/observability.py",
+      "oci"
+    ],
+    "exit_code": 0,
+    "seconds": 0.02
+  }
+]

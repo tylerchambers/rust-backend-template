@@ -109,7 +109,7 @@ async fn rotation_retires_old_token_and_account_revocation_retires_all() {
         .await
         .unwrap();
     let actor = db.consume_login(&login, &old).await.unwrap();
-    assert_eq!(db.list_sessions(&actor).await.unwrap().len(), 1);
+    assert_eq!(db.list_sessions(&actor, None).await.unwrap().len(), 1);
     db.rotate(&actor, &old, &new).await.unwrap();
     assert!(db.authenticate(&old).await.is_err());
     assert!(db.authenticate(&new).await.is_ok());
@@ -145,7 +145,7 @@ async fn targeted_revocation_is_owner_scoped_and_preserves_other_sessions() {
     assert!(db.authenticate(second_token).await.is_err());
     assert!(db.authenticate(first).await.is_ok());
     assert_eq!(
-        db.list_sessions(actor).await.unwrap(),
+        db.list_sessions(actor, None).await.unwrap(),
         vec![actor.session_id]
     );
     sqlx::query(
@@ -156,7 +156,7 @@ async fn targeted_revocation_is_owner_scoped_and_preserves_other_sessions() {
     .await
     .unwrap();
     assert_eq!(
-        db.list_sessions(actor).await.unwrap(),
+        db.list_sessions(actor, None).await.unwrap(),
         [] as [domain::SessionId; 0]
     );
 }

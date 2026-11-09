@@ -1,0 +1,28 @@
+dependencies 0
+seed 0
+seed-idempotency 0
+sdk-install 0
+lint 0
+lint-negative-controls 0
+bun-audit 0
+architecture 0
+rust-tests 0
+dev-lifecycle 0
+release 0
+sdk-generate 0
+sdk-types 0
+native-http 0
+native-metrics 0
+native-sdk 0
+native-browser 0
+native-observability 0
+revision-compatibility 0
+oci-build 0
+oci-http 0
+oci-metrics 0
+oci-sdk 0
+oci-browser 0
+oci-observability 0
+cfbd6da61f8e5e04b8baa06a7a0ffbe95f5e326898ebd4323e5fd721ce95da5e
+782cc9f620cd889795e4469958b38c240a056f61506f41e93fd03bd2262cfd2b
+1264d343dd3d00dcc541a2f9bb7c8cc96777e4fd79863cb5122c0025066b0f2d

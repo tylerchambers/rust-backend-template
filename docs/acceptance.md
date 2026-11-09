@@ -2,7 +2,9 @@
 
 The live Notion hub and all eleven linked specification pages were read without modification and refreshed under `docs/spec/`. The current scope is email magic-link login and fresh, action-bound email proofs: one verified primary address, no passkeys, email changes, additional addresses or recovery. Notion ticket statuses are not implementation evidence.
 
-**Local verification:** `python3 scripts/verify.py` completed all **25 top-level gates** successfully on the library-reuse snapshot, including the two new native/OCI OpenMetrics-parser gates. `docs/evidence/results.json` records commands, durations and exits. Cargo reports **39 passing test results**, including the subprocess entry helper and compile-fail typed-ID doctest; integration tests contain multiple adversarial scenarios. Native and OCI HTTP, SDK and real Chromium journeys all passed. [ADR 002](adr-002-library-reuse.md) records scope, library choices, spike evidence and acceptance. This is not independent acceptance or production certification.
+**Current thermonuclear-remediation verification:** the combined dirty working tree based on `36d86b89d5d3462197ca56c93b5bd9ddc77596b5` passes `python3 scripts/verify.py`: **41 recorded gates**, **48 passing Rust test results**, native and OCI HTTP/SDK/Chromium/metrics/observability journeys, two-revision compatibility, seed conflicts and cancellation, and tooling fault regressions. `docs/evidence/run.json` records overall completion, expected gates, source revision, dirty state and run ID; `results.json` records this run's individual outcomes. See [the remediation disposition](thermonuclear/disposition.md) and implementation report for exact logs and limitations. Independent tooling review and publication are still parent-owned; nothing has been committed or pushed by this implementation task.
+
+The earlier library-reuse snapshot passed 25 gates and 39 Rust test results. Those counts are historical, not current-tree verification. [ADR 002](adr-002-library-reuse.md) retains that snapshot's scope, library choices and spike evidence. Neither run constitutes production certification.
 
 | Ticket | Requirement | Status | Executable evidence / qualification |
 |---|---|---|---|
@@ -47,7 +49,7 @@ The live Notion hub and all eleven linked specification pages were read without 
 
 ## Evidence interpretation
 
-- Final gate results are `docs/evidence/results.json` and its named logs. Earlier `*-red.log` files intentionally contain failing regression/compiler output; targeted older green logs do not supersede the final gate.
+- Current-run authority is `docs/evidence/run.json` plus matching run IDs in `results.json`. Require overall `completed`, every expected gate passed, and successful cleanup. A running/failed record is not acceptance, even when earlier entries passed. Command gates retain streaming output in their corresponding logs; in-process gates and dependency/migration child output are also retained in `docs/thermonuclear/combined-verification-final.log`. Browser command output is now `native-browser-exec.log` / `oci-browser-exec.log`. Other old logs, including the former `dependencies.log` and `*-browser.log`, are historical and must not be inferred current from their filenames. RED logs intentionally fail; targeted green logs do not supersede the combined gate.
 - Application migrations 9 (correlation) and 10 (SELECT-only self-discovery policies) are expand-only. The compatibility claim is this recorded adjacent revision and live fixture, not arbitrary historical downgrade safety.
 - JSON spans are correlated locally; no collector/export deployment is claimed. Queue retry metrics describe persisted attempts, not a complete historical counter after retention.
 - SMTP STARTTLS uses a real isolated TLS peer and trusted test CA plus untrusted-certificate rejection. No external mailbox or real-provider delivery was attempted.

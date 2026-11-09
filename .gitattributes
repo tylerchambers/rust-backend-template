@@ -4,3 +4,7 @@ docs/evidence/library-reuse-spike/*.log whitespace=-blank-at-eof
 # These tool-owned outputs contain diagnostic layout / empty TSV columns.
 docs/evidence/lint-negative-controls.log whitespace=-blank-at-eof,-blank-at-eol
 docs/evidence/dependency-licenses.tsv whitespace=-blank-at-eol
+# Audit snapshots retain verbatim diagnostics and empty TSV columns.
+docs/thermonuclear/**/*.log whitespace=-blank-at-eof,-blank-at-eol
+docs/thermonuclear/*.log whitespace=-blank-at-eof,-blank-at-eol
+docs/thermonuclear/**/*.tsv whitespace=-blank-at-eol

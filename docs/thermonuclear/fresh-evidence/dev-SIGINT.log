@@ -1,0 +1,6 @@
+   Compiling worker v0.1.0 (/home/hermes/rust-backend-template-thermonuclear-acceptance/apps/worker)
+   Compiling server v0.1.0 (/home/hermes/rust-backend-template-thermonuclear-acceptance/apps/server)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.71s
+API: http://localhost:58039 | email capture: http://localhost:58029 | Ctrl-C stops owned processes
+{"timestamp":"2026-11-09T12:45:35.136941Z","level":"INFO","fields":{"operation":"server.ready"},"target":"bootstrap"}
+{"timestamp":"2026-11-09T12:45:35.140112Z","level":"INFO","fields":{"operation":"worker.ready"},"target":"bootstrap"}

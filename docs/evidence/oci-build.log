@@ -1,16 +1,22 @@
 STEP 1/7: FROM docker.io/library/debian:trixie-slim@sha256:1e1a22175fbf1b32157ddaf0219e1db4e5401fab2b94ed285add64d18587cd2d
 STEP 2/7: COPY target/release/server target/release/worker target/release/cli /usr/local/bin/
---> 411967ce38c2
+--> Using cache 00e52f5fd5158a9bf7a3d26e306746cf89c90edfe255f54d1449988cbf559135
+--> 00e52f5fd515
 STEP 3/7: USER 65532:65532
---> e215d54dabb2
+--> Using cache 3933498462c8607245ae906ac38a59812e4334d889137356f0f26b11e2ec0ece
+--> 3933498462c8
 STEP 4/7: WORKDIR /app
---> bc49e438c6cb
+--> Using cache ea630e6a4e57d64e1c7a24c30aadf067eeb8c397dbed562d82b96e45552842c8
+--> ea630e6a4e57
 STEP 5/7: ENV BIND_ADDRESS=0.0.0.0:8080
---> 0c5b4fca0fb7
+--> Using cache 8e45a902e5d4a91656dc85104dd8e6176141a65be0681416cd0399b67a5267b6
+--> 8e45a902e5d4
 STEP 6/7: EXPOSE 8080
---> 261ba8c263ed
+--> Using cache 4790c4060c1d7255a9929dc7e39f43de1c6541f0fbd15cbee5de7610da2ef526
+--> 4790c4060c1d
 STEP 7/7: ENTRYPOINT ["/usr/local/bin/server"]
+--> Using cache 5f1554034e4f8028cf1f184631ed07108f75edfffac566d3813741fe0992091e
 COMMIT localhost/rust-backend-template:test
---> 00326c515ea2
+--> 5f1554034e4f
 Successfully tagged localhost/rust-backend-template:test
-00326c515ea2c65efe7dca004c712aed689a0037fc0c153188ab2803f877ddea
+5f1554034e4f8028cf1f184631ed07108f75edfffac566d3813741fe0992091e

@@ -1,0 +1,74 @@
+2026-11-09 04:53:12.584 UTC [102] ERROR:  deadlock detected
+2026-11-09 04:53:12.584 UTC [102] DETAIL:  Process 102 waits for ShareLock on transaction 798; blocked by process 101.
+	Process 101 waits for ShareLock on transaction 799; blocked by process 102.
+	Process 102: 
+	            SELECT u.email
+	            FROM users u
+	            JOIN sessions s ON s.user_id=u.id
+	            JOIN memberships m ON m.user_id=u.id
+	            WHERE u.id=$1
+	            AND s.id=$2
+	            AND m.organization_id=$3
+	            AND NOT u.disabled
+	            AND s.revoked_at IS NULL
+	            AND s.expires_at>clock_timestamp()
+	            AND s.last_seen_at>clock_timestamp()-interval '30 minutes'
+	            FOR UPDATE OF u
+	            FOR SHARE OF s,m
+	            
+	Process 101: SELECT id FROM users WHERE id=$1 FOR UPDATE
+2026-11-09 04:53:12.584 UTC [102] HINT:  See server log for query details.
+2026-11-09 04:53:12.584 UTC [102] CONTEXT:  while locking tuple (0,2) in relation "memberships"
+2026-11-09 04:53:12.584 UTC [102] STATEMENT:  
+	            SELECT u.email
+	            FROM users u
+	            JOIN sessions s ON s.user_id=u.id
+	            JOIN memberships m ON m.user_id=u.id
+	            WHERE u.id=$1
+	            AND s.id=$2
+	            AND m.organization_id=$3
+	            AND NOT u.disabled
+	            AND s.revoked_at IS NULL
+	            AND s.expires_at>clock_timestamp()
+	            AND s.last_seen_at>clock_timestamp()-interval '30 minutes'
+	            FOR UPDATE OF u
+	            FOR SHARE OF s,m
+	            
+2026-11-09 04:55:51.736 UTC [126] LOG:  unexpected EOF on client connection with an open transaction
+2026-11-09 04:55:51.736 UTC [129] LOG:  unexpected EOF on client connection with an open transaction
+2026-11-09 04:55:51.737 UTC [128] LOG:  unexpected EOF on client connection with an open transaction
+2026-11-09 04:55:57.235 UTC [136] LOG:  unexpected EOF on client connection with an open transaction
+2026-11-09 04:55:57.235 UTC [138] LOG:  unexpected EOF on client connection with an open transaction
+2026-11-09 04:55:57.235 UTC [139] LOG:  unexpected EOF on client connection with an open transaction
+2026-11-09 04:56:30.238 UTC [67] LOG:  checkpoint starting: time
+2026-11-09 04:56:59.722 UTC [67] LOG:  checkpoint complete: wrote 296 buffers (1.8%); 0 WAL file(s) added, 0 removed, 0 recycled; write=29.413 s, sync=0.053 s, total=29.485 s; sync files=203, longest=0.004 s, average=0.001 s; distance=1618 kB, estimate=1618 kB; lsn=0/1AB3398, redo lsn=0/1AB3308
+2026-11-09 04:57:04.079 UTC [172] ERROR:  deadlock detected
+2026-11-09 04:57:04.079 UTC [172] ERROR:  deadlock detected
+2026-11-09 04:57:04.079 UTC [172] DETAIL:  Process 172 waits for ShareLock on transaction 955; blocked by process 171.
+	Process 171 waits for ShareLock on transaction 956; blocked by process 172.
+	Process 172: SELECT id FROM users WHERE id=ANY($1) ORDER BY id FOR UPDATE
+	Process 171: 
+	            INSERT INTO reauthentication_proofs(token_hash,user_id,session_id,organization_id,action,target)
+	            VALUES($1,$2,$3,$4,$5,$6)
+	            
+2026-11-09 04:57:04.079 UTC [172] HINT:  See server log for query details.
+2026-11-09 04:57:04.079 UTC [172] CONTEXT:  while locking tuple (0,28) in relation "users"
+2026-11-09 04:57:04.079 UTC [172] STATEMENT:  SELECT id FROM users WHERE id=ANY($1) ORDER BY id FOR UPDATE
+2026-11-09 05:01:21.099 UTC [180] LOG:  unexpected EOF on client connection with an open transaction
+2026-11-09 05:01:21.099 UTC [189] LOG:  unexpected EOF on client connection with an open transaction
+2026-11-09 05:01:21.100 UTC [193] LOG:  unexpected EOF on client connection with an open transaction
+2026-11-09 05:01:21.103 UTC [202] LOG:  unexpected EOF on client connection with an open transaction
+2026-11-09 05:01:30.769 UTC [67] LOG:  checkpoint starting: time
+2026-11-09 05:01:35.812 UTC [67] LOG:  checkpoint complete: wrote 52 buffers (0.3%); 0 WAL file(s) added, 0 removed, 0 recycled; write=4.949 s, sync=0.023 s, total=5.044 s; sync files=44, longest=0.004 s, average=0.001 s; distance=214 kB, estimate=1478 kB; lsn=0/1AE8D30, redo lsn=0/1AE8CD8
+2026-11-09 05:02:08.903 UTC [250] LOG:  unexpected EOF on client connection with an open transaction
+2026-11-09 05:02:09.213 UTC [256] LOG:  unexpected EOF on client connection with an open transaction
+2026-11-09 05:02:10.006 UTC [272] ERROR:  new row violates row-level security policy for table "projects"
+2026-11-09 05:02:10.006 UTC [272] STATEMENT:  INSERT INTO projects(id,organization_id,name) VALUES($1,$2,'attack')
+2026-11-09 05:04:18.874 UTC [330] LOG:  unexpected EOF on client connection with an open transaction
+2026-11-09 05:04:19.187 UTC [336] LOG:  unexpected EOF on client connection with an open transaction
+2026-11-09 05:04:19.989 UTC [352] ERROR:  new row violates row-level security policy for table "projects"
+2026-11-09 05:04:19.989 UTC [352] STATEMENT:  INSERT INTO projects(id,organization_id,name) VALUES($1,$2,'attack')
+2026-11-09 05:05:44.006 UTC [409] LOG:  unexpected EOF on client connection with an open transaction
+2026-11-09 05:05:44.436 UTC [415] LOG:  unexpected EOF on client connection with an open transaction
+2026-11-09 05:05:45.212 UTC [431] ERROR:  new row violates row-level security policy for table "projects"
+2026-11-09 05:05:45.212 UTC [431] STATEMENT:  INSERT INTO projects(id,organization_id,name) VALUES($1,$2,'attack')

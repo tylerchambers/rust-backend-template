@@ -1,0 +1,7 @@
+2fa220268c02f833f9dd292c9799cb3cd31d8764983ad55c670363ebb9ea2aef
+6e3ce027db1d4782292ec2a1d17905446cc24c1ebc2287306f1bdc80f5cdf263
+4ba7a8c510123cc279bc3aaf292cb2a86e458daaeb58d80c37ed62a919104a1b
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running `target/debug/cli migrate`
+ALTER ROLE
+Disposable PostgreSQL, SMTP capture and Redis ready; runtime role provisioned

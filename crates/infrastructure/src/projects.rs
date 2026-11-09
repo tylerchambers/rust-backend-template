@@ -6,7 +6,9 @@ mod row_tests {
         let pool = sqlx::PgPool::connect(&std::env::var("TEST_DATABASE_URL").unwrap())
             .await
             .unwrap();
-        let result = sqlx::query_as::<_, super::ProjectRow>("SELECT 'not-a-uuid'::text AS id, gen_random_uuid() AS organization_id, 'name'::text AS name, 1::bigint AS version, false AS archived").fetch_one(&pool).await;
+        let result = sqlx::query_as::<_, super::ProjectRow>(r"
+            SELECT 'not-a-uuid'::text AS id, gen_random_uuid() AS organization_id, 'name'::text AS name, 1::bigint AS version, false AS archived
+            ").fetch_one(&pool).await;
         assert!(matches!(result, Err(sqlx::Error::ColumnDecode { .. })));
     }
 }
@@ -14,7 +16,7 @@ mod row_tests {
 use crate::Database;
 use application::{
     Actor,
-    projects::{OrganizationRepository, ProjectRepository, TenantTransaction, UnitOfWork},
+    projects::{OrganizationRepository, ProjectRepository, TenantAuthority, TenantTransaction},
 };
 use async_trait::async_trait;
 use domain::{Error, Project, Role};
@@ -31,23 +33,6 @@ fn storage(error: sqlx::Error) -> Error {
     crate::storage::unavailable(error, "projects")
 }
 #[async_trait]
-impl UnitOfWork for Database {
-    async fn begin(
-        &self,
-        organization: OrganizationId,
-    ) -> Result<Box<dyn TenantTransaction>, Error> {
-        let tx = self
-            .begin_tenant(organization.into_uuid())
-            .await
-            .map_err(storage)?;
-        Ok(Box::new(TenantWork {
-            tx,
-            organization: organization.into_uuid(),
-            db: self.clone(),
-        }))
-    }
-}
-#[async_trait]
 impl OrganizationRepository for TenantWork {
     async fn list_organizations(
         &mut self,
@@ -60,8 +45,22 @@ impl OrganizationRepository for TenantWork {
             .execute(&mut *self.tx)
             .await
             .map_err(storage)?;
-        let rows: Vec<(Uuid, String, String)> = sqlx::query_as("SELECT o.id,o.name,m.role FROM organizations o JOIN memberships m ON m.organization_id=o.id WHERE m.user_id=$1 AND ($2::uuid IS NULL OR o.id>$2) ORDER BY o.id LIMIT 50")
-            .bind(actor.user_id.into_uuid()).bind(after.map(OrganizationId::into_uuid)).fetch_all(&mut *self.tx).await.map_err(storage)?;
+        let rows: Vec<(Uuid, String, String)> = sqlx::query_as(
+            r"
+            SELECT o.id,o.name,m.role
+            FROM organizations o
+            JOIN memberships m ON m.organization_id=o.id
+            WHERE m.user_id=$1
+            AND ($2::uuid IS NULL OR o.id>$2)
+            ORDER BY o.id
+            LIMIT 50
+            ",
+        )
+        .bind(actor.user_id.into_uuid())
+        .bind(after.map(OrganizationId::into_uuid))
+        .fetch_all(&mut *self.tx)
+        .await
+        .map_err(storage)?;
         rows.into_iter()
             .map(|(id, name, value)| {
                 Ok(application::projects::OrganizationSummary {
@@ -76,8 +75,21 @@ impl OrganizationRepository for TenantWork {
         &mut self,
         after: Option<UserId>,
     ) -> Result<Vec<application::projects::MemberSummary>, Error> {
-        let rows: Vec<(Uuid,String)> = sqlx::query_as("SELECT user_id,role FROM memberships WHERE organization_id=$1 AND ($2::uuid IS NULL OR user_id>$2) ORDER BY user_id LIMIT 50")
-            .bind(self.organization).bind(after.map(UserId::into_uuid)).fetch_all(&mut *self.tx).await.map_err(storage)?;
+        let rows: Vec<(Uuid, String)> = sqlx::query_as(
+            r"
+            SELECT user_id,role
+            FROM memberships
+            WHERE organization_id=$1
+            AND ($2::uuid IS NULL OR user_id>$2)
+            ORDER BY user_id
+            LIMIT 50
+            ",
+        )
+        .bind(self.organization)
+        .bind(after.map(UserId::into_uuid))
+        .fetch_all(&mut *self.tx)
+        .await
+        .map_err(storage)?;
         rows.into_iter()
             .map(|(id, value)| {
                 Ok(application::projects::MemberSummary {
@@ -88,8 +100,11 @@ impl OrganizationRepository for TenantWork {
             .collect()
     }
     async fn validate_actor(&mut self, actor: &Actor) -> Result<(), Error> {
-        let live:Option<Uuid>=sqlx::query_scalar("SELECT u.id FROM users u JOIN sessions s ON s.user_id=u.id WHERE u.id=$1 AND s.id=$2 AND NOT u.disabled AND s.revoked_at IS NULL AND s.expires_at>clock_timestamp() AND s.last_seen_at>clock_timestamp()-interval '30 minutes' FOR SHARE OF u,s").bind(actor.user_id.into_uuid()).bind(actor.session_id.into_uuid()).fetch_optional(&mut *self.tx).await.map_err(storage)?;
-        live.map(|_| ()).ok_or(Error::Unauthenticated)
+        crate::identity::lock_actor(&mut self.tx, actor).await?;
+        crate::identity::live_email(&mut self.tx, actor)
+            .await?
+            .ok_or(Error::Unauthenticated)?;
+        Ok(())
     }
     async fn insert_organization(&mut self, id: OrganizationId, name: &str) -> Result<(), Error> {
         sqlx::query!(
@@ -117,13 +132,30 @@ impl OrganizationRepository for TenantWork {
         .map_err(storage)?;
         Ok(())
     }
+}
+#[async_trait]
+impl TenantAuthority for TenantWork {
     async fn current_role(
         &mut self,
         actor: &Actor,
         organization: OrganizationId,
     ) -> Result<Role, Error> {
-        // Lock session and membership until publication. Revocation serializes with use cases.
-        let role:Option<String>=sqlx::query_scalar("SELECT m.role FROM memberships m JOIN users u ON u.id=m.user_id JOIN sessions s ON s.user_id=u.id WHERE m.organization_id=$1 AND m.user_id=$2 AND s.id=$3 AND NOT u.disabled AND s.revoked_at IS NULL AND s.expires_at>clock_timestamp() AND s.last_seen_at>clock_timestamp()-interval '30 minutes' FOR SHARE OF m,u,s").bind(organization.into_uuid()).bind(actor.user_id.into_uuid()).bind(actor.session_id.into_uuid()).fetch_optional(&mut *self.tx).await.map_err(storage)?;
+        crate::identity::lock_actor(&mut self.tx, actor).await?;
+        let role: Option<String> = sqlx::query_scalar(
+            r"
+            SELECT role FROM memberships
+            WHERE organization_id=$1 AND user_id=$2
+            FOR SHARE
+            ",
+        )
+        .bind(organization.into_uuid())
+        .bind(actor.user_id.into_uuid())
+        .fetch_optional(&mut *self.tx)
+        .await
+        .map_err(storage)?;
+        crate::identity::live_email(&mut self.tx, actor)
+            .await?
+            .ok_or(Error::Forbidden)?;
         crate::memberships::role(role.as_deref().ok_or(Error::Forbidden)?)
     }
 }
@@ -148,6 +180,18 @@ impl From<ProjectRow> for Project {
 }
 #[async_trait]
 impl ProjectRepository for TenantWork {
+    async fn project_changed(&mut self, id: ProjectId, correlation_id: Uuid) -> Result<(), Error> {
+        self.db
+            .enqueue_project_correlated(
+                &mut self.tx,
+                self.organization,
+                id.into_uuid(),
+                correlation_id,
+            )
+            .await
+            .map_err(|_| Error::Unavailable)
+    }
+
     async fn insert_project(&mut self, p: &Project) -> Result<(), Error> {
         sqlx::query!(
             "INSERT INTO projects(id,organization_id,name,version,archived) VALUES($1,$2,$3,$4,$5)",
@@ -163,32 +207,78 @@ impl ProjectRepository for TenantWork {
         Ok(())
     }
     async fn load_project(&mut self, id: ProjectId) -> Result<Project, Error> {
-        sqlx::query_as::<_, ProjectRow>("SELECT id,organization_id,name,version,archived FROM projects WHERE id=$1 AND organization_id=$2").bind(id.into_uuid()).bind(self.organization).fetch_optional(&mut *self.tx).await.map_err(storage)?.map(Into::into).ok_or(Error::NotFound)
+        sqlx::query_as::<_, ProjectRow>(
+            r"
+            SELECT id,organization_id,name,version,archived
+            FROM projects
+            WHERE id=$1
+            AND organization_id=$2
+            ",
+        )
+        .bind(id.into_uuid())
+        .bind(self.organization)
+        .fetch_optional(&mut *self.tx)
+        .await
+        .map_err(storage)?
+        .map(Into::into)
+        .ok_or(Error::NotFound)
     }
     async fn save_project(&mut self, p: &Project, expected: i64) -> Result<(), Error> {
-        let n=sqlx::query!("UPDATE projects SET name=$1,version=$2,archived=$3 WHERE id=$4 AND organization_id=$5 AND version=$6",p.name,p.version,p.archived,p.id.into_uuid(),self.organization,expected).execute(&mut *self.tx).await.map_err(storage)?.rows_affected();
+        let n = sqlx::query!(
+            "UPDATE projects SET name=$1,version=$2,archived=$3 WHERE id=$4 AND organization_id=$5 AND version=$6",
+            p.name,
+            p.version,
+            p.archived,
+            p.id.into_uuid(),
+            self.organization,
+            expected
+        )
+            .execute(&mut *self.tx)
+            .await
+            .map_err(storage)?
+            .rows_affected();
         if n == 1 { Ok(()) } else { Err(Error::Conflict) }
     }
     async fn list_projects(&mut self, after: Option<ProjectId>) -> Result<Vec<Project>, Error> {
-        Ok(sqlx::query_as::<_, ProjectRow>("SELECT id,organization_id,name,version,archived FROM projects WHERE organization_id=$1 AND ($2::uuid IS NULL OR id>$2) ORDER BY id LIMIT 50").bind(self.organization).bind(after.map(ProjectId::into_uuid)).fetch_all(&mut *self.tx).await.map_err(storage)?.into_iter().map(Into::into).collect())
+        Ok(sqlx::query_as::<_, ProjectRow>(
+            r"
+            SELECT id,organization_id,name,version,archived
+            FROM projects
+            WHERE organization_id=$1
+            AND ($2::uuid IS NULL OR id>$2)
+            ORDER BY id
+            LIMIT 50
+            ",
+        )
+        .bind(self.organization)
+        .bind(after.map(ProjectId::into_uuid))
+        .fetch_all(&mut *self.tx)
+        .await
+        .map_err(storage)?
+        .into_iter()
+        .map(Into::into)
+        .collect())
     }
 }
 #[async_trait]
 impl TenantTransaction for TenantWork {
     async fn audit(&mut self, actor: &Actor, action: &str, subject: Uuid) -> Result<(), Error> {
-        sqlx::query("INSERT INTO audit_events(id,organization_id,actor_id,action,subject,correlation_id) VALUES($1,$2,$3,$4,$5,$6)").bind(Uuid::now_v7()).bind(self.organization).bind(actor.user_id.into_uuid()).bind(action).bind(subject).bind(actor.correlation_id).execute(&mut *self.tx).await.map_err(storage)?;
+        sqlx::query(
+            r"
+            INSERT INTO audit_events(id,organization_id,actor_id,action,subject,correlation_id)
+            VALUES($1,$2,$3,$4,$5,$6)
+            ",
+        )
+        .bind(Uuid::now_v7())
+        .bind(self.organization)
+        .bind(actor.user_id.into_uuid())
+        .bind(action)
+        .bind(subject)
+        .bind(actor.correlation_id)
+        .execute(&mut *self.tx)
+        .await
+        .map_err(storage)?;
         Ok(())
-    }
-    async fn project_changed(&mut self, id: ProjectId, correlation_id: Uuid) -> Result<(), Error> {
-        self.db
-            .enqueue_project_correlated(
-                &mut self.tx,
-                self.organization,
-                id.into_uuid(),
-                correlation_id,
-            )
-            .await
-            .map_err(|_| Error::Unavailable)
     }
     async fn commit(self: Box<Self>) -> Result<(), Error> {
         self.tx.commit().await.map_err(storage)

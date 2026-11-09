@@ -1,0 +1,24 @@
+   Compiling application v0.1.0 (/home/hermes/rust-backend-template/crates/application)
+   Compiling infrastructure v0.1.0 (/home/hermes/rust-backend-template/crates/infrastructure)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.59s
+     Running tests/sessions.rs (target/debug/deps/sessions-2c888a01b0ab5094)
+
+running 1 test
+test confirmation_replays_share_a_mailbox_budget ... FAILED
+
+failures:
+
+---- confirmation_replays_share_a_mailbox_budget stdout ----
+
+thread 'confirmation_replays_share_a_mailbox_budget' (1911335) panicked at crates/infrastructure/tests/sessions.rs:16:5:
+assertion failed: matches!(db.consume_login(&link, &SystemSecrets.token()).await,
+    Err(domain::Error::RateLimited))
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    confirmation_replays_share_a_mailbox_budget
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.11s
+
+error: test failed, to rerun pass `-p infrastructure --test sessions`

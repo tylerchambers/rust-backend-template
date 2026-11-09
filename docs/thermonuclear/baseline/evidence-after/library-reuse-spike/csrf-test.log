@@ -1,0 +1,9 @@
+   Compiling reuse-spike v0.1.0 (/home/hermes/.hermes/cache/scratch/rust-reuse-spike)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.64s
+     Running unittests src/lib.rs (/home/hermes/.hermes/cache/scratch/rust-reuse-spike/target/debug/deps/reuse_spike-aa8ae4db79da96b3)
+
+running 1 test
+test tests::csrf_round_trip_requires_separate_form_token_and_shared_configuration ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+

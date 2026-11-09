@@ -1,0 +1,25 @@
+   Compiling api v0.1.0 (/home/hermes/rust-backend-template-thermonuclear/crates/api)
+   Compiling bootstrap v0.1.0 (/home/hermes/rust-backend-template-thermonuclear/crates/bootstrap)
+   Compiling server v0.1.0 (/home/hermes/rust-backend-template-thermonuclear/apps/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.85s
+     Running tests/startup.rs (target/debug/deps/startup-c2e85fceab736c51)
+
+running 1 test
+test startup_failures_are_classified_without_echoing_configuration ... FAILED
+
+failures:
+
+---- startup_failures_are_classified_without_echoing_configuration stdout ----
+
+thread 'startup_failures_are_classified_without_echoing_configuration' (2622643) panicked at apps/server/tests/startup.rs:19:9:
+{"level":"error","code":"startup_or_runtime_failure"}
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    startup_failures_are_classified_without_echoing_configuration
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p server --test startup`

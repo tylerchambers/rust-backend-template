@@ -1,0 +1,1 @@
+PASS: native Chromium scanner GET, explicit confirmation POST, Secure HttpOnly session, action-bound email proof and CSRF/replay rejection

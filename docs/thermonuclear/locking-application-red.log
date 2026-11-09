@@ -1,0 +1,22 @@
+   Compiling infrastructure v0.1.0 (/home/hermes/rust-backend-template-thermonuclear/crates/infrastructure)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.70s
+     Running tests/identity_locking.rs (target/debug/deps/identity_locking-6bd15508b6d87158)
+
+running 1 test
+test application_change_and_proof_are_atomic_without_deadlock ... FAILED
+
+failures:
+
+---- application_change_and_proof_are_atomic_without_deadlock stdout ----
+
+thread 'application_change_and_proof_are_atomic_without_deadlock' (2640059) panicked at crates/infrastructure/tests/identity_locking.rs:89:5:
+retired session cannot issue proof: Err(Unavailable)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    application_change_and_proof_are_atomic_without_deadlock
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.25s
+
+error: test failed, to rerun pass `-p infrastructure --test identity_locking`

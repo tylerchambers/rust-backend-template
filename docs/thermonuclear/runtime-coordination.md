@@ -1,0 +1,5 @@
+# Runtime/core coordination — resolved
+
+Runtime adapted infrastructure/projects.rs to actual narrow traits: removed old UnitOfWork impl (composition now in core-owned infrastructure/lib.rs), moved current_role to TenantAuthority and project_changed to ProjectRepository. No core-owned file edited.
+
+PERSIST-1 initially required a core-owned contract change. The parent/user explicitly transferred full necessary application/infrastructure ownership to the locking implementer. Implemented `MembershipRepository::lock_users`, all application membership call sites, ordered identity/session/membership reads, and FK-compatible organization serialization. Focused RED/GREEN and cleanup are recorded in `implementation-locking.md`; `implementation-runtime.md` now reflects the new evidence. No shared-file ownership blocker remains. Independent review/full integration remain parent-owned. Fixed-port dependencies created by the locking implementer were removed and exact IDs checked absent (`locking-cleanup.log`).

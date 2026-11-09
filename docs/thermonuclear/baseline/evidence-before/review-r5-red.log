@@ -1,0 +1,22 @@
+   Compiling infrastructure v0.1.0 (/home/hermes/rust-backend-template/crates/infrastructure)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.07s
+     Running tests/memberships.rs (target/debug/deps/memberships-6c1916d29e4eea3c)
+
+running 1 test
+test bound_proof_is_single_use_and_last_owner_is_guarded ... FAILED
+
+failures:
+
+---- bound_proof_is_single_use_and_last_owner_is_guarded stdout ----
+
+thread 'bound_proof_is_single_use_and_last_owner_is_guarded' (1908194) panicked at crates/infrastructure/tests/memberships.rs:71:5:
+pre-elevation credential remains live
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    bound_proof_is_single_use_and_last_owner_is_guarded
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+error: test failed, to rerun pass `-p infrastructure --test memberships`

@@ -1,0 +1,13 @@
+b7a9fe18eea0a33b12043db8d1e70e8c7c89a2d97684c534feaca4ce7e4fa874
+7417adac2b0be8a8e60b420778bcc53428a216c354ff15920fdaaa96ebc5b9ab
+e0990c2decc1085cc3a8d448d4f0a060f9cfbcf5b02e48e947135633aaf45851
+   Compiling domain v0.1.0 (/home/hermes/rust-backend-template-thermonuclear/crates/domain)
+   Compiling application v0.1.0 (/home/hermes/rust-backend-template-thermonuclear/crates/application)
+   Compiling infrastructure v0.1.0 (/home/hermes/rust-backend-template-thermonuclear/crates/infrastructure)
+   Compiling api v0.1.0 (/home/hermes/rust-backend-template-thermonuclear/crates/api)
+   Compiling bootstrap v0.1.0 (/home/hermes/rust-backend-template-thermonuclear/crates/bootstrap)
+   Compiling cli v0.1.0 (/home/hermes/rust-backend-template-thermonuclear/apps/cli)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.80s
+     Running `target/debug/cli migrate`
+ALTER ROLE
+Disposable PostgreSQL, SMTP capture and Redis ready; runtime role provisioned

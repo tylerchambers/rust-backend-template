@@ -1,0 +1,60 @@
+   Compiling serde_core v1.0.229
+   Compiling form_urlencoded v1.2.2
+   Compiling indexmap v2.14.2
+   Compiling tracing v0.1.44
+   Compiling serde v1.0.229
+   Compiling serde_json v1.0.154
+   Compiling uuid v1.29.1
+   Compiling jiff v0.2.39
+   Compiling smallvec v1.16.5
+   Compiling either v1.19.0
+   Compiling chrono v0.4.45
+   Compiling domain v0.1.0 (/home/hermes/rust-backend-template-thermonuclear/crates/domain)
+   Compiling tracing-serde v0.2.0
+   Compiling parking_lot_core v0.9.12
+   Compiling icu_normalizer v2.4.0
+   Compiling parking_lot v0.12.5
+   Compiling tracing-subscriber v0.3.23
+   Compiling tokio v1.54.1
+   Compiling futures-intrusive v0.5.0
+   Compiling prometheus-client v0.25.2
+   Compiling idna_adapter v1.2.2
+   Compiling idna v1.1.0
+   Compiling url v2.5.8
+   Compiling application v0.1.0 (/home/hermes/rust-backend-template-thermonuclear/crates/application)
+   Compiling sqlx-core v0.9.0
+   Compiling sqlx-postgres v0.9.0
+   Compiling tokio-stream v0.1.19
+   Compiling tokio-util v0.7.20
+   Compiling tokio-rustls v0.26.6
+   Compiling lettre v0.11.23
+   Compiling combine v4.6.9
+   Compiling sqlx-macros-core v0.9.0
+   Compiling sqlx-macros v0.9.0
+   Compiling redis v1.8.1
+   Compiling sqlx v0.9.0
+   Compiling riverqueue-migrate v0.6.0
+   Compiling jiff-sqlx v0.2.1
+   Compiling riverqueue v0.6.0
+   Compiling infrastructure v0.1.0 (/home/hermes/rust-backend-template-thermonuclear/crates/infrastructure)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 13.66s
+     Running tests/proof_lock_order.rs (target/debug/deps/proof_lock_order-3cb213edfdf894cd)
+
+running 1 test
+test proof_issuance_and_session_retirement_do_not_deadlock ... FAILED
+
+failures:
+
+---- proof_issuance_and_session_retirement_do_not_deadlock stdout ----
+
+thread 'proof_issuance_and_session_retirement_do_not_deadlock' (2627829) panicked at crates/infrastructure/tests/proof_lock_order.rs:43:5:
+proof aborted with storage failure: Err(Unavailable)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    proof_issuance_and_session_retirement_do_not_deadlock
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.21s
+
+error: test failed, to rerun pass `-p infrastructure --test proof_lock_order`

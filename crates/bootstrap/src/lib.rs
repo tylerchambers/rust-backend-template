@@ -6,6 +6,39 @@ use infrastructure::{Database, InfraResult, auth::SystemSecrets, mail::SmtpMaile
 use sqlx::{PgPool, postgres::PgPoolOptions};
 use std::{sync::Arc, time::Duration};
 
+/// Closed executable-boundary diagnostics; never retains dependency messages.
+#[derive(Debug, Clone, Copy)]
+pub enum Failure {
+    Configuration,
+    DatabaseConnect,
+    RuntimeRole,
+    Dependency,
+    ListenerBind,
+    Serve,
+    WorkerStart,
+    WorkerRun,
+    Migration,
+    InvalidCommand,
+}
+impl Failure {
+    /// Stable safe category for structured process diagnostics.
+    #[must_use]
+    pub const fn category(self) -> &'static str {
+        match self {
+            Self::Configuration => "configuration",
+            Self::DatabaseConnect => "database_connect",
+            Self::RuntimeRole => "runtime_role",
+            Self::Dependency => "dependency",
+            Self::ListenerBind => "listener_bind",
+            Self::Serve => "serve",
+            Self::WorkerStart => "worker_start",
+            Self::WorkerRun => "worker_run",
+            Self::Migration => "migration",
+            Self::InvalidCommand => "invalid_command",
+        }
+    }
+}
+
 pub struct Config {
     database: String,
     origin: String,
@@ -113,14 +146,17 @@ async fn enforce_runtime_role(pool: &PgPool) -> InfraResult<()> {
 ///
 /// # Errors
 /// Propagates configuration, dependency, runtime-role, bind and serving failures.
-pub async fn server() -> InfraResult<()> {
+pub async fn server() -> Result<(), Failure> {
     logging();
-    let config = Config::load()?;
-    let pool = config.pool().await?;
-    enforce_runtime_role(&pool).await?;
-    let db = Arc::new(Database::new(pool.clone())?);
+    let config = Config::load().map_err(|_| Failure::Configuration)?;
+    let pool = config.pool().await.map_err(|_| Failure::DatabaseConnect)?;
+    enforce_runtime_role(&pool)
+        .await
+        .map_err(|_| Failure::RuntimeRole)?;
+    let db = Arc::new(Database::new(pool.clone()).map_err(|_| Failure::Dependency)?);
     let secrets = Arc::new(SystemSecrets);
-    let mut auth = Authentication::new(db.clone(), config.mail()?, secrets.clone());
+    let mail = config.mail().map_err(|_| Failure::Configuration)?;
+    let mut auth = Authentication::new(db.clone(), mail.clone(), secrets.clone());
     let mut projects = Projects::new(
         db.clone(),
         std::sync::Arc::new(infrastructure::auth::SystemIds),
@@ -128,8 +164,12 @@ pub async fn server() -> InfraResult<()> {
     let mut redis_metrics = None;
     if let Ok(url) = std::env::var("REDIS_URL") {
         let redis = Arc::new(
-            infrastructure::redis::RedisAdapters::connect(&url, &std::env::var("ENVIRONMENT")?)
-                .await?,
+            infrastructure::redis::RedisAdapters::connect(
+                &url,
+                &std::env::var("ENVIRONMENT").map_err(|_| Failure::Configuration)?,
+            )
+            .await
+            .map_err(|_| Failure::Dependency)?,
         );
         auth = auth.with_limiter(redis.clone());
         redis_metrics = Some(redis.clone());
@@ -149,14 +189,32 @@ pub async fn server() -> InfraResult<()> {
             std::sync::Arc::new(infrastructure::auth::SystemIds),
             std::sync::Arc::new(infrastructure::auth::SystemClock),
         )),
-        Arc::new(Reauthentication::new(db.clone(), config.mail()?, secrets)),
+        Arc::new(Reauthentication::new(db.clone(), mail, secrets)),
     );
-    let listener = tokio::net::TcpListener::bind(config.bind).await?;
+    let listener = tokio::net::TcpListener::bind(config.bind)
+        .await
+        .map_err(|_| Failure::ListenerBind)?;
     tracing::info!(operation = "server.ready");
+    let router = monitored_router(state, db, redis_metrics);
+    axum::serve(
+        listener,
+        router.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+    )
+    .with_graceful_shutdown(shutdown())
+    .await
+    .map_err(|_| Failure::Serve)?;
+    pool.close().await;
+    Ok(())
+}
+fn monitored_router(
+    state: api::State,
+    db: Arc<Database>,
+    redis_metrics: Option<Arc<infrastructure::redis::RedisAdapters>>,
+) -> axum::Router {
     let readiness = db.clone();
     let metrics = db;
     let http_metrics = state.clone();
-    let router = api::router(state)
+    api::router(state)
         .route(
             "/ready",
             axum::routing::get(move || {
@@ -197,29 +255,30 @@ pub async fn server() -> InfraResult<()> {
                     ))
                 }
             }),
-        );
-    axum::serve(
-        listener,
-        router.into_make_service_with_connect_info::<std::net::SocketAddr>(),
-    )
-    .with_graceful_shutdown(shutdown())
-    .await?;
-    pool.close().await;
-    Ok(())
+        )
 }
+
 /// Compose and run River workers until shutdown.
 ///
 /// # Errors
 /// Propagates configuration, dependency, runtime-role and worker lifecycle failures.
-pub async fn worker() -> InfraResult<()> {
+pub async fn worker() -> Result<(), Failure> {
     logging();
-    let config = Config::load()?;
-    let pool = config.pool().await?;
-    enforce_runtime_role(&pool).await?;
-    let client = infrastructure::jobs::worker_client(Database::new(pool.clone())?, config.mail()?)?;
-    let mut run = client.start_with_graceful_stop(shutdown())?;
+    let config = Config::load().map_err(|_| Failure::Configuration)?;
+    let pool = config.pool().await.map_err(|_| Failure::DatabaseConnect)?;
+    enforce_runtime_role(&pool)
+        .await
+        .map_err(|_| Failure::RuntimeRole)?;
+    let client = infrastructure::jobs::worker_client(
+        Database::new(pool.clone()).map_err(|_| Failure::Dependency)?,
+        config.mail().map_err(|_| Failure::Configuration)?,
+    )
+    .map_err(|_| Failure::WorkerStart)?;
+    let mut run = client
+        .start_with_graceful_stop(shutdown())
+        .map_err(|_| Failure::WorkerStart)?;
     tracing::info!(operation = "worker.ready");
-    run.wait().await?;
+    run.wait().await.map_err(|_| Failure::WorkerRun)?;
     pool.close().await;
     Ok(())
 }
@@ -231,7 +290,7 @@ pub async fn worker() -> InfraResult<()> {
 ///
 /// # Errors
 /// Rejects unknown commands; propagates database configuration and migration failures.
-pub async fn cli() -> InfraResult<()> {
+pub async fn cli() -> Result<(), Failure> {
     match std::env::args().nth(1).as_deref() {
         Some("openapi") => {
             println!("{}", api::openapi());
@@ -240,12 +299,16 @@ pub async fn cli() -> InfraResult<()> {
         Some("migrate") => {
             let pool = PgPoolOptions::new()
                 .max_connections(1)
-                .connect(&std::env::var("DATABASE_URL")?)
-                .await?;
-            infrastructure::migrate(&pool).await?;
+                .acquire_timeout(Duration::from_secs(5))
+                .connect(&std::env::var("DATABASE_URL").map_err(|_| Failure::Configuration)?)
+                .await
+                .map_err(|_| Failure::DatabaseConnect)?;
+            infrastructure::migrate(&pool)
+                .await
+                .map_err(|_| Failure::Migration)?;
             pool.close().await;
             Ok(())
         }
-        _ => Err("usage: cli migrate|openapi".into()),
+        _ => Err(Failure::InvalidCommand),
     }
 }

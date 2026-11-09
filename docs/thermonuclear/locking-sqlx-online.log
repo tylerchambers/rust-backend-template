@@ -1,0 +1,3 @@
+    Checking application v0.1.0 (/home/hermes/rust-backend-template-thermonuclear/crates/application)
+    Checking infrastructure v0.1.0 (/home/hermes/rust-backend-template-thermonuclear/crates/infrastructure)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.11s

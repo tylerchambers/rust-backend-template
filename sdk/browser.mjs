@@ -4,7 +4,8 @@ import { chromium } from "playwright";
 
 const browser = await chromium.launch({ headless: true });
 try {
-	const page = await browser.newPage();
+	const context = await browser.newContext();
+	const page = await context.newPage();
 	await page.goto("http://localhost:58039/v1/auth/confirmation");
 	const email = `${randomUUID()}@example.test`;
 	const requested = await page.evaluate(async (email) => {
@@ -44,6 +45,8 @@ try {
 		).status(),
 		401,
 	);
+	const otherTab = await page.context().newPage();
+	await otherTab.goto("http://localhost:58039/v1/auth/confirmation");
 	const confirmationResponse = page.waitForResponse((response) =>
 		response.url().endsWith("/v1/auth/confirm"),
 	);
@@ -131,13 +134,76 @@ try {
 		.getByRole("button", { name: "Confirm and reveal proof", exact: true })
 		.click();
 	assert.equal(await page.locator("#proof").textContent(), proof);
-	assert.equal(
-		(await post(invitePath, { email: invitee, role: "viewer", proof })).status,
-		201,
-	);
+	const invitation = await post(invitePath, {
+		email: invitee,
+		role: "viewer",
+		proof,
+	});
+	assert.equal(invitation.status, 201);
+	const invitationId = JSON.parse(invitation.text).id;
 	assert.equal(
 		(await post(invitePath, { email: invitee, role: "viewer", proof })).status,
 		403,
+	);
+	const mailText = async (subject) => {
+		const deadline = Date.now() + 15000;
+		while (Date.now() < deadline) {
+			const listing = await (
+				await page.request.get("http://127.0.0.1:58029/api/v1/messages")
+			).json();
+			const message = listing.messages.find(
+				(message) =>
+					message.Subject === subject &&
+					message.To.some((to) => to.Address === invitee),
+			);
+			if (message)
+				return (
+					await (
+						await page.request.get(
+							`http://127.0.0.1:58029/api/v1/message/${message.ID}`,
+						)
+					).json()
+				).Text;
+		}
+		throw new Error(`Missing captured email: ${subject}`);
+	};
+	const invitationText = await mailText("Organization invitation");
+	const invitationLink =
+		/http:\/\/localhost:58039\/v1\/invitations\/confirmation#[^\s]+/.exec(
+			invitationText,
+		)?.[0];
+	assert.ok(invitationLink);
+	await page.goto(invitationLink);
+	await otherTab.goto("http://localhost:58039/v1/auth/confirmation");
+	assert.equal(
+		(await post("/v1/auth/request", { email: invitee })).status,
+		202,
+	);
+	const inviteeLogin = /confirmation#([a-f0-9]{64})/.exec(
+		await mailText("Confirm sign in"),
+	)?.[1];
+	assert.ok(inviteeLogin);
+	await otherTab.goto(
+		`http://localhost:58039/v1/auth/confirmation#${inviteeLogin}`,
+	);
+	await otherTab
+		.getByRole("button", { name: "Confirm sign in", exact: true })
+		.click();
+	await otherTab.getByText("Signed in", { exact: true }).waitFor();
+	const accepted = page.waitForResponse((response) =>
+		response.url().endsWith(`/invitations/${invitationId}/accept`),
+	);
+	await page
+		.getByRole("button", { name: "Accept invitation", exact: true })
+		.click();
+	assert.equal((await accepted).status(), 204);
+	const memberships = await (
+		await page.request.get("http://localhost:58039/v1/organizations")
+	).json();
+	assert.ok(
+		memberships.some(
+			(membership) => membership.id === org && membership.role === "viewer",
+		),
 	);
 	console.log(
 		"PASS: native Chromium scanner GET, explicit confirmation POST, Secure HttpOnly session, action-bound email proof and CSRF/replay rejection",

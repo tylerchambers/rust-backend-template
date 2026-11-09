@@ -1,0 +1,29 @@
+FF
+======================================================================
+FAIL: test_signal_during_insert_terminates_backend_and_rolls_back (__main__.TestSeed.test_signal_during_insert_terminates_backend_and_rolls_back) (signal=<Signals.SIGINT: 2>)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/hermes/rust-backend-template-thermonuclear/tests/seed_conflicts.py", line 100, in test_signal_during_insert_terminates_backend_and_rolls_back
+    self.assertEqual(self.sql("SELECT count(*) FROM pg_stat_activity WHERE datname=current_database() AND pid<>pg_backend_pid() AND query LIKE 'INSERT INTO users%'").strip(), "0")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: '1' != '0'
+- 1
++ 0
+
+
+======================================================================
+FAIL: test_signal_during_insert_terminates_backend_and_rolls_back (__main__.TestSeed.test_signal_during_insert_terminates_backend_and_rolls_back) (signal=<Signals.SIGTERM: 15>)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/hermes/rust-backend-template-thermonuclear/tests/seed_conflicts.py", line 100, in test_signal_during_insert_terminates_backend_and_rolls_back
+    self.assertEqual(self.sql("SELECT count(*) FROM pg_stat_activity WHERE datname=current_database() AND pid<>pg_backend_pid() AND query LIKE 'INSERT INTO users%'").strip(), "0")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: '1' != '0'
+- 1
++ 0
+
+
+----------------------------------------------------------------------
+Ran 1 test in 2.021s
+
+FAILED (failures=2)

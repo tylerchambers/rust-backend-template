@@ -1,0 +1,28 @@
+{
+  "base_revision": "385249dea37465726e0c50bb92f8a7423bf495ca",
+  "command": "cargo clippy --locked --workspace --all-targets --message-format=json -- -W clippy::pedantic -W clippy::unwrap_used -W clippy::expect_used -W clippy::dbg_macro -W clippy::todo -W clippy::print_stdout",
+  "exit_code": 0,
+  "qualification": "Discovery run used warnings to inventory baseline before policy activation. Duplicate lib/lib-test diagnostics deduplicated by code/file/span. These are not final gate failures.",
+  "unique_diagnostics": {
+    "clippy::assert_is_empty": 3,
+    "clippy::cast_possible_truncation": 1,
+    "clippy::cast_precision_loss": 2,
+    "clippy::default_trait_access": 2,
+    "clippy::expect_used": 6,
+    "clippy::items_after_statements": 4,
+    "clippy::manual_string_new": 2,
+    "clippy::map_unwrap_or": 1,
+    "clippy::missing_errors_doc": 40,
+    "clippy::missing_panics_doc": 1,
+    "clippy::must_use_candidate": 4,
+    "clippy::needless_pass_by_value": 2,
+    "clippy::print_stdout": 1,
+    "clippy::redundant_closure_for_method_calls": 1,
+    "clippy::return_self_not_must_use": 2,
+    "clippy::semicolon_if_nothing_returned": 1,
+    "clippy::too_many_lines": 6,
+    "clippy::unreadable_literal": 1,
+    "clippy::unwrap_used": 359,
+    "clippy::wildcard_imports": 1
+  }
+}

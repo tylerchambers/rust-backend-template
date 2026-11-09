@@ -1,0 +1,8 @@
+    Checking application v0.1.0 (/home/hermes/rust-backend-template/crates/application)
+    Checking infrastructure v0.1.0 (/home/hermes/rust-backend-template/crates/infrastructure)
+    Checking api v0.1.0 (/home/hermes/rust-backend-template/crates/api)
+    Checking bootstrap v0.1.0 (/home/hermes/rust-backend-template/crates/bootstrap)
+    Checking worker v0.1.0 (/home/hermes/rust-backend-template/apps/worker)
+    Checking server v0.1.0 (/home/hermes/rust-backend-template/apps/server)
+    Checking cli v0.1.0 (/home/hermes/rust-backend-template/apps/cli)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.38s

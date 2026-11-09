@@ -1,0 +1,22 @@
+   Compiling bootstrap v0.1.0 (/home/hermes/rust-backend-template/crates/bootstrap)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.36s
+     Running tests/config.rs (target/debug/deps/config-4104fb6e0bfd502f)
+
+running 1 test
+test production_rejects_insecure_origin_and_capture_mail ... FAILED
+
+failures:
+
+---- production_rejects_insecure_origin_and_capture_mail stdout ----
+
+thread 'production_rejects_insecure_origin_and_capture_mail' (1876951) panicked at crates/bootstrap/tests/config.rs:7:9:
+accepted https://
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    production_rejects_insecure_origin_and_capture_mail
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p bootstrap --test config`

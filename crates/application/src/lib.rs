@@ -48,7 +48,11 @@ pub trait IdentityRepository: Send + Sync {
     async fn consume_login(&self, token: &str, session: &str) -> Result<Actor, Error>;
     async fn authenticate(&self, token: &str) -> Result<Actor, Error>;
     async fn revoke(&self, token: &str) -> Result<(), Error>;
-    async fn list_sessions(&self, actor: &Actor) -> Result<Vec<SessionId>, Error>;
+    async fn list_sessions(
+        &self,
+        actor: &Actor,
+        after: Option<SessionId>,
+    ) -> Result<Vec<SessionId>, Error>;
     async fn rotate(&self, actor: &Actor, old: &str, new: &str) -> Result<(), Error>;
     async fn revoke_session(&self, actor: &Actor, session: SessionId) -> Result<(), Error>;
     async fn revoke_all(&self, actor: &Actor) -> Result<(), Error>;
@@ -119,13 +123,19 @@ impl Authentication {
     pub async fn authenticate(&self, token: &str) -> Result<Actor, Error> {
         self.identities.authenticate(token).await
     }
-    /// List the authenticated account's live sessions.
+    /// List at most 50 live sessions in ascending ID order after an exclusive cursor.
+    /// Continue with the last returned ID until an empty page; concurrent creation
+    /// or revocation is not a snapshot. Every page remains account-scoped.
     ///
     /// # Errors
     /// Propagates authentication and repository errors.
-    pub async fn sessions(&self, token: &str) -> Result<Vec<SessionId>, Error> {
+    pub async fn sessions(
+        &self,
+        token: &str,
+        after: Option<SessionId>,
+    ) -> Result<Vec<SessionId>, Error> {
         let actor = self.authenticate(token).await?;
-        self.identities.list_sessions(&actor).await
+        self.identities.list_sessions(&actor, after).await
     }
     /// Revoke one session belonging to the authenticated account.
     ///

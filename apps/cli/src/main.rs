@@ -1,7 +1,10 @@
 #[tokio::main]
 async fn main() {
-    if bootstrap::cli().await.is_err() {
-        eprintln!("{{\"level\":\"error\",\"code\":\"startup_or_runtime_failure\"}}");
+    if let Err(error) = bootstrap::cli().await {
+        eprintln!("{{\"level\":\"error\",\"code\":\"{}\"}}", error.category());
+        if matches!(error, bootstrap::Failure::InvalidCommand) {
+            eprintln!("usage: cli migrate|openapi");
+        }
         std::process::exit(1);
     }
 }

@@ -1,9 +1,12 @@
 bun test v1.4.4 (38afee6c8)
 
 tests/client.integration.test.ts:
-(pass) generated client logs in and creates a tenant project [81.19ms]
+(pass) generated client logs in and creates a tenant project [77.95ms]
 
- 1 pass
+tests/contracts.integration.test.ts:
+(pass) typed errors and HTML pages follow the published contract [1.00ms]
+
+ 2 pass
  0 fail
- 5 expect() calls
-Ran 1 test across 1 file. [97.00ms]
+ 15 expect() calls
+Ran 2 tests across 2 files. [92.00ms]

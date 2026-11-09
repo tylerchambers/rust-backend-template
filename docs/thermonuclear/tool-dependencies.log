@@ -1,0 +1,9 @@
+   Compiling application v0.1.0 (/home/hermes/rust-backend-template-thermonuclear/crates/application)
+   Compiling api v0.1.0 (/home/hermes/rust-backend-template-thermonuclear/crates/api)
+   Compiling infrastructure v0.1.0 (/home/hermes/rust-backend-template-thermonuclear/crates/infrastructure)
+   Compiling bootstrap v0.1.0 (/home/hermes/rust-backend-template-thermonuclear/crates/bootstrap)
+   Compiling cli v0.1.0 (/home/hermes/rust-backend-template-thermonuclear/apps/cli)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 3.20s
+     Running `target/debug/cli migrate`
+ALTER ROLE
+Disposable PostgreSQL, SMTP capture and Redis ready; runtime role provisioned

@@ -1,0 +1,23 @@
+FF
+======================================================================
+FAIL: test_unknown_workspace_members_fail_closed (__main__.TestArchitecture.test_unknown_workspace_members_fail_closed) (name='new-adapter')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/hermes/rust-backend-template-thermonuclear/tests/tooling_guards.py", line 63, in test_unknown_workspace_members_fail_closed
+    self.assertNotEqual(result.returncode, 0)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 0 == 0
+
+======================================================================
+FAIL: test_unknown_workspace_members_fail_closed (__main__.TestArchitecture.test_unknown_workspace_members_fail_closed) (name='renamed-domain')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/hermes/rust-backend-template-thermonuclear/tests/tooling_guards.py", line 63, in test_unknown_workspace_members_fail_closed
+    self.assertNotEqual(result.returncode, 0)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 0 == 0
+
+----------------------------------------------------------------------
+Ran 1 test in 0.056s
+
+FAILED (failures=2)

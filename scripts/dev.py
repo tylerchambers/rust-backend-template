@@ -1,11 +1,19 @@
 """Run the API and worker with loopback-only, externally captured email."""
 
 import os
-import signal
 import subprocess
+import sys
 import time
 from pathlib import Path
 
+from dependencies import up
+from lifecycle import (
+    Containers,
+    processes,
+    report_cleanup,
+    run_command,
+    termination_signals,
+)
 from preflight import check
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -21,42 +29,39 @@ environment = dict(
     SMTP_PORT="51029",
     ENVIRONMENT="development",
 )
-owned_dependencies = not (ROOT / ".local/dependencies.json").exists()
-processes = []
 
 
-def stop(signum, frame):
-    raise SystemExit(128 + signum)
-
-
-signal.signal(signal.SIGTERM, stop)
-signal.signal(signal.SIGINT, stop)
-try:
-    if owned_dependencies:
-        subprocess.run(["python3", "scripts/dependencies.py", "up"], check=True)
-    subprocess.run(
-        ["cargo", "build", "--locked", "--workspace"], check=True, timeout=300
-    )
-    for name in ["server", "worker"]:
-        processes.append(subprocess.Popen([f"target/debug/{name}"], env=environment))
-    print(
-        "API: http://localhost:58039 | email capture: http://localhost:58029 | Ctrl-C stops owned processes",
-        flush=True,
-    )
-    while all(process.poll() is None for process in processes):
-        time.sleep(0.2)
-    raise RuntimeError("API or worker exited unexpectedly")
-finally:
-    for process in processes:
-        if process.poll() is None:
-            process.terminate()
-    for process in processes:
+def main():
+    owned_dependencies = not (ROOT / ".local/dependencies.json").exists()
+    with termination_signals():
         try:
-            process.wait(timeout=20)
-        except subprocess.TimeoutExpired:
-            process.kill()
-            process.wait()
-    if owned_dependencies:
-        subprocess.run(
-            ["python3", "scripts/dependencies.py", "down"], check=True, timeout=120
-        )
+            # Keep the cleanup owner in this process, not under a child kill deadline.
+            if owned_dependencies:
+                up()
+            with processes() as children:
+                run_command(["cargo", "build", "--locked", "--workspace"], timeout=300)
+                for name in ["server", "worker"]:
+                    children.append(
+                        subprocess.Popen(
+                            [f"target/debug/{name}"],
+                            env=environment,
+                            start_new_session=True,
+                        )
+                    )
+                print(
+                    "API: http://localhost:58039 | email capture: http://localhost:58029 | Ctrl-C stops owned processes",
+                    flush=True,
+                )
+                while all(child.poll() is None for child in children):
+                    time.sleep(0.2)
+                raise RuntimeError("API or worker exited unexpectedly")
+        finally:
+            if owned_dependencies:
+                report_cleanup(
+                    Containers(ROOT / ".local/dependencies.json").cleanup(),
+                    sys.exception(),
+                )
+
+
+if __name__ == "__main__":
+    main()

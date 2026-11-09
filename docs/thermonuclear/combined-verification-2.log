@@ -1,0 +1,68 @@
+preflight 0
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.07s
+     Running `target/debug/cli migrate`
+ALTER ROLE
+Disposable PostgreSQL, SMTP capture and Redis ready; runtime role provisioned
+dependencies 0
+tooling_lifecycle 0
+tooling_launchers 0
+tooling_guards 0
+tooling_evidence 0
+seed-conflicts 0
+seed 0
+seed-idempotency 0
+sdk-install 0
+lint 0
+lint-negative-controls 0
+bun-audit 0
+architecture 0
+rust-tests 0
+dev-lifecycle 0
+release 0
+sdk-generate 0
+contract-drift 0
+sdk-types 0
+native-ready 0
+native-http 0
+native-metrics 0
+native-sdk 0
+native-browser-exec 0
+native-browser 0
+native-lifecycle 0
+native-observability 0
+    Finished `release` profile [optimized] target(s) in 0.18s
+    Finished `release` profile [optimized] target(s) in 0.07s
+revision-compatibility 2
+cleanup 0
+Traceback (most recent call last):
+  File "/home/hermes/rust-backend-template-thermonuclear/scripts/verify.py", line 274, in <module>
+    main()
+    ~~~~^^
+  File "/home/hermes/rust-backend-template-thermonuclear/scripts/verify.py", line 255, in main
+    verify(evidence, containers)
+    ~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hermes/rust-backend-template-thermonuclear/scripts/verify.py", line 193, in verify
+    runpy.run_path(
+    ~~~~~~~~~~~~~~^
+        str(ROOT / "tests/revision_compatibility.py"), run_name="__main__"
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "<frozen runpy>", line 294, in run_path
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/home/hermes/rust-backend-template-thermonuclear/tests/revision_compatibility.py", line 138, in <module>
+    ready = run_command(
+        [
+    ...<10 lines>...
+        timeout=5,
+    )
+  File "/home/hermes/rust-backend-template-thermonuclear/scripts/lifecycle.py", line 64, in run_command
+    result.check_returncode()
+    ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/home/hermes/.hermes/tools/python-3.14.9+20261021-linux-x64/lib/python3.14/subprocess.py", line 509, in check_returncode
+    raise CalledProcessError(self.returncode, self.args, self.stdout,
+                             self.stderr)
+subprocess.CalledProcessError: Command '['podman', 'exec', 'ec4b57add99ab1607a6f64e616b36bda687d77449ce0a5ccbb9b21316db26fd9', 'pg_isready', '-h', '127.0.0.1', '-U', 'postgres']' returned non-zero exit status 2.
+
+exit=1

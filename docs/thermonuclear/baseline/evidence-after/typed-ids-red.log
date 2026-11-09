@@ -1,0 +1,17 @@
+   Compiling domain v0.1.0 (/home/hermes/rust-backend-template/crates/domain)
+error[E0432]: unresolved imports `domain::OrganizationId`, `domain::ProjectId`
+ --> crates/domain/tests/identity.rs:1:14
+  |
+1 | use domain::{OrganizationId, ProjectId, Project};
+  |              ^^^^^^^^^^^^^^  ^^^^^^^^^ no `ProjectId` in the root
+  |              |
+  |              no `OrganizationId` in the root
+  |
+help: a similar name exists in the module
+  |
+1 - use domain::{OrganizationId, ProjectId, Project};
+1 + use domain::{OrganizationId, Project, Project};
+  |
+
+For more information about this error, try `rustc --explain E0432`.
+error: could not compile `domain` (test "identity") due to 1 previous error

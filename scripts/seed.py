@@ -1,40 +1,62 @@
 """Seed only the exact disposable PostgreSQL container owned by this checkout."""
 
-import json
-import subprocess
+import uuid
 from pathlib import Path
 
-root = Path(__file__).resolve().parents[1]
-state = json.loads((root / ".local/dependencies.json").read_text())
-container = state["postgres"]
-if len(container) != 64 or any(c not in "0123456789abcdef" for c in container):
-    raise SystemExit("Invalid dependency ownership record")
-command = [
-    "podman",
-    "exec",
-    "-i",
-    container,
-    "psql",
-    "-U",
-    "postgres",
-    "-d",
-    "template",
-    "-v",
-    "ON_ERROR_STOP=1",
-]
-subprocess.run(
-    command, input=(root / "dev/seed.sql").read_bytes(), check=True, timeout=30
-)
-result = subprocess.check_output(
-    command
-    + [
-        "-Atc",
-        "SELECT count(*) FROM memberships m JOIN users u ON u.id=m.user_id JOIN organizations o ON o.id=m.organization_id JOIN projects p ON p.organization_id=o.id WHERE u.id='00000000-0000-7000-8000-000000000001' AND u.email='owner@example.test' AND m.role='owner' AND o.id IN ('00000000-0000-7000-8000-000000000101','00000000-0000-7000-8000-000000000102')",
-    ],
-    text=True,
-    timeout=30,
-)
-assert result.strip() == "2", "Seed identity/tenant/project verification failed"
-print(
-    "Verified two seeded tenant projects; authenticate owner@example.test through the normal captured magic link"
-)
+from lifecycle import container_id, run_command, termination_signals
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def seed(database="template"):
+    container = container_id(ROOT / ".local/dependencies.json", "postgres")
+    application = "seed_" + uuid.uuid4().hex
+    command = [
+        "podman",
+        "exec",
+        "-e",
+        f"PGAPPNAME={application}",
+        "-i",
+        container,
+        "psql",
+        "-U",
+        "postgres",
+        "-d",
+        database,
+        "-v",
+        "ON_ERROR_STOP=1",
+    ]
+    with termination_signals():
+        try:
+            run_command(command, input=(ROOT / "dev/seed.sql").read_bytes(), timeout=30)
+        except BaseException as error:
+            # Killing the podman exec client does not terminate its PostgreSQL backend.
+            # This unique application name authorizes only this seed's connection.
+            try:
+                run_command(
+                    [
+                        "podman",
+                        "exec",
+                        container,
+                        "psql",
+                        "-U",
+                        "postgres",
+                        "-d",
+                        database,
+                        "-v",
+                        "ON_ERROR_STOP=1",
+                        "-c",
+                        f"SELECT pg_terminate_backend(pid, 5000) FROM pg_stat_activity WHERE datname=current_database() AND application_name='{application}'",
+                    ],
+                    timeout=10,
+                )
+            except Exception as cleanup_error:
+                error.add_note(f"Seed backend cleanup failed: {cleanup_error}")
+            raise
+    print(
+        "Verified two seeded tenant projects; authenticate owner@example.test through the normal captured magic link"
+    )
+
+
+if __name__ == "__main__":
+    seed()

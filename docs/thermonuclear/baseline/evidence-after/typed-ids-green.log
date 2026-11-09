@@ -1,0 +1,36 @@
+   Compiling domain v0.1.0 (/home/hermes/rust-backend-template/crates/domain)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.18s
+     Running unittests src/lib.rs (target/debug/deps/domain-c633aec33a18d788)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/identity.rs (target/debug/deps/identity-de92c845dc433e0e)
+
+running 1 test
+test project_identity_is_typed_without_changing_uuid_serialization ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/permissions.rs (target/debug/deps/permissions-495e32fde328749f)
+
+running 1 test
+test role_matrix_is_deny_by_default ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/project.rs (target/debug/deps/project-33d3c568bdade9e6)
+
+running 1 test
+test project_rejects_invalid_names_and_stale_revisions ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests domain
+
+running 1 test
+test crates/domain/src/ids.rs - ids::_ (line 27) - compile fail ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+

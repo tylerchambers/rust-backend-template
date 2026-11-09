@@ -1,0 +1,30 @@
+{
+  "scope": "Staged added lines before handoff documentation",
+  "checks": [
+    "literal secret assignment",
+    "shell=True/os.system",
+    "eval/exec",
+    "pickle deserialization",
+    "formatted SQL execute",
+    "private key header"
+  ],
+  "matches": [
+    {
+      "file": "sdk/browser.mjs",
+      "lines": [
+        24,
+        55
+      ],
+      "classification": "JavaScript RegExp.exec; no dynamic code execution"
+    },
+    {
+      "file": "sdk/tests/client.integration.test.ts",
+      "lines": [
+        33
+      ],
+      "classification": "JavaScript RegExp.exec; no dynamic code execution"
+    }
+  ],
+  "unresolved_matches": 0,
+  "qualification": "Bounded regex scan plus manual classification, not independent security audit. Disposable local fixture credentials are intentionally present; no production credentials used."
+}

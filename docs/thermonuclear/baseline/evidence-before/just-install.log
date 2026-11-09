@@ -1,0 +1,2 @@
+     Ignored package `just v1.59.0` is already installed, use --force to override
+warning: be sure to add `/home/hermes/rust-backend-template/.local/tools/bin` to your PATH to be able to run the installed binaries

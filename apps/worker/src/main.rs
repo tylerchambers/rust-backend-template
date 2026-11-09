@@ -1,7 +1,7 @@
 #[tokio::main]
 async fn main() {
-    if bootstrap::worker().await.is_err() {
-        eprintln!("{{\"level\":\"error\",\"code\":\"startup_or_runtime_failure\"}}");
+    if let Err(error) = bootstrap::worker().await {
+        eprintln!("{{\"level\":\"error\",\"code\":\"{}\"}}", error.category());
         std::process::exit(1);
     }
 }

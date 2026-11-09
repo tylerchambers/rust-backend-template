@@ -1,0 +1,454 @@
+[
+  {
+    "run_id": "31ac3ebec8b643febd70b9bad712ec80",
+    "gate": "preflight",
+    "command": null,
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 0.03
+  },
+  {
+    "run_id": "31ac3ebec8b643febd70b9bad712ec80",
+    "gate": "dependencies",
+    "command": null,
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 22.14
+  },
+  {
+    "run_id": "31ac3ebec8b643febd70b9bad712ec80",
+    "gate": "tooling_lifecycle",
+    "command": [
+      "python3",
+      "tests/tooling_lifecycle.py"
+    ],
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 1.07
+  },
+  {
+    "run_id": "31ac3ebec8b643febd70b9bad712ec80",
+    "gate": "tooling_teardown",
+    "command": [
+      "python3",
+      "tests/tooling_teardown.py"
+    ],
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 3.29
+  },
+  {
+    "run_id": "31ac3ebec8b643febd70b9bad712ec80",
+    "gate": "tooling_launchers",
+    "command": [
+      "python3",
+      "tests/tooling_launchers.py"
+    ],
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 1.82
+  },
+  {
+    "run_id": "31ac3ebec8b643febd70b9bad712ec80",
+    "gate": "tooling_guards",
+    "command": [
+      "python3",
+      "tests/tooling_guards.py"
+    ],
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 0.37
+  },
+  {
+    "run_id": "31ac3ebec8b643febd70b9bad712ec80",
+    "gate": "tooling_evidence",
+    "command": [
+      "python3",
+      "tests/tooling_evidence.py"
+    ],
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 0.17
+  },
+  {
+    "run_id": "31ac3ebec8b643febd70b9bad712ec80",
+    "gate": "tooling_browser",
+    "command": [
+      "python3",
+      "tests/tooling_browser.py"
+    ],
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 1.22
+  },
+  {
+    "run_id": "31ac3ebec8b643febd70b9bad712ec80",
+    "gate": "seed-conflicts",
+    "command": [
+      "python3",
+      "tests/seed_conflicts.py"
+    ],
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 14.44
+  },
+  {
+    "run_id": "31ac3ebec8b643febd70b9bad712ec80",
+    "gate": "seed",
+    "command": [
+      "python3",
+      "scripts/seed.py"
+    ],
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 0.16
+  },
+  {
+    "run_id": "31ac3ebec8b643febd70b9bad712ec80",
+    "gate": "seed-idempotency",
+    "command": [
+      "python3",
+      "scripts/seed.py"
+    ],
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 0.16
+  },
+  {
+    "run_id": "31ac3ebec8b643febd70b9bad712ec80",
+    "gate": "sdk-install",
+    "command": [
+      "bun",
+      "install",
+      "--frozen-lockfile"
+    ],
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 0.87
+  },
+  {
+    "run_id": "31ac3ebec8b643febd70b9bad712ec80",
+    "gate": "lint",
+    "command": [
+      "python3",
+      "scripts/lint.py",
+      "check"
+    ],
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 69.52
+  },
+  {
+    "run_id": "31ac3ebec8b643febd70b9bad712ec80",
+    "gate": "lint-negative-controls",
+    "command": [
+      "python3",
+      "tests/lint_policy.py"
+    ],
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 1.67
+  },
+  {
+    "run_id": "31ac3ebec8b643febd70b9bad712ec80",
+    "gate": "bun-audit",
+    "command": [
+      "bun",
+      "audit"
+    ],
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 0.37
+  },
+  {
+    "run_id": "31ac3ebec8b643febd70b9bad712ec80",
+    "gate": "architecture",
+    "command": [
+      "python3",
+      "scripts/architecture.py"
+    ],
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 0.11
+  },
+  {
+    "run_id": "31ac3ebec8b643febd70b9bad712ec80",
+    "gate": "rust-tests",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--workspace"
+    ],
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 85.3
+  },
+  {
+    "run_id": "31ac3ebec8b643febd70b9bad712ec80",
+    "gate": "dev-lifecycle",
+    "command": [
+      "python3",
+      "tests/dev_lifecycle.py"
+    ],
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 1.42
+  },
+  {
+    "run_id": "31ac3ebec8b643febd70b9bad712ec80",
+    "gate": "release",
+    "command": [
+      "cargo",
+      "build",
+      "--locked",
+      "--release",
+      "--workspace"
+    ],
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 34.48
+  },
+  {
+    "run_id": "31ac3ebec8b643febd70b9bad712ec80",
+    "gate": "contract-drift",
+    "command": null,
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 0.37
+  },
+  {
+    "run_id": "31ac3ebec8b643febd70b9bad712ec80",
+    "gate": "sdk-generate",
+    "command": [
+      "bun",
+      "run",
+      "generate"
+    ],
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 0.36
+  },
+  {
+    "run_id": "31ac3ebec8b643febd70b9bad712ec80",
+    "gate": "sdk-types",
+    "command": [
+      "bun",
+      "run",
+      "check"
+    ],
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 0.11
+  },
+  {
+    "run_id": "31ac3ebec8b643febd70b9bad712ec80",
+    "gate": "native-lifecycle",
+    "command": null,
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 4.59
+  },
+  {
+    "run_id": "31ac3ebec8b643febd70b9bad712ec80",
+    "gate": "native-ready",
+    "command": null,
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 0.1
+  },
+  {
+    "run_id": "31ac3ebec8b643febd70b9bad712ec80",
+    "gate": "native-http",
+    "command": [
+      "python3",
+      "tests/http_acceptance.py"
+    ],
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 1.52
+  },
+  {
+    "run_id": "31ac3ebec8b643febd70b9bad712ec80",
+    "gate": "native-metrics",
+    "command": [
+      "/home/hermes/rust-backend-template-thermonuclear-acceptance/.venv/bin/python",
+      "tests/metrics.py"
+    ],
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 0.12
+  },
+  {
+    "run_id": "31ac3ebec8b643febd70b9bad712ec80",
+    "gate": "native-sdk",
+    "command": [
+      "bun",
+      "test"
+    ],
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 0.17
+  },
+  {
+    "run_id": "31ac3ebec8b643febd70b9bad712ec80",
+    "gate": "native-browser",
+    "command": null,
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 2.67
+  },
+  {
+    "run_id": "31ac3ebec8b643febd70b9bad712ec80",
+    "gate": "native-browser-exec",
+    "command": [
+      "podman",
+      "start",
+      "--attach",
+      "49f2e47a936709d54c43f0bd14e1164c2c532d36eb01e41dbd1525351199b579"
+    ],
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 2.42
+  },
+  {
+    "run_id": "31ac3ebec8b643febd70b9bad712ec80",
+    "gate": "native-observability",
+    "command": [
+      "python3",
+      "tests/observability.py",
+      "native"
+    ],
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 0.03
+  },
+  {
+    "run_id": "31ac3ebec8b643febd70b9bad712ec80",
+    "gate": "revision-compatibility",
+    "command": null,
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 35.05
+  },
+  {
+    "run_id": "31ac3ebec8b643febd70b9bad712ec80",
+    "gate": "oci-build",
+    "command": [
+      "podman",
+      "build",
+      "-t",
+      "localhost/rust-backend-template:test",
+      "."
+    ],
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 0.41
+  },
+  {
+    "run_id": "31ac3ebec8b643febd70b9bad712ec80",
+    "gate": "oci-ready",
+    "command": null,
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 0.0
+  },
+  {
+    "run_id": "31ac3ebec8b643febd70b9bad712ec80",
+    "gate": "oci-http",
+    "command": [
+      "python3",
+      "tests/http_acceptance.py"
+    ],
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 0.87
+  },
+  {
+    "run_id": "31ac3ebec8b643febd70b9bad712ec80",
+    "gate": "oci-metrics",
+    "command": [
+      "/home/hermes/rust-backend-template-thermonuclear-acceptance/.venv/bin/python",
+      "tests/metrics.py"
+    ],
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 0.06
+  },
+  {
+    "run_id": "31ac3ebec8b643febd70b9bad712ec80",
+    "gate": "oci-sdk",
+    "command": [
+      "bun",
+      "test"
+    ],
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 0.11
+  },
+  {
+    "run_id": "31ac3ebec8b643febd70b9bad712ec80",
+    "gate": "oci-browser",
+    "command": null,
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 2.16
+  },
+  {
+    "run_id": "31ac3ebec8b643febd70b9bad712ec80",
+    "gate": "oci-browser-exec",
+    "command": [
+      "podman",
+      "start",
+      "--attach",
+      "61e65919f3906e0c67f29a604851f2633924c338aaf62e62166a8d1225cc01d4"
+    ],
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 1.97
+  },
+  {
+    "run_id": "31ac3ebec8b643febd70b9bad712ec80",
+    "gate": "oci-server",
+    "command": [
+      "podman",
+      "logs",
+      "28238095c1b533996dd80664840ea28cff99f1fcac4194a7482ef8b79b995d1b"
+    ],
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 0.06
+  },
+  {
+    "run_id": "31ac3ebec8b643febd70b9bad712ec80",
+    "gate": "oci-worker",
+    "command": [
+      "podman",
+      "logs",
+      "ac449c60f9f56970ce3a13087a10e888e611a6c3fda0926ac7b680202e502917"
+    ],
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 0.06
+  },
+  {
+    "run_id": "31ac3ebec8b643febd70b9bad712ec80",
+    "gate": "oci-observability",
+    "command": [
+      "python3",
+      "tests/observability.py",
+      "oci"
+    ],
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 0.03
+  },
+  {
+    "run_id": "31ac3ebec8b643febd70b9bad712ec80",
+    "gate": "cleanup",
+    "command": null,
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 1.57
+  }
+]

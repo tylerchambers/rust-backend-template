@@ -252,7 +252,20 @@ impl From<domain::Project> for ProjectResponse {
     }
 }
 
-#[utoipa::path(post,path="/v1/auth/request",request_body=LoginRequest,responses((status=202),(status=429,body=ErrorBody)))]
+#[utoipa::path(
+    post,
+    path="/v1/auth/request",
+    request_body=LoginRequest,
+    params(
+        ("Origin"=String,Header,description="Exact configured public origin"),
+        ("x-csrf-token"=String,Header,description="Current csrf cookie value; required with matching csrf cookie"),
+    ),
+    responses(
+        (status="default",description="Stable JSON error envelope, including transport, authentication, authorization and availability failures",body=ErrorBody),
+        (status=202),
+        (status=429,body=ErrorBody),
+    )
+)]
 async fn request_login(
     Extract(state): Extract<State>,
     Json(input): Json<LoginRequest>,
@@ -260,7 +273,20 @@ async fn request_login(
     state.auth.request(&input.email).await?;
     Ok(StatusCode::ACCEPTED)
 }
-#[utoipa::path(post,path="/v1/auth/confirm",request_body=ConfirmRequest,responses((status=200,body=IdentityResponse),(status=401,body=ErrorBody)))]
+#[utoipa::path(
+    post,
+    path="/v1/auth/confirm",
+    request_body=ConfirmRequest,
+    params(
+        ("Origin"=String,Header,description="Exact configured public origin"),
+        ("x-csrf-token"=String,Header,description="Current csrf cookie value; required with matching csrf cookie"),
+    ),
+    responses(
+        (status="default",description="Stable JSON error envelope, including transport, authentication, authorization and availability failures",body=ErrorBody),
+        (status=200,body=IdentityResponse),
+        (status=401,body=ErrorBody),
+    )
+)]
 async fn confirm(
     Extract(state): Extract<State>,
     Json(input): Json<ConfirmRequest>,
@@ -275,19 +301,36 @@ async fn confirm(
     )
         .into_response())
 }
-#[utoipa::path(get,path="/v1/auth/confirmation",responses((status=200,description="Scanner-safe confirmation page; token remains in URL fragment")))]
+#[utoipa::path(
+    get,
+    path="/v1/auth/confirmation",
+    responses(
+        (status="default",description="Stable JSON error envelope, including transport, authentication, authorization and availability failures",body=ErrorBody),
+        (status=200,body=String,content_type="text/html",description="Scanner-safe page; use SDK parseAs: text"),
+    )
+)]
 async fn confirmation(Extract(state): Extract<State>) -> Response {
     let csrf = state.secrets.token();
-    let html = format!(
-        r#"<!doctype html><meta charset="utf-8"><title>Confirm sign in</title><button id="confirm">Confirm sign in</button><pre id="result"></pre><script>let token='';function capture(){{if(location.hash){{token=location.hash.slice(1);history.replaceState(null,'',location.pathname);}}}}capture();addEventListener('hashchange',capture);document.getElementById('confirm').onclick=async()=>{{const r=await fetch('/v1/auth/confirm',{{method:'POST',headers:{{'content-type':'application/json','x-csrf-token':'{csrf}'}},body:JSON.stringify({{token}})}});document.getElementById('result').textContent=r.ok?'Signed in':'Link invalid or expired';}};</script>"#
-    );
+    let html = r#"<!doctype html><meta charset="utf-8"><title>Confirm sign in</title><button id="confirm">Confirm sign in</button><pre id="result"></pre><script>let token='';function capture(){if(location.hash){token=location.hash.slice(1);history.replaceState(null,'',location.pathname);}}capture();addEventListener('hashchange',capture);document.getElementById('confirm').onclick=async()=>{const r=await fetch('/v1/auth/confirm',{method:'POST',headers:{'content-type':'application/json','x-csrf-token':(document.cookie.split('; ').find(v=>v.startsWith('csrf='))?.slice(5)??'')},body:JSON.stringify({token})});document.getElementById('result').textContent=r.ok?'Signed in':'Link invalid or expired';};</script>"#;
     (
         [(header::SET_COOKIE, crate::csrf_cookie(csrf).to_string())],
         Html(html),
     )
         .into_response()
 }
-#[utoipa::path(post,path="/v1/auth/logout",responses((status=204)))]
+#[utoipa::path(
+    post,
+    path="/v1/auth/logout",
+    security(("session"=[])),
+    params(
+        ("Origin"=String,Header,description="Exact configured public origin"),
+        ("x-csrf-token"=String,Header,description="Current csrf cookie value; required with matching csrf cookie"),
+    ),
+    responses(
+        (status="default",description="Stable JSON error envelope, including transport, authentication, authorization and availability failures",body=ErrorBody),
+        (status=204),
+    )
+)]
 async fn logout(Extract(state): Extract<State>, headers: HeaderMap) -> Result<Response, ApiError> {
     state
         .auth
@@ -303,7 +346,20 @@ async fn logout(Extract(state): Extract<State>, headers: HeaderMap) -> Result<Re
     )
         .into_response())
 }
-#[utoipa::path(post,path="/v1/organizations",request_body=NameRequest,responses((status=201,body=OrganizationResponse)))]
+#[utoipa::path(
+    post,
+    path="/v1/organizations",
+    request_body=NameRequest,
+    security(("session"=[])),
+    params(
+        ("Origin"=String,Header,description="Exact configured public origin"),
+        ("x-csrf-token"=String,Header,description="Current csrf cookie value; required with matching csrf cookie"),
+    ),
+    responses(
+        (status="default",description="Stable JSON error envelope, including transport, authentication, authorization and availability failures",body=ErrorBody),
+        (status=201,body=OrganizationResponse),
+    )
+)]
 async fn create_org(
     Extract(state): Extract<State>,
     headers: HeaderMap,
@@ -316,7 +372,21 @@ async fn create_org(
         Json(OrganizationResponse { id: id.into_uuid() }),
     ))
 }
-#[utoipa::path(post,path="/v1/organizations/{organization}/projects",params(("organization"=Uuid,Path)),request_body=NameRequest,responses((status=201,body=ProjectResponse)))]
+#[utoipa::path(
+    post,
+    path="/v1/organizations/{organization}/projects",
+    params(
+        ("Origin"=String,Header,description="Exact configured public origin"),
+        ("x-csrf-token"=String,Header,description="Current csrf cookie value; required with matching csrf cookie"),
+        ("organization"=Uuid,Path),
+    ),
+    request_body=NameRequest,
+    security(("session"=[])),
+    responses(
+        (status="default",description="Stable JSON error envelope, including transport, authentication, authorization and availability failures",body=ErrorBody),
+        (status=201,body=ProjectResponse),
+    )
+)]
 async fn create_project(
     Extract(state): Extract<State>,
     Path(org): Path<Uuid>,
@@ -340,7 +410,19 @@ async fn create_project(
 pub struct ProjectPage {
     after: Option<Uuid>,
 }
-#[utoipa::path(get,path="/v1/organizations/{organization}/projects",params(("organization"=Uuid,Path),("after"=Option<Uuid>,Query,description="Exclusive project ID cursor; at most 50 rows")),responses((status=200,body=Vec<ProjectResponse>)))]
+#[utoipa::path(
+    get,
+    path="/v1/organizations/{organization}/projects",
+    params(
+        ("organization"=Uuid,Path),
+        ("after"=Option<Uuid>,Query,description="Exclusive project ID cursor; at most 50 rows"),
+    ),
+    security(("session"=[])),
+    responses(
+        (status="default",description="Stable JSON error envelope, including transport, authentication, authorization and availability failures",body=ErrorBody),
+        (status=200,body=Vec<ProjectResponse>),
+    )
+)]
 async fn list_projects(
     Extract(state): Extract<State>,
     Path(org): Path<Uuid>,
@@ -358,7 +440,23 @@ async fn list_projects(
             .collect(),
     ))
 }
-#[utoipa::path(patch,path="/v1/organizations/{organization}/projects/{project}",params(("organization"=Uuid,Path),("project"=Uuid,Path)),request_body=RenameRequest,responses((status=200,body=ProjectResponse),(status=409,body=ErrorBody)))]
+#[utoipa::path(
+    patch,
+    path="/v1/organizations/{organization}/projects/{project}",
+    params(
+        ("Origin"=String,Header,description="Exact configured public origin"),
+        ("x-csrf-token"=String,Header,description="Current csrf cookie value; required with matching csrf cookie"),
+        ("organization"=Uuid,Path),
+        ("project"=Uuid,Path),
+    ),
+    request_body=RenameRequest,
+    security(("session"=[])),
+    responses(
+        (status="default",description="Stable JSON error envelope, including transport, authentication, authorization and availability failures",body=ErrorBody),
+        (status=200,body=ProjectResponse),
+        (status=409,body=ErrorBody),
+    )
+)]
 async fn rename_project(
     Extract(state): Extract<State>,
     Path((org, id)): Path<(Uuid, Uuid)>,
@@ -378,16 +476,27 @@ async fn rename_project(
 pub struct OrganizationSummaryResponse {
     id: Uuid,
     name: String,
-    #[schema(value_type = String)]
+    #[schema(schema_with = role_schema)]
     role: domain::Role,
 }
 #[derive(Serialize, ToSchema)]
 pub struct MemberSummaryResponse {
     user_id: Uuid,
-    #[schema(value_type = String)]
+    #[schema(schema_with = role_schema)]
     role: domain::Role,
 }
-#[utoipa::path(get,path="/v1/organizations",params(("after"=Option<Uuid>,Query,description="Exclusive organization ID cursor; at most 50 rows")),responses((status=200,body=Vec<OrganizationSummaryResponse>)))]
+#[utoipa::path(
+    get,
+    path="/v1/organizations",
+    params(
+        ("after"=Option<Uuid>,Query,description="Exclusive organization ID cursor; at most 50 rows"),
+    ),
+    security(("session"=[])),
+    responses(
+        (status="default",description="Stable JSON error envelope, including transport, authentication, authorization and availability failures",body=ErrorBody),
+        (status=200,body=Vec<OrganizationSummaryResponse>),
+    )
+)]
 async fn list_organizations(
     Extract(state): Extract<State>,
     Query(page): Query<ProjectPage>,
@@ -408,7 +517,19 @@ async fn list_organizations(
             .collect(),
     ))
 }
-#[utoipa::path(get,path="/v1/organizations/{organization}/members",params(("organization"=Uuid,Path),("after"=Option<Uuid>,Query,description="Exclusive user ID cursor; at most 50 rows")),responses((status=200,body=Vec<MemberSummaryResponse>)))]
+#[utoipa::path(
+    get,
+    path="/v1/organizations/{organization}/members",
+    params(
+        ("organization"=Uuid,Path),
+        ("after"=Option<Uuid>,Query,description="Exclusive user ID cursor; at most 50 rows"),
+    ),
+    security(("session"=[])),
+    responses(
+        (status="default",description="Stable JSON error envelope, including transport, authentication, authorization and availability failures",body=ErrorBody),
+        (status=200,body=Vec<MemberSummaryResponse>),
+    )
+)]
 async fn list_members(
     Extract(state): Extract<State>,
     Path(org): Path<Uuid>,
@@ -456,6 +577,7 @@ async fn list_members(
         memberships::proof_confirmation,
         memberships::invitation_confirmation
     ),
+    modifiers(&ContractSecurity),
     components(schemas(
         LoginRequest,
         ConfirmRequest,
@@ -468,6 +590,24 @@ async fn list_members(
     ))
 )]
 pub struct Contract;
+fn role_schema() -> utoipa::openapi::schema::Object {
+    utoipa::openapi::schema::ObjectBuilder::new()
+        .schema_type(utoipa::openapi::schema::Type::String)
+        .enum_values(Some(["owner", "admin", "member", "viewer"]))
+        .build()
+}
+struct ContractSecurity;
+impl utoipa::Modify for ContractSecurity {
+    fn modify(&self, contract: &mut utoipa::openapi::OpenApi) {
+        use utoipa::openapi::security::{ApiKey, ApiKeyValue, SecurityScheme};
+        if let Some(components) = &mut contract.components {
+            components.add_security_scheme(
+                "session",
+                SecurityScheme::ApiKey(ApiKey::Cookie(ApiKeyValue::new("__Host-session"))),
+            );
+        }
+    }
+}
 #[must_use]
 /// Serialize the statically derived API contract.
 ///

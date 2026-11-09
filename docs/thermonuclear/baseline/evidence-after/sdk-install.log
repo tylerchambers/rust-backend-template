@@ -1,0 +1,12 @@
+bun install v1.4.4 (38afee6c8)
+
++ @biomejs/biome@2.6.6
++ @types/bun@1.4.4
++ openapi-typescript@7.13.0
++ playwright@1.61.1
++ typescript@7.0.2
++ typescript-compat@6.0.3
++ zod@4.6.7
++ openapi-fetch@0.17.0
+
+46 packages installed [765.00ms]

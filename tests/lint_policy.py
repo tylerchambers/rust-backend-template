@@ -3,10 +3,15 @@
 import json
 import os
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "scripts"))
+from preflight import check_rust  # noqa: E402
+
+check_rust()
 
 
 def execute(command, cwd, *, code=0, contains=(), source=None):

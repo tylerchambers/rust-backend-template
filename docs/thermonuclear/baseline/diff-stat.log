@@ -1,0 +1,21 @@
+ docs/evidence/bun-audit.log              |   2 +-
+ docs/evidence/compat-58041.log           |   2 +-
+ docs/evidence/compat-58042.log           |  10 +-
+ docs/evidence/dependencies.log           | 229 +++++++++++++-
+ docs/evidence/dev-SIGINT.log             |  10 +-
+ docs/evidence/dev-SIGTERM.log            |   4 +-
+ docs/evidence/lint-negative-controls.log | 522 +++++++++++++++----------------
+ docs/evidence/lint.log                   | 376 +++++++++++++++++++++-
+ docs/evidence/native-sdk.log             |   4 +-
+ docs/evidence/native-server.log          | 248 +++++++--------
+ docs/evidence/native-worker.log          | 127 ++++----
+ docs/evidence/oci-build.log              |   6 +
+ docs/evidence/oci-sdk.log                |   4 +-
+ docs/evidence/oci-server.log             | 248 +++++++--------
+ docs/evidence/oci-worker.log             | 101 +++---
+ docs/evidence/release.log                | 231 +++++++++++++-
+ docs/evidence/results.json               |  48 +--
+ docs/evidence/revision-compatibility.log | 215 ++++++++++++-
+ docs/evidence/rust-tests.log             |  61 ++--
+ docs/evidence/sdk-install.log            |  11 +-
+ 20 files changed, 1743 insertions(+), 716 deletions(-)

@@ -1,0 +1,90 @@
+   Compiling domain v0.1.0 (/home/hermes/rust-backend-template-thermonuclear/crates/domain)
+   Compiling application v0.1.0 (/home/hermes/rust-backend-template-thermonuclear/crates/application)
+error[E0407]: method `project_changed` is not a member of trait `ProjectRepository`
+  --> crates/application/tests/projects.rs:76:5
+   |
+76 | /     async fn project_changed(&mut self, id: ProjectId, _: Uuid) -> Result<(), Error> {
+77 | |         self.state.jobs.push(id);
+78 | |         Ok(())
+79 | |     }
+   | |_____^ not a member of trait `ProjectRepository`
+
+error[E0405]: cannot find trait `ProjectUnitOfWork` in this scope
+  --> crates/application/tests/projects.rs:51:6
+   |
+51 | impl ProjectUnitOfWork for Memory {
+   |      ^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0405]: cannot find trait `ProjectTransaction` in this scope
+  --> crates/application/tests/projects.rs:52:81
+   |
+52 |       async fn begin_projects(&self, requested: OrganizationId) -> Result<Box<dyn ProjectTransaction>, Error> {
+   |                                                                                   ^^^^^^^^^^^^^^^^^^
+   |
+  ::: crates/application/src/projects.rs:47:1
+   |
+47 | / pub trait TenantTransaction:
+48 | |     OrganizationRepository + ProjectRepository + crate::memberships::MembershipRepository
+   | |_________________________________________________________________________________________- similarly named trait `TenantTransaction` defined here
+   |
+help: a trait with a similar name exists
+   |
+52 -     async fn begin_projects(&self, requested: OrganizationId) -> Result<Box<dyn ProjectTransaction>, Error> {
+52 +     async fn begin_projects(&self, requested: OrganizationId) -> Result<Box<dyn TenantTransaction>, Error> {
+   |
+
+error[E0405]: cannot find trait `TenantAuthority` in this scope
+  --> crates/application/tests/projects.rs:64:6
+   |
+64 | impl TenantAuthority for Work {
+   |      ^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0046]: not all trait items implemented, missing: `project_changed`
+   --> crates/application/tests/projects.rs:115:1
+    |
+115 | impl TenantTransaction for Work {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ missing `project_changed` in implementation
+    |
+    = help: implement the missing item: `fn project_changed<'life0: 'async_trait, 'async_trait>(&'life0 mut self, _: ProjectId, _: Uuid) -> Pin<Box<(dyn std::future::Future<Output = Result<(), domain::Error>> + Send + 'async_trait)>> { todo!() }`
+
+error[E0277]: the trait bound `Work: MembershipRepository` is not satisfied
+   --> crates/application/tests/projects.rs:115:28
+    |
+115 | impl TenantTransaction for Work {
+    |                            ^^^^ unsatisfied trait bound
+    |
+help: the trait `MembershipRepository` is not implemented for `Work`
+   --> crates/application/tests/projects.rs:30:1
+    |
+ 30 | struct Work {
+    | ^^^^^^^^^^^
+note: required by a bound in `application::projects::TenantTransaction`
+   --> crates/application/src/projects.rs:48:50
+    |
+ 47 | pub trait TenantTransaction:
+    |           ----------------- required by a bound in this trait
+ 48 |     OrganizationRepository + ProjectRepository + crate::memberships::MembershipRepository
+    |                                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `TenantTransaction`
+
+error[E0277]: the trait bound `Work: OrganizationRepository` is not satisfied
+   --> crates/application/tests/projects.rs:115:28
+    |
+115 | impl TenantTransaction for Work {
+    |                            ^^^^ unsatisfied trait bound
+    |
+help: the trait `OrganizationRepository` is not implemented for `Work`
+   --> crates/application/tests/projects.rs:30:1
+    |
+ 30 | struct Work {
+    | ^^^^^^^^^^^
+note: required by a bound in `application::projects::TenantTransaction`
+   --> crates/application/src/projects.rs:48:5
+    |
+ 47 | pub trait TenantTransaction:
+    |           ----------------- required by a bound in this trait
+ 48 |     OrganizationRepository + ProjectRepository + crate::memberships::MembershipRepository
+    |     ^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `TenantTransaction`
+
+Some errors have detailed explanations: E0046, E0277, E0405, E0407.
+For more information about an error, try `rustc --explain E0046`.
+error: could not compile `application` (test "projects") due to 7 previous errors

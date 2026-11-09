@@ -1,0 +1,16 @@
+STEP 1/7: FROM docker.io/library/debian:trixie-slim@sha256:1e1a22175fbf1b32157ddaf0219e1db4e5401fab2b94ed285add64d18587cd2d
+STEP 2/7: COPY target/release/server target/release/worker target/release/cli /usr/local/bin/
+--> 411967ce38c2
+STEP 3/7: USER 65532:65532
+--> e215d54dabb2
+STEP 4/7: WORKDIR /app
+--> bc49e438c6cb
+STEP 5/7: ENV BIND_ADDRESS=0.0.0.0:8080
+--> 0c5b4fca0fb7
+STEP 6/7: EXPOSE 8080
+--> 261ba8c263ed
+STEP 7/7: ENTRYPOINT ["/usr/local/bin/server"]
+COMMIT localhost/rust-backend-template:test
+--> 00326c515ea2
+Successfully tagged localhost/rust-backend-template:test
+00326c515ea2c65efe7dca004c712aed689a0037fc0c153188ab2803f877ddea

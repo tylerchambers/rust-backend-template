@@ -1,4 +1,5 @@
 pub mod auth;
+mod identity;
 pub mod jobs;
 pub mod mail;
 mod memberships;
@@ -87,6 +88,21 @@ impl Database {
         let jobs = Client::builder(pool.clone()).build()?;
         Ok(Self { pool, jobs })
     }
+    async fn tenant_work(
+        &self,
+        organization: domain::OrganizationId,
+    ) -> Result<projects::TenantWork, domain::Error> {
+        let tx = self
+            .begin_tenant(organization.into_uuid())
+            .await
+            .map_err(|error| storage::unavailable(error, "projects"))?;
+        Ok(projects::TenantWork {
+            tx,
+            organization: organization.into_uuid(),
+            db: self.clone(),
+        })
+    }
+
     /// Begin a cancellation-safe transaction with transaction-local tenant context.
     /// The caller must validate actor authority before performing tenant work.
     ///
@@ -136,6 +152,36 @@ impl Database {
             .tx(tx)
             .await?;
         Ok(())
+    }
+}
+
+#[async_trait::async_trait]
+impl application::projects::ProjectUnitOfWork for Database {
+    async fn begin_projects(
+        &self,
+        organization: domain::OrganizationId,
+    ) -> Result<Box<dyn application::projects::ProjectTransaction>, domain::Error> {
+        Ok(Box::new(self.tenant_work(organization).await?))
+    }
+}
+
+#[async_trait::async_trait]
+impl application::projects::OrganizationUnitOfWork for Database {
+    async fn begin_organization(
+        &self,
+        organization: domain::OrganizationId,
+    ) -> Result<Box<dyn application::projects::OrganizationTransaction>, domain::Error> {
+        Ok(Box::new(self.tenant_work(organization).await?))
+    }
+}
+
+#[async_trait::async_trait]
+impl application::memberships::MembershipUnitOfWork for Database {
+    async fn begin_memberships(
+        &self,
+        organization: domain::OrganizationId,
+    ) -> Result<Box<dyn application::memberships::MembershipTransaction>, domain::Error> {
+        Ok(Box::new(self.tenant_work(organization).await?))
     }
 }
 

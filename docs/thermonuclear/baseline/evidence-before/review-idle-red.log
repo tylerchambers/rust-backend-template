@@ -1,0 +1,22 @@
+   Compiling infrastructure v0.1.0 (/home/hermes/rust-backend-template/crates/infrastructure)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.45s
+     Running tests/sessions.rs (target/debug/deps/sessions-2c888a01b0ab5094)
+
+running 1 test
+test targeted_revocation_is_owner_scoped_and_preserves_other_sessions ... FAILED
+
+failures:
+
+---- targeted_revocation_is_owner_scoped_and_preserves_other_sessions stdout ----
+
+thread 'targeted_revocation_is_owner_scoped_and_preserves_other_sessions' (1907765) panicked at crates/infrastructure/tests/sessions.rs:91:5:
+assertion failed: db.list_sessions(actor).await.unwrap().is_empty()
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    targeted_revocation_is_owner_scoped_and_preserves_other_sessions
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.13s
+
+error: test failed, to rerun pass `-p infrastructure --test sessions`

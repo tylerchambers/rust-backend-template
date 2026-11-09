@@ -1,19 +1,18 @@
 + uv sync --locked
-Resolved 3 packages in 0.66ms
-Checked 2 packages in 0.04ms
+Resolved 3 packages in 0.71ms
+Checked 2 packages in 0.03ms
 + bun install --frozen-lockfile
 bun install v1.4.4 (38afee6c8)
 
 Checked 46 installs across 76 packages (no changes) [1.00ms]
 + cargo fmt --all --check
-+ /home/hermes/rust-backend-template-library-reuse/.venv/bin/ruff format --check scripts tests
-13 files already formatted
-+ /home/hermes/rust-backend-template-library-reuse/.venv/bin/ruff check scripts tests
++ /home/hermes/rust-backend-template-thermonuclear/.venv/bin/ruff format --check scripts tests
+24 files already formatted
++ /home/hermes/rust-backend-template-thermonuclear/.venv/bin/ruff check scripts tests
 All checks passed!
-+ bun /home/hermes/rust-backend-template-library-reuse/sdk/node_modules/@biomejs/biome/bin/biome check --config-path /home/hermes/rust-backend-template-library-reuse --error-on-warnings sdk
-Checked 5 files in 3ms. No fixes applied.
++ bun /home/hermes/rust-backend-template-thermonuclear/sdk/node_modules/@biomejs/biome/bin/biome check --config-path /home/hermes/rust-backend-template-thermonuclear --error-on-warnings sdk
+Checked 6 files in 4ms. No fixes applied.
 + cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
-    Checking api v0.1.0 (/home/hermes/rust-backend-template-library-reuse/crates/api)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.45s
-+ /home/hermes/rust-backend-template-library-reuse/.local/tools/bin/cargo-deny --locked check --deny warnings
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.10s
++ /home/hermes/rust-backend-template-thermonuclear/.local/tools/bin/cargo-deny --locked check --deny warnings
 advisories ok, bans ok, licenses ok, sources ok

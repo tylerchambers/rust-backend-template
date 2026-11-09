@@ -1,22 +1,4 @@
-   Compiling tokio-rustls v0.26.6
-   Compiling sqlx-core v0.9.0
-   Compiling tower v0.5.3
-   Compiling application v0.1.0 (/home/hermes/rust-backend-template-library-reuse/crates/application)
-   Compiling domain v0.1.0 (/home/hermes/rust-backend-template-library-reuse/crates/domain)
-   Compiling lettre v0.11.23
-   Compiling axum v0.8.9
-   Compiling sqlx-postgres v0.9.0
-   Compiling api v0.1.0 (/home/hermes/rust-backend-template-library-reuse/crates/api)
-   Compiling sqlx v0.9.0
-   Compiling riverqueue-migrate v0.6.0
-   Compiling jiff-sqlx v0.2.1
-   Compiling riverqueue v0.6.0
-   Compiling infrastructure v0.1.0 (/home/hermes/rust-backend-template-library-reuse/crates/infrastructure)
-   Compiling bootstrap v0.1.0 (/home/hermes/rust-backend-template-library-reuse/crates/bootstrap)
-   Compiling worker v0.1.0 (/home/hermes/rust-backend-template-library-reuse/apps/worker)
-   Compiling server v0.1.0 (/home/hermes/rust-backend-template-library-reuse/apps/server)
-   Compiling cli v0.1.0 (/home/hermes/rust-backend-template-library-reuse/apps/cli)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 13.07s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.07s
      Running unittests src/lib.rs (target/debug/deps/api-e702fdee5e1c3c6d)
 
 running 2 tests
@@ -25,12 +7,19 @@ test transport_tests::timeout_retains_json_and_outer_transport_policy ... ok
 
 test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
 
+     Running tests/contract.rs (target/debug/deps/contract-554b5efdd3e5a776)
+
+running 1 test
+test every_operation_describes_errors_and_html_pages_describe_text ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
      Running tests/http.rs (target/debug/deps/http-6c589bad7a1cd58e)
 
 running 1 test
 test scanner_get_does_not_authenticate_and_mutations_require_csrf ... ok
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.49s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.69s
 
      Running unittests src/lib.rs (target/debug/deps/application-f55b9b64f2e3390f)
 
@@ -65,6 +54,13 @@ running 0 tests
 
 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 
+     Running tests/startup.rs (target/debug/deps/startup-a5e8f53ace4bb7f1)
+
+running 1 test
+test invalid_command_reports_fixed_usage_without_echoing_arguments ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
      Running unittests src/lib.rs (target/debug/deps/domain-b7f1dd4f940a999e)
 
 running 0 tests
@@ -94,10 +90,11 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 
      Running tests/project.rs (target/debug/deps/project-5f5a48ab140321bd)
 
-running 1 test
+running 2 tests
 test project_rejects_invalid_names_and_stale_revisions ... ok
+test rejected_rename_preserves_every_project_field ... ok
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 
      Running unittests src/lib.rs (target/debug/deps/infrastructure-d5ad4b6901a69bc0)
 
@@ -105,7 +102,7 @@ running 2 tests
 test storage::tests::sensitive_io_causes_become_closed_categories ... ok
 test projects::row_tests::malformed_project_rows_return_decode_errors ... ok
 
-test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
 
      Running tests/audit.rs (target/debug/deps/audit-daae92d374d6e6f6)
 
@@ -128,12 +125,19 @@ test accepted_mailbox_subset_builds_delivery_recipients ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 
+     Running tests/identity_locking.rs (target/debug/deps/identity_locking-6d87a90470c17800)
+
+running 1 test
+test identity_locking_regressions ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.54s
+
      Running tests/invitations.rs (target/debug/deps/invitations-744f5c5a7040adae)
 
 running 1 test
 test concurrent_invitation_acceptance_has_one_winner_and_is_email_bound ... ok
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
 
      Running tests/jobs.rs (target/debug/deps/jobs-f3f6e19e95a54dcd)
 
@@ -145,7 +149,7 @@ running 1 test
 running 1 test
 test river_worker_updates_projection_and_runs_scheduled_cleanup ... ok
 
-test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 46.18s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 46.37s
 
      Running tests/mail.rs (target/debug/deps/mail-63ecdcb55c399255)
 
@@ -159,7 +163,7 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 running 1 test
 test bound_proof_is_single_use_and_last_owner_is_guarded ... ok
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
 
      Running tests/migrations.rs (target/debug/deps/migrations-337202c96bc7aace)
 
@@ -173,7 +177,7 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 running 1 test
 test concurrent_owner_demotions_leave_one_owner_and_retire_only_changed_credentials ... ok
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
 
      Running tests/project_contract.rs (target/debug/deps/project_contract-3239bc0d29848208)
 
@@ -187,7 +191,7 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 running 1 test
 test project_policy_concurrency_and_organization_atomicity ... ok
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
 
      Running tests/proof_binding.rs (target/debug/deps/proof_binding-b311405715e22c93)
 
@@ -201,14 +205,21 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 running 1 test
 test concurrent_fresh_email_requests_cannot_bypass_limit ... ok
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.33s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.35s
+
+     Running tests/proof_lock_order.rs (target/debug/deps/proof_lock_order-cb34682d56cc5351)
+
+running 1 test
+test proof_issuance_and_session_retirement_do_not_deadlock ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
 
      Running tests/readiness.rs (target/debug/deps/readiness-bf645588a0fc85f5)
 
 running 1 test
 test readiness_tracks_database_availability ... ok
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
 
      Running tests/redis.rs (target/debug/deps/redis-0bf2141125863607)
 
@@ -275,6 +286,14 @@ running 0 tests
 
 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 
+     Running tests/startup.rs (target/debug/deps/startup-d2b8ac16b7a34902)
+
+running 2 tests
+test runtime_role_and_listener_failures_are_distinct ... ok
+test startup_failures_are_classified_without_echoing_configuration ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.02s
+
      Running unittests src/main.rs (target/debug/deps/worker-b3fb22f89f761757)
 
 running 0 tests
@@ -289,9 +308,11 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 
    Doc-tests application
 
-running 0 tests
+running 2 tests
+test crates/application/src/projects.rs - projects::ProjectTransaction (line 67) - compile fail ... ok
+test crates/application/src/projects.rs - projects::ProjectTransaction (line 74) - compile fail ... ok
 
-test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
 
    Doc-tests bootstrap
 
@@ -304,7 +325,7 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 running 1 test
 test crates/domain/src/ids.rs - ids::_ (line 35) - compile fail ... ok
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
 
    Doc-tests infrastructure
 
