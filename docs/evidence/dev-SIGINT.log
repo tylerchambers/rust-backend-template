@@ -1,6 +1,0 @@
-   Compiling worker v0.1.0 (/home/hermes/rust-backend-template-library-reuse/apps/worker)
-   Compiling server v0.1.0 (/home/hermes/rust-backend-template-library-reuse/apps/server)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.73s
-API: http://localhost:58039 | email capture: http://localhost:58029 | Ctrl-C stops owned processes
-{"timestamp":"2026-11-08T04:27:58.037198Z","level":"INFO","fields":{"operation":"server.ready"},"target":"bootstrap"}
-{"timestamp":"2026-11-08T04:27:58.041252Z","level":"INFO","fields":{"operation":"worker.ready"},"target":"bootstrap"}

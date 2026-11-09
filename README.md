@@ -41,7 +41,7 @@ python3 scripts/verify.py
 # or .local/tools/bin/just check
 ```
 
-The gate installs locked SDK dependencies into `sdk/node_modules`, Ruff 0.17.4 into `.venv` through `uv.lock`, and cargo-deny 0.20.2 into `.local/tools` if absent or mismatched. Python downloads are disabled; use the installed Python 3.14+. Bun must match `sdk/package.json` (1.4.4). It does not install host binaries or services. It checks formatting, dependency direction and its negative control, Clippy, real PostgreSQL/RLS/security/SMTP/Redis/River tests, process interruption, release binaries, OpenAPI drift, SDK types, native and OCI HTTP/SDK/Chromium journeys, correlated logs, live-data migration compatibility between two actual application revisions, and dependency advisories. Raw output and exit codes are retained in `docs/evidence/`; RED logs are intentional regression evidence, not final failing gates.
+The gate installs locked SDK dependencies into `sdk/node_modules`, Ruff 0.17.4 into `.venv` through `uv.lock`, and cargo-deny 0.20.2 into `.local/tools` if absent or mismatched. Python downloads are disabled; use the installed Python 3.14+. Bun must match `sdk/package.json` (1.4.4). It does not install host binaries or services. It checks formatting, dependency direction and its negative control, Clippy, real PostgreSQL/RLS/security/SMTP/Redis/River tests, process interruption, release binaries, OpenAPI drift, SDK types, native and OCI HTTP/SDK/Chromium journeys, correlated logs, live-data migration compatibility between two actual application revisions, and dependency advisories. Raw output and exit codes are generated locally in ignored `docs/evidence/`; RED logs are intentional regression evidence, not final failing gates.
 
 A fresh checkout needs network access for locked packages, digest-pinned fixture images and advisory databases. The OCI artifact is Linux x86-64 in this qualified environment. No production dependencies or personal mailboxes are used.
 
@@ -69,7 +69,7 @@ Generated declarations stay excluded and are verified through regeneration, neve
 manual formatting. `cargo-deny` replaces overlapping cargo-audit execution with
 RustSec advisories (including transitive unsound/unmaintained and yanks), source,
 license and version-duplication policy. Bun audit remains a separate gate.
-See [policy decisions and evidence](docs/evidence/lint-policy.md), including the
+See [policy decisions and evidence](docs/lint-policy.md), including the
 version-specific dependency exceptions. This does **not** choose our project license.
 
 ## Contracts and commands
@@ -80,7 +80,7 @@ version-specific dependency exceptions. This does **not** choose our project lic
 - `just deps`, `just seed`, `just down` manage only checkout-owned fixtures.
 - `compose.yaml` describes development dependencies; the tested Podman launcher also configures the local STARTTLS peer. `deploy/compose.yaml` is an unexecuted production wiring example, not a deployment.
 
-See [architecture and tradeoffs](docs/adr-001.md), [library reuse decisions and acceptance](docs/adr-002-library-reuse.md), [operations](docs/operations.md), [contribution protocol](CONTRIBUTING.md), [acceptance](docs/acceptance.md) and [handoff](docs/evidence/handoff.md).
+See [architecture and tradeoffs](docs/adr-001.md), [library reuse decisions and acceptance](docs/adr-002-library-reuse.md), [operations](docs/operations.md), [contribution protocol](CONTRIBUTING.md), [acceptance](docs/acceptance.md).
 
 ## Trust and scope
 

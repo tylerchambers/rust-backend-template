@@ -6,6 +6,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import tarfile
 import time
 import urllib.request
@@ -13,6 +14,13 @@ import uuid
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "scripts"))
+from fixtures import POSTGRES  # noqa: E402
+from lifecycle import Containers, run_command, termination_signals  # noqa: E402
+from lifecycle import processes as owned_processes  # noqa: E402
+from preflight import check_rust  # noqa: E402
+
+check_rust()
 PREVIOUS = "1b266ba502ae8e207a667aa27681913264341ec6"
 source = ROOT / ".local/previous-revision"
 source.mkdir(parents=True, exist_ok=True)
@@ -21,10 +29,16 @@ with tarfile.open(fileobj=io.BytesIO(archive)) as files:
     files.extractall(source, filter="data")
 # Original queries are unchanged; metadata is build input, not an edited old source.
 shutil.copytree(ROOT / ".sqlx", source / ".sqlx", dirs_exist_ok=True)
-env = dict(os.environ, SQLX_OFFLINE="true")
+env = dict(
+    os.environ,
+    SQLX_OFFLINE="true",
+    MAIL_MODE="capture",
+    SMTP_PORT="51029",
+    ENVIRONMENT="development",
+)
 env["CARGO_TARGET_DIR"] = str(ROOT / ".local/previous-target")
 # Same-name path packages from two revisions must not share Cargo fingerprints.
-subprocess.run(
+run_command(
     ["cargo", "build", "--locked", "--release", "-p", "server", "-p", "cli"],
     cwd=source,
     env=env,
@@ -34,7 +48,7 @@ subprocess.run(
 old_binary = ROOT / ".local/previous-target/release/server"
 old_cli = ROOT / ".local/previous-target/release/cli"
 env["CARGO_TARGET_DIR"] = str(ROOT / "target")
-subprocess.run(
+run_command(
     ["cargo", "build", "--locked", "--release", "-p", "server", "-p", "cli"],
     cwd=ROOT,
     env=env,
@@ -43,7 +57,6 @@ subprocess.run(
 )
 
 cookies = {}
-processes = []
 
 
 def request(port, path, body=None):
@@ -76,7 +89,11 @@ def start_server(port, binary):
     )
     with (ROOT / f"docs/evidence/compat-{port}.log").open("w") as log:
         process = subprocess.Popen(
-            [str(binary)], env=process_env, stdout=log, stderr=subprocess.STDOUT
+            [str(binary)],
+            env=process_env,
+            stdout=log,
+            stderr=subprocess.STDOUT,
+            start_new_session=True,
         )
     processes.append(process)
     deadline = time.monotonic() + 15
@@ -93,12 +110,14 @@ def start_server(port, binary):
     raise RuntimeError("Compatibility readiness deadline exceeded")
 
 
-container = None
-try:
-    created = subprocess.run(
+with (
+    termination_signals(),
+    Containers(ROOT / ".local" / f"compat-{uuid.uuid4().hex}.json") as owner,
+    owned_processes() as processes,
+):
+    container = owner.create(
+        "postgres",
         [
-            "podman",
-            "create",
             "--network",
             "slirp4netns",
             "-p",
@@ -107,27 +126,16 @@ try:
             "POSTGRES_PASSWORD=compat-test",
             "-e",
             "POSTGRES_DB=template",
-            "docker.io/library/postgres:17-alpine@sha256:18cfe3ef5e6815560c98237d6216d1e5119702fb0f3894c8785dd58b8bbe5d73",
+            POSTGRES,
         ],
-        capture_output=True,
-        text=True,
-        timeout=60,
     )
-    candidate = created.stdout.strip()
-    if created.returncode or not re.fullmatch(r"[a-f0-9]{64}", candidate):
-        raise RuntimeError(
-            "Compatibility PostgreSQL creation ownership uncertain; no name-based cleanup attempted"
-        )
-    container = candidate
-    subprocess.run(
-        ["podman", "start", container], check=True, capture_output=True, timeout=30
-    )
+    owner.start(container)
     address = subprocess.check_output(
         ["podman", "port", container, "5432"], text=True, timeout=10
     ).strip()
     deadline = time.monotonic() + 30
     while time.monotonic() < deadline:
-        ready = subprocess.run(
+        ready = run_command(
             [
                 "podman",
                 "exec",
@@ -139,6 +147,7 @@ try:
                 "postgres",
             ],
             capture_output=True,
+            check=False,
             timeout=5,
         )
         if ready.returncode == 0:
@@ -149,8 +158,8 @@ try:
     deploy = dict(
         env, DATABASE_URL=f"postgres://postgres:compat-test@{address}/template"
     )
-    subprocess.run([str(old_cli), "migrate"], env=deploy, check=True, timeout=30)
-    subprocess.run(
+    run_command([str(old_cli), "migrate"], env=deploy, check=True, timeout=30)
+    run_command(
         [
             "podman",
             "exec",
@@ -192,7 +201,7 @@ try:
     org = organization["id"]
     # Old schema contains a real identity, session, organization, membership and audit row.
     # Migration 7 also repairs the previous revision's missing runtime River grants.
-    subprocess.run(
+    run_command(
         [str(ROOT / "target/release/cli"), "migrate"],
         env=deploy,
         check=True,
@@ -209,19 +218,3 @@ try:
     print(
         f"PASS: upgrade from {PREVIOUS} preserves live identity/session/tenant data; old and current binaries concurrently read/write expanded schema"
     )
-finally:
-    for process in processes:
-        process.terminate()
-    for process in processes:
-        try:
-            process.wait(timeout=20)
-        except subprocess.TimeoutExpired:
-            process.kill()
-            process.wait()
-    if container is not None:
-        subprocess.run(
-            ["podman", "rm", "-f", "--volumes", container],
-            check=True,
-            capture_output=True,
-            timeout=30,
-        )

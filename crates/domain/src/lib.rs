@@ -58,8 +58,9 @@ impl Project {
             return Err(Error::Conflict);
         }
         validate_name(&name)?;
+        let next_version = self.version.checked_add(1).ok_or(Error::Conflict)?;
         self.name = name;
-        self.version = self.version.checked_add(1).ok_or(Error::Conflict)?;
+        self.version = next_version;
         Ok(())
     }
 }

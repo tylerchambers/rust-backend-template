@@ -6,12 +6,12 @@ import tomllib
 from pathlib import Path
 
 
-def check():
+def check_rust():
     root = Path(__file__).resolve().parents[1]
     version = tomllib.loads((root / "rust-toolchain.toml").read_text())["toolchain"][
         "channel"
     ]
-    for command in ["rustup", "cargo", "bun", "podman", "openssl"]:
+    for command in ["rustup", "cargo"]:
         if shutil.which(command) is None:
             raise SystemExit(
                 f"Required preinstalled command missing: {command}; no host installation attempted"
@@ -23,6 +23,13 @@ def check():
         raise SystemExit(
             f"Rust {version} must already be installed; refusing implicit rustup installation"
         )
+
+
+def check():
+    check_rust()
+    for command in ["bun", "podman", "openssl"]:
+        if shutil.which(command) is None:
+            raise SystemExit(f"Required preinstalled command missing: {command}")
 
 
 if __name__ == "__main__":

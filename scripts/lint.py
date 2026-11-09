@@ -7,6 +7,8 @@ import subprocess
 import tomllib
 from pathlib import Path
 
+from preflight import check_rust
+
 ROOT = Path(__file__).resolve().parents[1]
 DENY_VERSION = "0.20.2"
 BIOME = ROOT / "sdk/node_modules/@biomejs/biome/bin/biome"
@@ -21,6 +23,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("action", choices=["check", "fmt"], default="check", nargs="?")
     args = parser.parse_args()
+    check_rust()
     os.environ["UV_CACHE_DIR"] = str(ROOT / ".local/uv-cache")
     os.environ["UV_PYTHON_DOWNLOADS"] = "never"
     os.environ["BUN_INSTALL_CACHE_DIR"] = str(ROOT / ".local/bun-cache")

@@ -4,6 +4,8 @@ import copy
 import json
 import subprocess
 
+from preflight import check_rust
+
 LAYERS = {
     "domain": set(),
     "application": {"domain"},
@@ -21,6 +23,7 @@ def violations(packages):
     for package in packages:
         name = package["name"]
         if name not in LAYERS:
+            failures.append(f"unclassified workspace member: {name}")
             continue
         for dependency in package["dependencies"]:
             if dependency["kind"] == "dev":
@@ -45,6 +48,7 @@ def violations(packages):
     return failures
 
 
+check_rust()
 metadata = json.loads(
     subprocess.check_output(
         ["cargo", "metadata", "--no-deps", "--format-version", "1"], text=True

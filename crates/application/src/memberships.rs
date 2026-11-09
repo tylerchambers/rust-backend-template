@@ -1,4 +1,7 @@
-use crate::{Actor, projects::UnitOfWork};
+use crate::{
+    Actor,
+    projects::{TenantAuthority, TenantTransaction},
+};
 use async_trait::async_trait;
 use domain::{Error, Permission, Role};
 use domain::{InvitationId, OrganizationId, UserId};
@@ -80,10 +83,15 @@ pub trait ReauthenticationRepository: Send + Sync {
 pub trait MembershipRepository: Send {
     /// Serializes authority changes for an organization, including last-owner checks.
     async fn lock_organization(&mut self) -> Result<(), Error>;
+    /// Lock all involved identities at retirement strength in deterministic order.
+    /// Call once after organization serialization, before any authority/row reads.
+    /// Include actor and target; no additional identities may be acquired later.
+    async fn lock_users(&mut self, users: &[UserId]) -> Result<(), Error>;
     async fn member_role(&mut self, user: UserId) -> Result<Role, Error>;
     async fn owner_count(&mut self) -> Result<i64, Error>;
     async fn set_role(&mut self, user: UserId, role: Role) -> Result<(), Error>;
     /// Retire existing credentials atomically with an authority change.
+    /// The user must be included in the upfront `lock_users` call.
     async fn retire_sessions(&mut self, user: UserId) -> Result<(), Error>;
     async fn consume_proof(
         &mut self,
@@ -113,14 +121,29 @@ pub trait MembershipRepository: Send {
     async fn revoke_invitation(&mut self, id: InvitationId) -> Result<(), Error>;
     async fn remove_member(&mut self, user: UserId) -> Result<(), Error>;
 }
+/// Membership mutations share authority, audit and commit, not project persistence.
+pub trait MembershipTransaction:
+    TenantAuthority + MembershipRepository + TenantTransaction
+{
+}
+impl<T: TenantAuthority + MembershipRepository + TenantTransaction> MembershipTransaction for T {}
+
+#[async_trait]
+pub trait MembershipUnitOfWork: Send + Sync {
+    async fn begin_memberships(
+        &self,
+        organization: OrganizationId,
+    ) -> Result<Box<dyn MembershipTransaction>, Error>;
+}
+
 pub struct Memberships {
-    uow: Arc<dyn UnitOfWork>,
+    uow: Arc<dyn MembershipUnitOfWork>,
     ids: Arc<dyn crate::IdGenerator>,
     clock: Arc<dyn crate::Clock>,
 }
 impl Memberships {
     pub fn new(
-        uow: Arc<dyn UnitOfWork>,
+        uow: Arc<dyn MembershipUnitOfWork>,
         ids: Arc<dyn crate::IdGenerator>,
         clock: Arc<dyn crate::Clock>,
     ) -> Self {
@@ -140,8 +163,9 @@ impl Memberships {
     ) -> Result<InvitationId, Error> {
         let email = domain::EmailAddress::parse(email)?;
         let email = email.as_str();
-        let mut tx = self.uow.begin(org).await?;
+        let mut tx = self.uow.begin_memberships(org).await?;
         tx.lock_organization().await?;
+        tx.lock_users(&[actor.user_id]).await?;
         let caller = tx.current_role(actor, org).await?;
         if !caller.allows(if role == Role::Owner {
             Permission::ManageOwners
@@ -177,8 +201,9 @@ impl Memberships {
         id: InvitationId,
         token: &str,
     ) -> Result<(), Error> {
-        let mut tx = self.uow.begin(org).await?;
+        let mut tx = self.uow.begin_memberships(org).await?;
         tx.lock_organization().await?;
+        tx.lock_users(&[actor.user_id]).await?;
         tx.accept_invitation(actor, id, token).await?;
         tx.audit(actor, "invitation.accepted", id.into_uuid())
             .await?;
@@ -195,8 +220,9 @@ impl Memberships {
         id: InvitationId,
         proof: &str,
     ) -> Result<(), Error> {
-        let mut tx = self.uow.begin(org).await?;
+        let mut tx = self.uow.begin_memberships(org).await?;
         tx.lock_organization().await?;
+        tx.lock_users(&[actor.user_id]).await?;
         if !tx
             .current_role(actor, org)
             .await?
@@ -222,8 +248,9 @@ impl Memberships {
         user: UserId,
         proof: &str,
     ) -> Result<(), Error> {
-        let mut tx = self.uow.begin(org).await?;
+        let mut tx = self.uow.begin_memberships(org).await?;
         tx.lock_organization().await?;
+        tx.lock_users(&[actor.user_id, user]).await?;
         let caller = tx.current_role(actor, org).await?;
         let old = tx.member_role(user).await?;
         if !caller.allows(if old == Role::Owner {
@@ -255,8 +282,9 @@ impl Memberships {
         role: Role,
         proof: &str,
     ) -> Result<(), Error> {
-        let mut tx = self.uow.begin(org).await?;
+        let mut tx = self.uow.begin_memberships(org).await?;
         tx.lock_organization().await?;
+        tx.lock_users(&[actor.user_id, user]).await?;
         let caller = tx.current_role(actor, org).await?;
         let old = tx.member_role(user).await?;
         let permission = if old == Role::Owner || role == Role::Owner {

@@ -4,7 +4,7 @@
     reason = "Test setup and assertions must fail immediately on unexpected errors"
 )]
 
-use application::{Actor, IdGenerator, Projects, memberships::MembershipRepository, projects::*};
+use application::{Actor, IdGenerator, Projects, projects::*};
 use async_trait::async_trait;
 use domain::{Error, InvitationId, OrganizationId, Project, ProjectId, Role, UserId};
 use std::{
@@ -48,8 +48,11 @@ impl IdGenerator for Ids {
     }
 }
 #[async_trait]
-impl UnitOfWork for Memory {
-    async fn begin(&self, requested: OrganizationId) -> Result<Box<dyn TenantTransaction>, Error> {
+impl ProjectUnitOfWork for Memory {
+    async fn begin_projects(
+        &self,
+        requested: OrganizationId,
+    ) -> Result<Box<dyn ProjectTransaction>, Error> {
         Ok(Box::new(Work {
             state: self.state.lock().unwrap().clone(),
             published: self.state.clone(),
@@ -61,7 +64,7 @@ impl UnitOfWork for Memory {
     }
 }
 #[async_trait]
-impl OrganizationRepository for Work {
+impl TenantAuthority for Work {
     async fn current_role(&mut self, actor: &Actor, org: OrganizationId) -> Result<Role, Error> {
         if actor.user_id == self.owner && org == self.org && org == self.requested {
             Ok(Role::Owner)
@@ -69,28 +72,14 @@ impl OrganizationRepository for Work {
             Err(Error::Forbidden)
         }
     }
-    async fn validate_actor(&mut self, _: &Actor) -> Result<(), Error> {
-        unimplemented!("project-only fake")
-    }
-    async fn insert_organization(&mut self, _: OrganizationId, _: &str) -> Result<(), Error> {
-        unimplemented!("project-only fake")
-    }
-    async fn insert_owner(&mut self, _: OrganizationId, _: UserId) -> Result<(), Error> {
-        unimplemented!("project-only fake")
-    }
-    async fn list_organizations(
-        &mut self,
-        _: &Actor,
-        _: Option<OrganizationId>,
-    ) -> Result<Vec<OrganizationSummary>, Error> {
-        unimplemented!("project-only fake")
-    }
-    async fn list_members(&mut self, _: Option<UserId>) -> Result<Vec<MemberSummary>, Error> {
-        unimplemented!("project-only fake")
-    }
 }
 #[async_trait]
 impl ProjectRepository for Work {
+    async fn project_changed(&mut self, id: ProjectId, _: Uuid) -> Result<(), Error> {
+        self.state.jobs.push(id);
+        Ok(())
+    }
+
     async fn insert_project(&mut self, p: &Project) -> Result<(), Error> {
         self.state.projects.insert(p.id.into_uuid(), p.clone());
         Ok(())
@@ -133,61 +122,9 @@ impl TenantTransaction for Work {
         self.state.audits.push(action.into());
         Ok(())
     }
-    async fn project_changed(&mut self, id: ProjectId, _: Uuid) -> Result<(), Error> {
-        self.state.jobs.push(id);
-        Ok(())
-    }
     async fn commit(self: Box<Self>) -> Result<(), Error> {
         *self.published.lock().unwrap() = self.state;
         Ok(())
-    }
-}
-// Unused capabilities fail loudly; this fake claims only the project port contract.
-#[async_trait]
-impl MembershipRepository for Work {
-    async fn lock_organization(&mut self) -> Result<(), Error> {
-        unimplemented!()
-    }
-    async fn member_role(&mut self, _: UserId) -> Result<Role, Error> {
-        unimplemented!()
-    }
-    async fn owner_count(&mut self) -> Result<i64, Error> {
-        unimplemented!()
-    }
-    async fn set_role(&mut self, _: UserId, _: Role) -> Result<(), Error> {
-        unimplemented!()
-    }
-    async fn retire_sessions(&mut self, _: UserId) -> Result<(), Error> {
-        unimplemented!()
-    }
-    async fn consume_proof(&mut self, _: &Actor, _: &str, _: Uuid, _: &str) -> Result<(), Error> {
-        unimplemented!()
-    }
-    async fn insert_invitation(
-        &mut self,
-        _: InvitationId,
-        _: &str,
-        _: Role,
-        _: chrono::DateTime<chrono::Utc>,
-    ) -> Result<(), Error> {
-        unimplemented!()
-    }
-    async fn accept_invitation(
-        &mut self,
-        _: &Actor,
-        _: InvitationId,
-        _: &str,
-    ) -> Result<(), Error> {
-        unimplemented!()
-    }
-    async fn enqueue_invitation(&mut self, _: InvitationId, _: Uuid) -> Result<(), Error> {
-        unimplemented!()
-    }
-    async fn revoke_invitation(&mut self, _: InvitationId) -> Result<(), Error> {
-        unimplemented!()
-    }
-    async fn remove_member(&mut self, _: UserId) -> Result<(), Error> {
-        unimplemented!()
     }
 }
 fn actor() -> Actor {

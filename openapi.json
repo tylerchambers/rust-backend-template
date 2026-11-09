@@ -13,6 +13,26 @@
       "post": {
         "tags": [],
         "operationId": "confirm",
+        "parameters": [
+          {
+            "name": "Origin",
+            "in": "header",
+            "description": "Exact configured public origin",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-csrf-token",
+            "in": "header",
+            "description": "Current csrf cookie value; required with matching csrf cookie",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -43,6 +63,16 @@
                 }
               }
             }
+          },
+          "default": {
+            "description": "Stable JSON error envelope, including transport, authentication, authorization and availability failures",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
           }
         }
       }
@@ -53,7 +83,24 @@
         "operationId": "confirmation",
         "responses": {
           "200": {
-            "description": "Scanner-safe confirmation page; token remains in URL fragment"
+            "description": "Scanner-safe page; use SDK parseAs: text",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable JSON error envelope, including transport, authentication, authorization and availability failures",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
           }
         }
       }
@@ -62,11 +109,46 @@
       "post": {
         "tags": [],
         "operationId": "logout",
+        "parameters": [
+          {
+            "name": "Origin",
+            "in": "header",
+            "description": "Exact configured public origin",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-csrf-token",
+            "in": "header",
+            "description": "Current csrf cookie value; required with matching csrf cookie",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "204": {
             "description": ""
+          },
+          "default": {
+            "description": "Stable JSON error envelope, including transport, authentication, authorization and availability failures",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
           }
-        }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ]
       }
     },
     "/v1/auth/reauth/confirmation": {
@@ -77,7 +159,24 @@
         "operationId": "proof_confirmation",
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable JSON error envelope, including transport, authentication, authorization and availability failures",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
           }
         }
       }
@@ -88,6 +187,26 @@
           "memberships"
         ],
         "operationId": "request_proof",
+        "parameters": [
+          {
+            "name": "Origin",
+            "in": "header",
+            "description": "Exact configured public origin",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-csrf-token",
+            "in": "header",
+            "description": "Current csrf cookie value; required with matching csrf cookie",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -101,14 +220,49 @@
         "responses": {
           "202": {
             "description": ""
+          },
+          "default": {
+            "description": "Stable JSON error envelope, including transport, authentication, authorization and availability failures",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
           }
-        }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ]
       }
     },
     "/v1/auth/request": {
       "post": {
         "tags": [],
         "operationId": "request_login",
+        "parameters": [
+          {
+            "name": "Origin",
+            "in": "header",
+            "description": "Exact configured public origin",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-csrf-token",
+            "in": "header",
+            "description": "Current csrf cookie value; required with matching csrf cookie",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -132,6 +286,16 @@
                 }
               }
             }
+          },
+          "default": {
+            "description": "Stable JSON error envelope, including transport, authentication, authorization and availability failures",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
           }
         }
       }
@@ -142,6 +306,18 @@
           "memberships"
         ],
         "operationId": "sessions",
+        "parameters": [
+          {
+            "name": "after",
+            "in": "query",
+            "description": "Exclusive session ID cursor; at most 50 live owned sessions in ascending ID order. Continue with the last ID until an empty page.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "",
@@ -156,8 +332,23 @@
                 }
               }
             }
+          },
+          "default": {
+            "description": "Stable JSON error envelope, including transport, authentication, authorization and availability failures",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
           }
-        }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ]
       }
     },
     "/v1/auth/sessions/revoke-all": {
@@ -166,11 +357,46 @@
           "memberships"
         ],
         "operationId": "revoke_all",
+        "parameters": [
+          {
+            "name": "Origin",
+            "in": "header",
+            "description": "Exact configured public origin",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-csrf-token",
+            "in": "header",
+            "description": "Current csrf cookie value; required with matching csrf cookie",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "204": {
             "description": ""
+          },
+          "default": {
+            "description": "Stable JSON error envelope, including transport, authentication, authorization and availability failures",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
           }
-        }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ]
       }
     },
     "/v1/auth/sessions/rotate": {
@@ -179,11 +405,46 @@
           "memberships"
         ],
         "operationId": "rotate",
+        "parameters": [
+          {
+            "name": "Origin",
+            "in": "header",
+            "description": "Exact configured public origin",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-csrf-token",
+            "in": "header",
+            "description": "Current csrf cookie value; required with matching csrf cookie",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "204": {
             "description": ""
+          },
+          "default": {
+            "description": "Stable JSON error envelope, including transport, authentication, authorization and availability failures",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
           }
-        }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ]
       }
     },
     "/v1/auth/sessions/{session}/revoke": {
@@ -193,6 +454,24 @@
         ],
         "operationId": "revoke_session",
         "parameters": [
+          {
+            "name": "Origin",
+            "in": "header",
+            "description": "Exact configured public origin",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-csrf-token",
+            "in": "header",
+            "description": "Current csrf cookie value; required with matching csrf cookie",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "session",
             "in": "path",
@@ -216,8 +495,23 @@
                 }
               }
             }
+          },
+          "default": {
+            "description": "Stable JSON error envelope, including transport, authentication, authorization and availability failures",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
           }
-        }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ]
       }
     },
     "/v1/invitations/confirmation": {
@@ -228,7 +522,24 @@
         "operationId": "invitation_confirmation",
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable JSON error envelope, including transport, authentication, authorization and availability failures",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
           }
         }
       }
@@ -262,12 +573,47 @@
                 }
               }
             }
+          },
+          "default": {
+            "description": "Stable JSON error envelope, including transport, authentication, authorization and availability failures",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
           }
-        }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ]
       },
       "post": {
         "tags": [],
         "operationId": "create_org",
+        "parameters": [
+          {
+            "name": "Origin",
+            "in": "header",
+            "description": "Exact configured public origin",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-csrf-token",
+            "in": "header",
+            "description": "Current csrf cookie value; required with matching csrf cookie",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -288,8 +634,23 @@
                 }
               }
             }
+          },
+          "default": {
+            "description": "Stable JSON error envelope, including transport, authentication, authorization and availability failures",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
           }
-        }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ]
       }
     },
     "/v1/organizations/{organization}/invitations": {
@@ -299,6 +660,24 @@
         ],
         "operationId": "invite",
         "parameters": [
+          {
+            "name": "Origin",
+            "in": "header",
+            "description": "Exact configured public origin",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-csrf-token",
+            "in": "header",
+            "description": "Current csrf cookie value; required with matching csrf cookie",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "organization",
             "in": "path",
@@ -329,8 +708,23 @@
                 }
               }
             }
+          },
+          "default": {
+            "description": "Stable JSON error envelope, including transport, authentication, authorization and availability failures",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
           }
-        }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ]
       }
     },
     "/v1/organizations/{organization}/invitations/{invitation}/accept": {
@@ -340,6 +734,24 @@
         ],
         "operationId": "accept",
         "parameters": [
+          {
+            "name": "Origin",
+            "in": "header",
+            "description": "Exact configured public origin",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-csrf-token",
+            "in": "header",
+            "description": "Current csrf cookie value; required with matching csrf cookie",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "organization",
             "in": "path",
@@ -372,8 +784,23 @@
         "responses": {
           "204": {
             "description": ""
+          },
+          "default": {
+            "description": "Stable JSON error envelope, including transport, authentication, authorization and availability failures",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
           }
-        }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ]
       }
     },
     "/v1/organizations/{organization}/invitations/{invitation}/revoke": {
@@ -383,6 +810,24 @@
         ],
         "operationId": "revoke_invitation",
         "parameters": [
+          {
+            "name": "Origin",
+            "in": "header",
+            "description": "Exact configured public origin",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-csrf-token",
+            "in": "header",
+            "description": "Current csrf cookie value; required with matching csrf cookie",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "organization",
             "in": "path",
@@ -415,8 +860,23 @@
         "responses": {
           "204": {
             "description": ""
+          },
+          "default": {
+            "description": "Stable JSON error envelope, including transport, authentication, authorization and availability failures",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
           }
-        }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ]
       }
     },
     "/v1/organizations/{organization}/members": {
@@ -457,8 +917,23 @@
                 }
               }
             }
+          },
+          "default": {
+            "description": "Stable JSON error envelope, including transport, authentication, authorization and availability failures",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
           }
-        }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ]
       }
     },
     "/v1/organizations/{organization}/members/{user}/remove": {
@@ -468,6 +943,24 @@
         ],
         "operationId": "remove_member",
         "parameters": [
+          {
+            "name": "Origin",
+            "in": "header",
+            "description": "Exact configured public origin",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-csrf-token",
+            "in": "header",
+            "description": "Current csrf cookie value; required with matching csrf cookie",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "organization",
             "in": "path",
@@ -500,8 +993,23 @@
         "responses": {
           "204": {
             "description": ""
+          },
+          "default": {
+            "description": "Stable JSON error envelope, including transport, authentication, authorization and availability failures",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
           }
-        }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ]
       }
     },
     "/v1/organizations/{organization}/members/{user}/role": {
@@ -511,6 +1019,24 @@
         ],
         "operationId": "change_role",
         "parameters": [
+          {
+            "name": "Origin",
+            "in": "header",
+            "description": "Exact configured public origin",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-csrf-token",
+            "in": "header",
+            "description": "Current csrf cookie value; required with matching csrf cookie",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "organization",
             "in": "path",
@@ -543,8 +1069,23 @@
         "responses": {
           "204": {
             "description": ""
+          },
+          "default": {
+            "description": "Stable JSON error envelope, including transport, authentication, authorization and availability failures",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
           }
-        }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ]
       }
     },
     "/v1/organizations/{organization}/projects": {
@@ -585,13 +1126,46 @@
                 }
               }
             }
+          },
+          "default": {
+            "description": "Stable JSON error envelope, including transport, authentication, authorization and availability failures",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
           }
-        }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ]
       },
       "post": {
         "tags": [],
         "operationId": "create_project",
         "parameters": [
+          {
+            "name": "Origin",
+            "in": "header",
+            "description": "Exact configured public origin",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-csrf-token",
+            "in": "header",
+            "description": "Current csrf cookie value; required with matching csrf cookie",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "organization",
             "in": "path",
@@ -622,8 +1196,23 @@
                 }
               }
             }
+          },
+          "default": {
+            "description": "Stable JSON error envelope, including transport, authentication, authorization and availability failures",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
           }
-        }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ]
       }
     },
     "/v1/organizations/{organization}/projects/{project}": {
@@ -631,6 +1220,24 @@
         "tags": [],
         "operationId": "rename_project",
         "parameters": [
+          {
+            "name": "Origin",
+            "in": "header",
+            "description": "Exact configured public origin",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-csrf-token",
+            "in": "header",
+            "description": "Current csrf cookie value; required with matching csrf cookie",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "organization",
             "in": "path",
@@ -680,8 +1287,23 @@
                 }
               }
             }
+          },
+          "default": {
+            "description": "Stable JSON error envelope, including transport, authentication, authorization and availability failures",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
           }
-        }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ]
       }
     }
   },
@@ -737,7 +1359,13 @@
             "type": "string"
           },
           "role": {
-            "type": "string"
+            "type": "string",
+            "enum": [
+              "owner",
+              "admin",
+              "member",
+              "viewer"
+            ]
           }
         },
         "additionalProperties": false
@@ -762,7 +1390,13 @@
         ],
         "properties": {
           "role": {
-            "type": "string"
+            "type": "string",
+            "enum": [
+              "owner",
+              "admin",
+              "member",
+              "viewer"
+            ]
           },
           "user_id": {
             "type": "string",
@@ -810,7 +1444,13 @@
             "type": "string"
           },
           "role": {
-            "type": "string"
+            "type": "string",
+            "enum": [
+              "owner",
+              "admin",
+              "member",
+              "viewer"
+            ]
           }
         }
       },
@@ -865,7 +1505,13 @@
         ],
         "properties": {
           "action": {
-            "type": "string"
+            "type": "string",
+            "enum": [
+              "change_role",
+              "invite",
+              "revoke_invitation",
+              "remove_member"
+            ]
           },
           "organization_id": {
             "type": "string",
@@ -906,10 +1552,23 @@
             "type": "string"
           },
           "role": {
-            "type": "string"
+            "type": "string",
+            "enum": [
+              "owner",
+              "admin",
+              "member",
+              "viewer"
+            ]
           }
         },
         "additionalProperties": false
+      }
+    },
+    "securitySchemes": {
+      "session": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "__Host-session"
       }
     }
   }

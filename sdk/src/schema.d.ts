@@ -336,13 +336,15 @@ export interface components {
         InvitationRequest: {
             email: string;
             proof: string;
-            role: string;
+            /** @enum {string} */
+            role: "owner" | "admin" | "member" | "viewer";
         };
         LoginRequest: {
             email: string;
         };
         MemberSummaryResponse: {
-            role: string;
+            /** @enum {string} */
+            role: "owner" | "admin" | "member" | "viewer";
             /** Format: uuid */
             user_id: string;
         };
@@ -357,7 +359,8 @@ export interface components {
             /** Format: uuid */
             id: string;
             name: string;
-            role: string;
+            /** @enum {string} */
+            role: "owner" | "admin" | "member" | "viewer";
         };
         PrivilegedRequest: {
             proof: string;
@@ -373,7 +376,8 @@ export interface components {
             version: number;
         };
         ProofRequest: {
-            action: string;
+            /** @enum {string} */
+            action: "change_role" | "invite" | "revoke_invitation" | "remove_member";
             /** Format: uuid */
             organization_id: string;
             /** Format: uuid */
@@ -386,7 +390,8 @@ export interface components {
         };
         RoleRequest: {
             proof: string;
-            role: string;
+            /** @enum {string} */
+            role: "owner" | "admin" | "member" | "viewer";
         };
     };
     responses: never;
@@ -400,7 +405,12 @@ export interface operations {
     confirm: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                /** @description Exact configured public origin */
+                Origin: string;
+                /** @description Current csrf cookie value; required with matching csrf cookie */
+                "x-csrf-token": string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -426,6 +436,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            /** @description Stable JSON error envelope, including transport, authentication, authorization and availability failures */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
         };
     };
     confirmation: {
@@ -437,19 +456,35 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Scanner-safe confirmation page; token remains in URL fragment */
+            /** @description Scanner-safe page; use SDK parseAs: text */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "text/html": string;
+                };
+            };
+            /** @description Stable JSON error envelope, including transport, authentication, authorization and availability failures */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
         };
     };
     logout: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                /** @description Exact configured public origin */
+                Origin: string;
+                /** @description Current csrf cookie value; required with matching csrf cookie */
+                "x-csrf-token": string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -460,6 +495,15 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Stable JSON error envelope, including transport, authentication, authorization and availability failures */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
         };
     };
@@ -476,14 +520,30 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "text/html": string;
+                };
+            };
+            /** @description Stable JSON error envelope, including transport, authentication, authorization and availability failures */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
         };
     };
     request_proof: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                /** @description Exact configured public origin */
+                Origin: string;
+                /** @description Current csrf cookie value; required with matching csrf cookie */
+                "x-csrf-token": string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -499,12 +559,26 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Stable JSON error envelope, including transport, authentication, authorization and availability failures */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
         };
     };
     request_login: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                /** @description Exact configured public origin */
+                Origin: string;
+                /** @description Current csrf cookie value; required with matching csrf cookie */
+                "x-csrf-token": string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -528,11 +602,23 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            /** @description Stable JSON error envelope, including transport, authentication, authorization and availability failures */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
         };
     };
     sessions: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Exclusive session ID cursor; at most 50 live owned sessions in ascending ID order. Continue with the last ID until an empty page. */
+                after?: string;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -547,12 +633,26 @@ export interface operations {
                     "application/json": string[];
                 };
             };
+            /** @description Stable JSON error envelope, including transport, authentication, authorization and availability failures */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
         };
     };
     revoke_all: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                /** @description Exact configured public origin */
+                Origin: string;
+                /** @description Current csrf cookie value; required with matching csrf cookie */
+                "x-csrf-token": string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -563,13 +663,27 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Stable JSON error envelope, including transport, authentication, authorization and availability failures */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
         };
     };
     rotate: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                /** @description Exact configured public origin */
+                Origin: string;
+                /** @description Current csrf cookie value; required with matching csrf cookie */
+                "x-csrf-token": string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -581,12 +695,26 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Stable JSON error envelope, including transport, authentication, authorization and availability failures */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
         };
     };
     revoke_session: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                /** @description Exact configured public origin */
+                Origin: string;
+                /** @description Current csrf cookie value; required with matching csrf cookie */
+                "x-csrf-token": string;
+            };
             path: {
                 session: string;
             };
@@ -601,6 +729,15 @@ export interface operations {
                 content?: never;
             };
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Stable JSON error envelope, including transport, authentication, authorization and availability failures */
+            default: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -623,7 +760,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "text/html": string;
+                };
+            };
+            /** @description Stable JSON error envelope, including transport, authentication, authorization and availability failures */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
         };
     };
@@ -647,12 +795,26 @@ export interface operations {
                     "application/json": components["schemas"]["OrganizationSummaryResponse"][];
                 };
             };
+            /** @description Stable JSON error envelope, including transport, authentication, authorization and availability failures */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
         };
     };
     create_org: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                /** @description Exact configured public origin */
+                Origin: string;
+                /** @description Current csrf cookie value; required with matching csrf cookie */
+                "x-csrf-token": string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -670,12 +832,26 @@ export interface operations {
                     "application/json": components["schemas"]["OrganizationResponse"];
                 };
             };
+            /** @description Stable JSON error envelope, including transport, authentication, authorization and availability failures */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
         };
     };
     invite: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                /** @description Exact configured public origin */
+                Origin: string;
+                /** @description Current csrf cookie value; required with matching csrf cookie */
+                "x-csrf-token": string;
+            };
             path: {
                 organization: string;
             };
@@ -695,12 +871,26 @@ export interface operations {
                     "application/json": components["schemas"]["OrganizationResponse"];
                 };
             };
+            /** @description Stable JSON error envelope, including transport, authentication, authorization and availability failures */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
         };
     };
     accept: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                /** @description Exact configured public origin */
+                Origin: string;
+                /** @description Current csrf cookie value; required with matching csrf cookie */
+                "x-csrf-token": string;
+            };
             path: {
                 organization: string;
                 invitation: string;
@@ -719,12 +909,26 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Stable JSON error envelope, including transport, authentication, authorization and availability failures */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
         };
     };
     revoke_invitation: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                /** @description Exact configured public origin */
+                Origin: string;
+                /** @description Current csrf cookie value; required with matching csrf cookie */
+                "x-csrf-token": string;
+            };
             path: {
                 organization: string;
                 invitation: string;
@@ -742,6 +946,15 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Stable JSON error envelope, including transport, authentication, authorization and availability failures */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
         };
     };
@@ -767,12 +980,26 @@ export interface operations {
                     "application/json": components["schemas"]["MemberSummaryResponse"][];
                 };
             };
+            /** @description Stable JSON error envelope, including transport, authentication, authorization and availability failures */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
         };
     };
     remove_member: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                /** @description Exact configured public origin */
+                Origin: string;
+                /** @description Current csrf cookie value; required with matching csrf cookie */
+                "x-csrf-token": string;
+            };
             path: {
                 organization: string;
                 user: string;
@@ -791,12 +1018,26 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Stable JSON error envelope, including transport, authentication, authorization and availability failures */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
         };
     };
     change_role: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                /** @description Exact configured public origin */
+                Origin: string;
+                /** @description Current csrf cookie value; required with matching csrf cookie */
+                "x-csrf-token": string;
+            };
             path: {
                 organization: string;
                 user: string;
@@ -814,6 +1055,15 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Stable JSON error envelope, including transport, authentication, authorization and availability failures */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
         };
     };
@@ -839,12 +1089,26 @@ export interface operations {
                     "application/json": components["schemas"]["ProjectResponse"][];
                 };
             };
+            /** @description Stable JSON error envelope, including transport, authentication, authorization and availability failures */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
         };
     };
     create_project: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                /** @description Exact configured public origin */
+                Origin: string;
+                /** @description Current csrf cookie value; required with matching csrf cookie */
+                "x-csrf-token": string;
+            };
             path: {
                 organization: string;
             };
@@ -864,12 +1128,26 @@ export interface operations {
                     "application/json": components["schemas"]["ProjectResponse"];
                 };
             };
+            /** @description Stable JSON error envelope, including transport, authentication, authorization and availability failures */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
         };
     };
     rename_project: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                /** @description Exact configured public origin */
+                Origin: string;
+                /** @description Current csrf cookie value; required with matching csrf cookie */
+                "x-csrf-token": string;
+            };
             path: {
                 organization: string;
                 project: string;
@@ -891,6 +1169,15 @@ export interface operations {
                 };
             };
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Stable JSON error envelope, including transport, authentication, authorization and availability failures */
+            default: {
                 headers: {
                     [name: string]: unknown;
                 };

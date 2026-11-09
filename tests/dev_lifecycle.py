@@ -31,8 +31,24 @@ for termination in [signal.SIGINT, signal.SIGTERM]:
                 time.sleep(0.05)
         else:
             raise RuntimeError("Dev readiness deadline exceeded")
+        children = [
+            int(pid)
+            for pid in Path(f"/proc/{process.pid}/task/{process.pid}/children")
+            .read_text()
+            .split()
+        ]
+        assert len(children) == 2, (
+            "Dev API and worker must both be active before interruption"
+        )
         os.killpg(process.pid, termination)
         assert process.wait(timeout=30) != 0
+        for child in children:
+            try:
+                os.kill(child, 0)
+            except ProcessLookupError:
+                pass
+            else:
+                raise AssertionError(f"Detached dev child {child} survived cleanup")
         try:
             os.killpg(process.pid, 0)
         except ProcessLookupError:

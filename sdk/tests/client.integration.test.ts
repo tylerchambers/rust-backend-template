@@ -29,10 +29,15 @@ test("generated client logs in and creates a tenant project", async () => {
 			return response;
 		},
 	});
+	const headers = { Origin: origin, "x-csrf-token": cookies.get("csrf") ?? "" };
 	const email = `${crypto.randomUUID()}@example.test`;
 	expect(
-		(await client.POST("/v1/auth/request", { body: { email } })).response
-			.status,
+		(
+			await client.POST("/v1/auth/request", {
+				params: { header: headers },
+				body: { email },
+			})
+		).response.status,
 	).toBe(202);
 	const listingSchema = z.object({
 		messages: z.array(
@@ -59,14 +64,22 @@ test("generated client logs in and creates a tenant project", async () => {
 	const token = /confirmation#([a-f0-9]{64})/.exec(content.Text)?.[1];
 	if (!token) throw new Error("Login token missing");
 	expect(
-		(await client.POST("/v1/auth/confirm", { body: { token } })).response
-			.status,
+		(
+			await client.POST("/v1/auth/confirm", {
+				params: { header: headers },
+				body: { token },
+			})
+		).response.status,
 	).toBe(200);
 	const organization = await client.POST("/v1/organizations", {
+		params: { header: headers },
 		body: { name: "SDK tenant" },
 	});
 	if (!organization.data) throw new Error("Organization creation failed");
-	const params = { path: { organization: organization.data.id } };
+	const params = {
+		header: headers,
+		path: { organization: organization.data.id },
+	};
 	const project = await client.POST(
 		"/v1/organizations/{organization}/projects",
 		{ params, body: { name: "SDK project" } },
@@ -74,8 +87,11 @@ test("generated client logs in and creates a tenant project", async () => {
 	expect(project.response.status).toBe(201);
 	const listingResult = await client.GET(
 		"/v1/organizations/{organization}/projects",
-		{ params },
+		{ params: { path: params.path } },
 	);
 	expect(listingResult.data?.[0]?.name).toBe("SDK project");
-	expect((await client.POST("/v1/auth/logout")).response.status).toBe(204);
+	expect(
+		(await client.POST("/v1/auth/logout", { params: { header: headers } }))
+			.response.status,
+	).toBe(204);
 });

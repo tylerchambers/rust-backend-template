@@ -28,7 +28,7 @@ async fn scanner_get_does_not_authenticate_and_mutations_require_csrf() {
         .await
         .unwrap();
     infrastructure::migrate(&pool).await.unwrap();
-    let db = Arc::new(infrastructure::Database::new(pool).unwrap());
+    let db = Arc::new(infrastructure::Database::new(pool.clone()).unwrap());
     let secrets = Arc::new(infrastructure::auth::SystemSecrets);
     let state = api::State::new(
         Arc::new(Authentication::new(
@@ -70,6 +70,35 @@ async fn scanner_get_does_not_authenticate_and_mutations_require_csrf() {
             1234,
         ),
     )));
+    let contract: serde_json::Value = serde_json::from_str(&api::openapi()).unwrap();
+    for (method, path, status, code) in [
+        ("GET", "/v1/auth/sessions", 401, "unauthenticated"),
+        ("POST", "/v1/organizations", 403, "forbidden"),
+    ] {
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method(method)
+                    .uri(path)
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), status);
+        assert_eq!(response.headers()["content-type"], "application/json");
+        let bytes = axum::body::to_bytes(response.into_body(), 1024)
+            .await
+            .unwrap();
+        let error: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(error, serde_json::json!({"code": code}));
+        assert_eq!(
+            contract["paths"][path][method.to_lowercase()]["responses"]["default"]["content"]["application/json"]
+                ["schema"]["$ref"],
+            "#/components/schemas/ErrorBody"
+        );
+    }
     let login = infrastructure::auth::SystemSecrets.token();
     let session = infrastructure::auth::SystemSecrets.token();
     db.issue_login(&format!("{}@example.test", uuid::Uuid::now_v7()), &login)
@@ -80,6 +109,107 @@ async fn scanner_get_does_not_authenticate_and_mutations_require_csrf() {
         .create(&owner, "Discoverable".into())
         .await
         .unwrap();
+    // All sessions share a timestamp: pagination must use unique IDs, not time.
+    let mut expected = vec![owner.session_id.into_uuid()];
+    for index in 0..105 {
+        let id = uuid::Uuid::now_v7();
+        sqlx::query(
+            "INSERT INTO sessions(id,user_id,token_hash,created_at) VALUES($1,$2,$3,'2026-01-01')",
+        )
+        .bind(id)
+        .bind(owner.user_id.into_uuid())
+        .bind(infrastructure::auth::token_hash(&format!(
+            "{session}-{index}"
+        )))
+        .execute(&pool)
+        .await
+        .unwrap();
+        expected.push(id);
+    }
+    let hidden = expected[1];
+    sqlx::query("UPDATE sessions SET created_at='2025-01-01' WHERE id=$1")
+        .bind(hidden)
+        .execute(&pool)
+        .await
+        .unwrap();
+    let foreign = uuid::Uuid::now_v7();
+    sqlx::query("INSERT INTO users(id,email) VALUES($1,$2)")
+        .bind(foreign)
+        .bind(format!("{foreign}@example.test"))
+        .execute(&pool)
+        .await
+        .unwrap();
+    for (index, user, state) in [
+        (0, foreign, "live"),
+        (1, owner.user_id.into_uuid(), "expired"),
+        (2, owner.user_id.into_uuid(), "revoked"),
+        (3, owner.user_id.into_uuid(), "idle"),
+    ] {
+        sqlx::query("INSERT INTO sessions(id,user_id,token_hash,expires_at,revoked_at,last_seen_at) VALUES($1,$2,$3,CASE WHEN $4='expired' THEN clock_timestamp()-interval '1 day' ELSE clock_timestamp()+interval '1 day' END,CASE WHEN $4='revoked' THEN clock_timestamp() END,CASE WHEN $4='idle' THEN clock_timestamp()-interval '1 hour' ELSE clock_timestamp() END)")
+            .bind(uuid::Uuid::now_v7()).bind(user)
+            .bind(infrastructure::auth::token_hash(&format!("{session}-excluded-{index}")))
+            .bind(state).execute(&pool).await.unwrap();
+    }
+    let mut collected = Vec::new();
+    let mut terminated = false;
+    let mut path = "/v1/auth/sessions".to_owned();
+    for _ in 0..5 {
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri(&path)
+                    .header("cookie", format!("__Host-session={session}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), 200);
+        let bytes = axum::body::to_bytes(response.into_body(), 16384)
+            .await
+            .unwrap();
+        let rows: Vec<uuid::Uuid> = serde_json::from_slice(&bytes).unwrap();
+        assert!(rows.len() <= 50, "session pages must remain bounded");
+        if rows.is_empty() {
+            terminated = true;
+            break;
+        }
+        path = format!("/v1/auth/sessions?after={}", rows.last().unwrap());
+        collected.extend(rows);
+    }
+    assert!(
+        terminated,
+        "session traversal must reach an empty terminal page"
+    );
+    expected.sort_unstable();
+    assert_eq!(
+        collected, expected,
+        "all live sessions exactly once in UUID order"
+    );
+    let csrf = "a".repeat(64);
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!("/v1/auth/sessions/{hidden}/revoke"))
+                .header("origin", "http://localhost:58039")
+                .header("x-csrf-token", &csrf)
+                .header("cookie", format!("csrf={csrf}; __Host-session={session}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), 204);
+    let revoked: bool =
+        sqlx::query_scalar("SELECT revoked_at IS NOT NULL FROM sessions WHERE id=$1")
+            .bind(hidden)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    assert!(revoked);
     for path in [
         "/v1/organizations".to_string(),
         format!("/v1/organizations/{org}/members"),
@@ -161,6 +291,27 @@ async fn scanner_get_does_not_authenticate_and_mutations_require_csrf() {
         .unwrap()
         .strip_prefix("csrf=")
         .unwrap();
+    for (origin, token) in [
+        ("https://foreign.example", csrf),
+        ("http://localhost:58039", "incorrect"),
+    ] {
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/v1/auth/confirm")
+                    .header("origin", origin)
+                    .header("x-csrf-token", token)
+                    .header("cookie", format!("csrf={csrf}"))
+                    .header("content-type", "application/json")
+                    .body(Body::from("{}"))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), 403);
+    }
     for ambiguous in ["origin", "x-csrf-token", "cookie"] {
         let mut request = Request::builder()
             .method("POST")

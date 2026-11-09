@@ -28,8 +28,8 @@ lint-controls:
 
 # DATABASE_URL must be the deployment/migration credential, not the runtime role.
 migrate:
-    cargo run --locked -p cli -- migrate
+    python3 scripts/cargo.py run --locked -p cli -- migrate
 
 openapi:
-    cargo run --locked -p cli -- openapi > openapi.json
+    python3 scripts/cargo.py run --locked -p cli -- openapi > openapi.json
     cd sdk && bun run generate
