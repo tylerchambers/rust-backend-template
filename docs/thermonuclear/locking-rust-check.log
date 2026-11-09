@@ -1,9 +1,0 @@
-    Checking domain v0.1.0 (/home/hermes/rust-backend-template-thermonuclear/crates/domain)
-    Checking application v0.1.0 (/home/hermes/rust-backend-template-thermonuclear/crates/application)
-    Checking infrastructure v0.1.0 (/home/hermes/rust-backend-template-thermonuclear/crates/infrastructure)
-    Checking api v0.1.0 (/home/hermes/rust-backend-template-thermonuclear/crates/api)
-    Checking bootstrap v0.1.0 (/home/hermes/rust-backend-template-thermonuclear/crates/bootstrap)
-    Checking server v0.1.0 (/home/hermes/rust-backend-template-thermonuclear/apps/server)
-    Checking cli v0.1.0 (/home/hermes/rust-backend-template-thermonuclear/apps/cli)
-    Checking worker v0.1.0 (/home/hermes/rust-backend-template-thermonuclear/apps/worker)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.80s

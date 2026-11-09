@@ -1,1 +1,0 @@
-PASS: upgrade from 1b266ba502ae8e207a667aa27681913264341ec6 preserves live identity/session/tenant data; old and current binaries concurrently read/write expanded schema

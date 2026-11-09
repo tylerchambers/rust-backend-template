@@ -28,7 +28,7 @@ Operational `/ready` and combined `/metrics` remain bootstrap-owned read-only ro
 
 The package sources fetched from crates.io and inspected are `tower-sessions 0.14.0` and `0.15.0`, `axum-login 0.18.0`, and `tower-sessions-sqlx-store 0.15.0`. The compatible published login/store line uses **tower-sessions 0.14**, not 0.15. The store uses **SQLx 0.8.6**, while this application and River use **SQLx 0.9.0**.
 
-The isolated spike in [evidence/library-reuse-spike](evidence/library-reuse-spike/README.md) compiled the compatible session/login types and ran against disposable PostgreSQL. It established:
+The isolated spike recorded in PR #2 compiled the compatible session/login types and ran against disposable PostgreSQL. It established:
 
 1. `axum-login 0.18.0` and `tower-sessions 0.14.0` share the same Session type.
 2. Passing this application's SQLx 0.9 pool into the published store fails with **E0308**, identifying distinct SQLx 0.8 and 0.9 pool types.

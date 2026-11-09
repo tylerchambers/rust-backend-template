@@ -1,1 +1,0 @@
-PASS: both live OpenMetrics scrapes parse, histogram is cumulative, labels bounded

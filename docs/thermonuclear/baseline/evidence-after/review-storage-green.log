@@ -1,9 +1,0 @@
-   Compiling infrastructure v0.1.0 (/home/hermes/rust-backend-template/crates/infrastructure)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.30s
-     Running tests/storage_errors.rs (target/debug/deps/storage_errors-1af9dfff0694e820)
-
-running 1 test
-test storage_failure_is_categorized_without_token_or_cause_leakage ... ok
-
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
-

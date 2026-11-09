@@ -1,4 +1,0 @@
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.09s
-     Running `target/debug/cli migrate`
-ALTER ROLE
-Disposable PostgreSQL, SMTP capture and Redis ready; runtime role provisioned

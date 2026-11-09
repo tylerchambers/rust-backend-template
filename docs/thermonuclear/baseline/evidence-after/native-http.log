@@ -1,1 +1,0 @@
-PASS: targeted session revocation, returning identity, SMTP login, scanner safety, CSRF, replay, organization/project, optimistic conflict, tenant denial, logout replay

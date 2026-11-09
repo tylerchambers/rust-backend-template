@@ -1,5 +1,0 @@
-Traceback (most recent call last):
-  File "/home/hermes/rust-backend-template/scripts/architecture.py", line 31, in <module>
-    assert violations(http_mutation), "Domain HTTP framework mutation was not rejected"
-           ~~~~~~~~~~^^^^^^^^^^^^^^^
-AssertionError: Domain HTTP framework mutation was not rejected

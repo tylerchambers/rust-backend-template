@@ -1,8 +1,0 @@
-{
-  "command": "python3 scripts/verify.py",
-  "exit_code": 0,
-  "started": "2026-11-09T04:23:50.724378+00:00",
-  "finished": "2026-11-09T04:27:59.032036+00:00",
-  "seconds": 248.31,
-  "containers_conf_override": null
-}

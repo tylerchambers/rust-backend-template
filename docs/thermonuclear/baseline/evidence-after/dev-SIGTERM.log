@@ -1,3 +1,0 @@
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.11s
-API: http://localhost:58039 | email capture: http://localhost:58029 | Ctrl-C stops owned processes
-{"timestamp":"2026-11-09T04:26:39.820883Z","level":"INFO","fields":{"operation":"server.ready"},"target":"bootstrap"}

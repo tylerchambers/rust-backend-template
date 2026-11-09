@@ -6,3 +6,5 @@ __pycache__/
 *.pyc
 /.venv/
 /.ruff_cache/
+/docs/evidence/
+/docs/thermonuclear/
