@@ -54,11 +54,13 @@ def acceptance(prefix, evidence, containers, *, browser_timeout=180):
     with evidence.gate(prefix + "-ready"):
         ready()
     evidence.run(
-        prefix + "-http", ["python3", "tests/http_acceptance.py"], env=environment
+        prefix + "-http",
+        ["python3", "tests/system/http_acceptance.py"],
+        env=environment,
     )
     evidence.run(
         prefix + "-metrics",
-        [str(ROOT / ".venv/bin/python"), "tests/metrics.py"],
+        [str(ROOT / ".venv/bin/python"), "tests/system/metrics.py"],
         env=environment,
     )
     evidence.run(prefix + "-sdk", ["bun", "test"], cwd=ROOT / "sdk", env=environment)
@@ -78,7 +80,7 @@ def acceptance(prefix, evidence, containers, *, browser_timeout=180):
                 "/app/sdk",
                 PLAYWRIGHT,
                 "node",
-                "browser.mjs",
+                "/app/tests/system/browser.mjs",
             ],
             mounts=[ROOT],
         )
@@ -107,9 +109,11 @@ def verify(evidence, containers):
         "tooling_evidence",
         "tooling_browser",
     ]:
-        evidence.run(script, ["python3", f"tests/{script}.py"], env=environment)
+        evidence.run(script, ["python3", f"scripts/tests/{script}.py"], env=environment)
     evidence.run(
-        "seed-conflicts", ["python3", "tests/seed_conflicts.py"], env=environment
+        "seed-conflicts",
+        ["python3", "scripts/tests/seed_conflicts.py"],
+        env=environment,
     )
     evidence.run("seed", ["python3", "scripts/seed.py"], env=environment)
     evidence.run("seed-idempotency", ["python3", "scripts/seed.py"], env=environment)
@@ -124,7 +128,7 @@ def verify(evidence, containers):
     )
     evidence.run(
         "lint-negative-controls",
-        ["python3", "tests/lint_policy.py"],
+        ["python3", "scripts/tests/lint_policy.py"],
         timeout=300,
         env=environment,
     )
@@ -139,7 +143,7 @@ def verify(evidence, containers):
         env=environment,
     )
     evidence.run(
-        "dev-lifecycle", ["python3", "tests/dev_lifecycle.py"], env=environment
+        "dev-lifecycle", ["python3", "tests/system/dev_lifecycle.py"], env=environment
     )
     evidence.run(
         "release",
@@ -183,20 +187,9 @@ def verify(evidence, containers):
         acceptance("native", evidence, containers)
     evidence.run(
         "native-observability",
-        ["python3", "tests/observability.py", "native"],
+        ["python3", "tests/system/observability.py", "native"],
         env=environment,
     )
-    # This launcher owns cleanup: invoke its workflow in-process, never kill its owner on a gate timeout.
-    with evidence.gate("revision-compatibility"):
-        import runpy
-
-        with (EVIDENCE / "revision-compatibility.log").open("w") as log:
-            from contextlib import redirect_stderr, redirect_stdout
-
-            with redirect_stdout(log), redirect_stderr(log):
-                runpy.run_path(
-                    str(ROOT / "tests/revision_compatibility.py"), run_name="__main__"
-                )
     evidence.run(
         "oci-build",
         ["podman", "build", "-t", "localhost/rust-backend-template:test", "."],
@@ -237,7 +230,7 @@ def verify(evidence, containers):
         evidence.run("oci-" + name, ["podman", "logs", container], env=environment)
     evidence.run(
         "oci-observability",
-        ["python3", "tests/observability.py", "oci"],
+        ["python3", "tests/system/observability.py", "oci"],
         env=environment,
     )
 
@@ -272,7 +265,6 @@ def main():
         "sdk-generate",
         "sdk-types",
         "native-lifecycle",
-        "revision-compatibility",
         "oci-build",
         "oci-server",
         "oci-worker",

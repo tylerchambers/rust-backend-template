@@ -4,7 +4,8 @@
     reason = "Test setup and assertions must fail immediately on unexpected errors"
 )]
 
-use application::optional::{ProjectCache, SecurityLimiter};
+use application::authentication::SecurityLimiter;
+use application::projects::ProjectCache;
 use domain::Project;
 use infrastructure::redis::RedisAdapters;
 use uuid::Uuid;
@@ -31,7 +32,7 @@ async fn cache_is_tenant_scoped_and_security_limiter_fails_closed() {
     let mut connection = raw.get_multiplexed_async_connection().await.unwrap();
     let redis_key = format!(
         "rust-backend-template:integration:auth:{}",
-        hex::encode(infrastructure::auth::token_hash(&broken))
+        hex::encode(infrastructure::postgres::token_hash(&broken))
     );
     redis::cmd("SET")
         .arg(&redis_key)

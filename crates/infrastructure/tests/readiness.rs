@@ -9,7 +9,7 @@ async fn readiness_tracks_database_availability() {
     let pool = sqlx::PgPool::connect(&std::env::var("TEST_DATABASE_URL").unwrap())
         .await
         .unwrap();
-    let db = infrastructure::Database::new(pool.clone()).unwrap();
+    let db = infrastructure::postgres::Database::new(pool.clone()).unwrap();
     assert!(db.ready().await);
     let mut registry = prometheus_client::registry::Registry::default();
     db.collect_metrics(&mut registry).await.unwrap();

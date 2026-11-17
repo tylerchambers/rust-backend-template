@@ -1,3 +1,11 @@
+use crate::{error::ApiError, state::State};
+use axum::{
+    extract::State as Extract,
+    http::header,
+    response::{IntoResponse, Response},
+};
+use domain::Error;
+use prometheus_client::encoding::text::encode;
 use prometheus_client::{
     metrics::{counter::Counter, histogram::Histogram},
     registry::Registry,
@@ -52,6 +60,21 @@ impl HttpMetrics {
             self.authorization_denials.clone(),
         );
     }
+}
+
+pub(crate) async fn http_metrics(Extract(state): Extract<State>) -> Result<Response, ApiError> {
+    let mut registry = Registry::default();
+    state.register_metrics(&mut registry);
+    let mut output = String::new();
+    encode(&mut output, &registry).map_err(|_| Error::Unavailable)?;
+    Ok((
+        [(
+            header::CONTENT_TYPE,
+            "application/openmetrics-text; version=1.0.0; charset=utf-8",
+        )],
+        output,
+    )
+        .into_response())
 }
 
 #[cfg(test)]

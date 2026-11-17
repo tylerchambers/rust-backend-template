@@ -4,8 +4,10 @@
     reason = "Test setup and assertions must fail immediately on unexpected errors"
 )]
 
-use application::{IdentityRepository, Secrets};
-use infrastructure::{Database, auth::SystemSecrets};
+use application::Secrets;
+use application::authentication::IdentityRepository;
+use infrastructure::postgres::Database;
+use infrastructure::system::SystemSecrets;
 use uuid::Uuid;
 
 #[tokio::test]
@@ -13,7 +15,9 @@ async fn confirmation_replays_share_a_mailbox_budget() {
     let pool = sqlx::PgPool::connect(&std::env::var("TEST_DATABASE_URL").unwrap())
         .await
         .unwrap();
-    infrastructure::migrate(&pool).await.unwrap();
+    infrastructure::postgres::migrations::migrate(&pool)
+        .await
+        .unwrap();
     let db = Database::new(pool).unwrap();
     let link = SystemSecrets.token();
     db.issue_login(&format!("{}@example.test", Uuid::now_v7()), &link)
@@ -39,7 +43,9 @@ async fn logout_waiting_on_rotation_retires_replacement() {
     let pool = sqlx::PgPool::connect(&std::env::var("TEST_DATABASE_URL").unwrap())
         .await
         .unwrap();
-    infrastructure::migrate(&pool).await.unwrap();
+    infrastructure::postgres::migrations::migrate(&pool)
+        .await
+        .unwrap();
     let db = Database::new(pool.clone()).unwrap();
     let login = SystemSecrets.token();
     let old = SystemSecrets.token();
@@ -54,13 +60,13 @@ async fn logout_waiting_on_rotation_retires_replacement() {
         .await
         .unwrap();
     sqlx::query("UPDATE sessions SET token_hash=$1 WHERE id=$2")
-        .bind(infrastructure::auth::token_hash(&new))
+        .bind(infrastructure::postgres::token_hash(&new))
         .bind(actor.session_id.into_uuid())
         .execute(&mut *rotation)
         .await
         .unwrap();
     sqlx::query("INSERT INTO session_revocation_handles(token_hash,session_id) VALUES($1,$2)")
-        .bind(infrastructure::auth::token_hash(&old))
+        .bind(infrastructure::postgres::token_hash(&old))
         .bind(actor.session_id.into_uuid())
         .execute(&mut *rotation)
         .await
@@ -99,7 +105,9 @@ async fn rotation_retires_old_token_and_account_revocation_retires_all() {
     let pool = sqlx::PgPool::connect(&std::env::var("TEST_DATABASE_URL").unwrap())
         .await
         .unwrap();
-    infrastructure::migrate(&pool).await.unwrap();
+    infrastructure::postgres::migrations::migrate(&pool)
+        .await
+        .unwrap();
     let db = Database::new(pool).unwrap();
     let secrets = SystemSecrets;
     let login = secrets.token();
@@ -122,7 +130,9 @@ async fn targeted_revocation_is_owner_scoped_and_preserves_other_sessions() {
     let pool = sqlx::PgPool::connect(&std::env::var("TEST_DATABASE_URL").unwrap())
         .await
         .unwrap();
-    infrastructure::migrate(&pool).await.unwrap();
+    infrastructure::postgres::migrations::migrate(&pool)
+        .await
+        .unwrap();
     let db = Database::new(pool).unwrap();
     let email = format!("{}@example.test", Uuid::now_v7());
     let mut identities = Vec::new();

@@ -4,7 +4,8 @@
     reason = "Test setup and assertions must fail immediately on unexpected errors"
 )]
 
-use infrastructure::{Database, ProjectChanged};
+use infrastructure::postgres::Database;
+use infrastructure::river::jobs::ProjectChanged;
 use riverqueue::{EventKind, JobArgs};
 use uuid::Uuid;
 #[tokio::test]
@@ -12,7 +13,9 @@ async fn river_worker_updates_projection_and_runs_scheduled_cleanup() {
     let pool = sqlx::PgPool::connect(&std::env::var("TEST_DATABASE_URL").unwrap())
         .await
         .unwrap();
-    infrastructure::migrate(&pool).await.unwrap();
+    infrastructure::postgres::migrations::migrate(&pool)
+        .await
+        .unwrap();
     let org = Uuid::now_v7();
     let project = Uuid::now_v7();
     sqlx::query("INSERT INTO organizations(id,name) VALUES($1,'worker')")
@@ -27,16 +30,17 @@ async fn river_worker_updates_projection_and_runs_scheduled_cleanup() {
         .await
         .unwrap();
     let db = Database::new(pool.clone()).unwrap();
-    let client = infrastructure::jobs::worker_client(
+    let client = infrastructure::river::client::worker_client(
         db,
         std::sync::Arc::new(
-            infrastructure::mail::SmtpMailer::local_capture(
+            infrastructure::smtp::SmtpMailer::local_capture(
                 "127.0.0.1",
                 51029,
                 "http://localhost:58039",
             )
             .unwrap(),
         ),
+        std::sync::Arc::new(infrastructure::system::SystemSecrets),
     )
     .unwrap();
     let mut events = client.subscribe(&[EventKind::JobCompleted]).unwrap();
@@ -56,7 +60,7 @@ async fn river_worker_updates_projection_and_runs_scheduled_cleanup() {
             let event = events.recv().await.unwrap();
             if let Some(event) = event.as_job() {
                 projection |= event.job.id == queued.id();
-                cleanup |= event.job.kind == infrastructure::jobs::Cleanup::KIND;
+                cleanup |= event.job.kind == infrastructure::river::jobs::Cleanup::KIND;
             }
         }
     })
@@ -84,16 +88,17 @@ async fn crash_worker_process() {
     let pool = sqlx::PgPool::connect(&std::env::var("TEST_DATABASE_URL").unwrap())
         .await
         .unwrap();
-    let client = infrastructure::jobs::worker_client(
+    let client = infrastructure::river::client::worker_client(
         Database::new(pool).unwrap(),
         std::sync::Arc::new(
-            infrastructure::mail::SmtpMailer::local_capture(
+            infrastructure::smtp::SmtpMailer::local_capture(
                 "127.0.0.1",
                 51029,
                 "http://localhost:58039",
             )
             .unwrap(),
         ),
+        std::sync::Arc::new(infrastructure::system::SystemSecrets),
     )
     .unwrap();
     client.start().unwrap().wait().await.unwrap();
@@ -174,7 +179,7 @@ async fn crash_and_recover(pool: &sqlx::PgPool, organization_id: Uuid, project_i
 
 struct FailingMail;
 #[async_trait::async_trait]
-impl application::memberships::InvitationMailer for FailingMail {
+impl application::invitations::InvitationMailer for FailingMail {
     async fn send_invitation(
         &self,
         _: &str,
@@ -189,13 +194,14 @@ async fn retries_reach_terminal_state(pool: &sqlx::PgPool, organization_id: Uuid
     let invitation_id = Uuid::now_v7();
     sqlx::query("INSERT INTO invitations(id,organization_id,email,role,token_hash,expires_at) VALUES($1,$2,'poison@example.test','viewer',$3,clock_timestamp()+interval '1 hour')")
         .bind(invitation_id).bind(organization_id).bind(vec![0_u8;32]).execute(pool).await.unwrap();
-    let client = infrastructure::jobs::worker_client(
+    let client = infrastructure::river::client::worker_client(
         Database::new(pool.clone()).unwrap(),
         std::sync::Arc::new(FailingMail),
+        std::sync::Arc::new(infrastructure::system::SystemSecrets),
     )
     .unwrap();
     let job = client
-        .insert(infrastructure::jobs::InvitationEmail {
+        .insert(infrastructure::river::jobs::InvitationEmail {
             organization_id,
             invitation_id,
             correlation_id: Uuid::now_v7(),

@@ -4,12 +4,15 @@
     reason = "Test setup and assertions must fail immediately on unexpected errors"
 )]
 
-use application::{
-    Actor, IdentityRepository, Organizations, Secrets,
-    memberships::{Memberships, ReauthenticationRepository},
-};
+use application::Actor;
+use application::Organizations;
+use application::Secrets;
+use application::authentication::IdentityRepository;
+use application::memberships::Memberships;
+use application::reauthentication::ReauthenticationRepository;
 use domain::{Error, Role};
-use infrastructure::{Database, auth::SystemSecrets};
+use infrastructure::postgres::Database;
+use infrastructure::system::SystemSecrets;
 use std::sync::Arc;
 use uuid::Uuid;
 #[tokio::test]
@@ -21,7 +24,9 @@ async fn bound_proof_is_single_use_and_last_owner_is_guarded() {
     let pool = sqlx::PgPool::connect(&std::env::var("TEST_DATABASE_URL").unwrap())
         .await
         .unwrap();
-    infrastructure::migrate(&pool).await.unwrap();
+    infrastructure::postgres::migrations::migrate(&pool)
+        .await
+        .unwrap();
     let db = Arc::new(Database::new(pool.clone()).unwrap());
     let secret = SystemSecrets;
     let link = secret.token();
@@ -32,16 +37,12 @@ async fn bound_proof_is_single_use_and_last_owner_is_guarded() {
     let actor = db.consume_login(&link, &session).await.unwrap();
     let org = Organizations::new(
         db.clone(),
-        std::sync::Arc::new(infrastructure::auth::SystemIds),
+        std::sync::Arc::new(infrastructure::system::SystemIds),
     )
     .create(&actor, "Proof tenant".into())
     .await
     .unwrap();
-    let service = Memberships::new(
-        db.clone(),
-        std::sync::Arc::new(infrastructure::auth::SystemIds),
-        std::sync::Arc::new(infrastructure::auth::SystemClock),
-    );
+    let service = Memberships::new(db.clone());
     let target = Uuid::now_v7();
     sqlx::query("INSERT INTO users(id,email) VALUES($1,$2)")
         .bind(target)

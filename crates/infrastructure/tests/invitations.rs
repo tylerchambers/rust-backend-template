@@ -4,12 +4,14 @@
     reason = "Test setup and assertions must fail immediately on unexpected errors"
 )]
 
-use application::{
-    IdentityRepository, Organizations, Secrets,
-    memberships::{Memberships, ReauthenticationRepository},
-};
+use application::Organizations;
+use application::Secrets;
+use application::authentication::IdentityRepository;
+use application::invitations::Invitations;
+use application::reauthentication::ReauthenticationRepository;
 use domain::Role;
-use infrastructure::{Database, auth::SystemSecrets};
+use infrastructure::postgres::Database;
+use infrastructure::system::SystemSecrets;
 use std::sync::Arc;
 use uuid::Uuid;
 struct FixedClock(chrono::DateTime<chrono::Utc>);
@@ -27,7 +29,9 @@ async fn concurrent_invitation_acceptance_has_one_winner_and_is_email_bound() {
     let pool = sqlx::PgPool::connect(&std::env::var("TEST_DATABASE_URL").unwrap())
         .await
         .unwrap();
-    infrastructure::migrate(&pool).await.unwrap();
+    infrastructure::postgres::migrations::migrate(&pool)
+        .await
+        .unwrap();
     let db = Arc::new(Database::new(pool).unwrap());
     let secrets = SystemSecrets;
     let mut actors = Vec::new();
@@ -41,16 +45,16 @@ async fn concurrent_invitation_acceptance_has_one_winner_and_is_email_bound() {
     }
     let org = Organizations::new(
         db.clone(),
-        std::sync::Arc::new(infrastructure::auth::SystemIds),
+        std::sync::Arc::new(infrastructure::system::SystemIds),
     )
     .create(&actors[0], "Invitations".into())
     .await
     .unwrap();
     let fixed_now =
         chrono::DateTime::from_timestamp(chrono::Utc::now().timestamp() + 300, 0).unwrap();
-    let service = Memberships::new(
+    let service = Invitations::new(
         db.clone(),
-        std::sync::Arc::new(infrastructure::auth::SystemIds),
+        std::sync::Arc::new(infrastructure::system::SystemIds),
         std::sync::Arc::new(FixedClock(fixed_now)),
     );
     let proof = secrets.token();

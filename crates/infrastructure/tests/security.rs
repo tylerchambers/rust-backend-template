@@ -4,16 +4,20 @@
     reason = "Test setup and assertions must fail immediately on unexpected errors"
 )]
 
-use application::{IdentityRepository, Secrets};
+use application::Secrets;
+use application::authentication::IdentityRepository;
 use domain::Error;
-use infrastructure::{Database, auth::SystemSecrets};
+use infrastructure::postgres::Database;
+use infrastructure::system::SystemSecrets;
 use uuid::Uuid;
 #[tokio::test]
 async fn expiry_limits_and_hashed_storage_are_enforced() {
     let pool = sqlx::PgPool::connect(&std::env::var("TEST_DATABASE_URL").unwrap())
         .await
         .unwrap();
-    infrastructure::migrate(&pool).await.unwrap();
+    infrastructure::postgres::migrations::migrate(&pool)
+        .await
+        .unwrap();
     let db = Database::new(pool.clone()).unwrap();
     let secret = SystemSecrets;
     let email = format!("{}@example.test", Uuid::now_v7());

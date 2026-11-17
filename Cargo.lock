@@ -234,7 +234,6 @@ dependencies = [
  "domain",
  "infrastructure",
  "prometheus-client",
- "riverqueue",
  "sqlx",
  "tokio",
  "tracing",

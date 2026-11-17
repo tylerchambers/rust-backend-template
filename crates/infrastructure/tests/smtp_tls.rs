@@ -4,8 +4,8 @@
     reason = "Test setup and assertions must fail immediately on unexpected errors"
 )]
 
-use application::LoginMailer;
-use infrastructure::mail::SmtpMailer;
+use application::authentication::LoginMailer;
+use infrastructure::smtp::SmtpMailer;
 #[tokio::test]
 async fn production_smtp_requires_verified_starttls_and_delivers_to_capture() {
     let ca = std::fs::read(concat!(

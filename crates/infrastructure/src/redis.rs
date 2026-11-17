@@ -1,5 +1,6 @@
-use crate::auth::token_hash;
-use application::optional::{ProjectCache, SecurityLimiter};
+use crate::postgres::token_hash;
+use application::authentication::SecurityLimiter;
+use application::projects::ProjectCache;
 use async_trait::async_trait;
 use domain::{Error, OrganizationId, Project};
 use redis::{AsyncCommands, aio::ConnectionManager};

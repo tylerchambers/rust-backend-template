@@ -3,14 +3,14 @@
     clippy::expect_used,
     reason = "Real PostgreSQL regression setup and assertions"
 )]
-use application::{
-    IdentityRepository, Organizations, Secrets,
-    memberships::{MembershipUnitOfWork, ReauthenticationRepository},
-};
-use infrastructure::{
-    Database,
-    auth::{SystemIds, SystemSecrets},
-};
+use application::Organizations;
+use application::Secrets;
+use application::authentication::IdentityRepository;
+use application::memberships::MembershipUnitOfWork;
+use application::reauthentication::ReauthenticationRepository;
+use infrastructure::postgres::Database;
+use infrastructure::system::SystemIds;
+use infrastructure::system::SystemSecrets;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -19,7 +19,9 @@ async fn proof_issuance_and_session_retirement_do_not_deadlock() {
     let admin = sqlx::PgPool::connect(&std::env::var("TEST_DATABASE_URL").unwrap())
         .await
         .unwrap();
-    infrastructure::migrate(&admin).await.unwrap();
+    infrastructure::postgres::migrations::migrate(&admin)
+        .await
+        .unwrap();
     let runtime =
         sqlx::PgPool::connect("postgres://template_app:local-app-test@127.0.0.1:55439/template")
             .await

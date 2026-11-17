@@ -4,7 +4,10 @@
     reason = "Test setup and assertions must fail immediately on unexpected errors"
 )]
 
-use application::{Actor, IdGenerator, Projects, projects::*};
+use application::{
+    Actor, IdGenerator, Projects, authority::TenantAuthority, projects::*,
+    transaction::TenantTransaction,
+};
 use async_trait::async_trait;
 use domain::{Error, InvitationId, OrganizationId, Project, ProjectId, Role, UserId};
 use std::{
@@ -12,7 +15,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 use uuid::Uuid;
-#[path = "../../../tests/project_contract.rs"]
+#[path = "support/project_contract.rs"]
 mod contract;
 
 #[derive(Clone, Default)]
@@ -75,7 +78,7 @@ impl TenantAuthority for Work {
 }
 #[async_trait]
 impl ProjectRepository for Work {
-    async fn project_changed(&mut self, id: ProjectId, _: Uuid) -> Result<(), Error> {
+    async fn enqueue_project_change(&mut self, id: ProjectId, _: Uuid) -> Result<(), Error> {
         self.state.jobs.push(id);
         Ok(())
     }

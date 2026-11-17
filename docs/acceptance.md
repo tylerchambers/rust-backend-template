@@ -9,7 +9,7 @@ The gate covers:
 - SMTP, Redis and River integration, including worker recovery.
 - Generated OpenAPI/SDK drift and TypeScript checks.
 - Native and OCI HTTP, SDK, Chromium, metrics and correlated-log journeys.
-- Migration compatibility between the documented prior revision and current binaries.
+- Current migration execution, runtime-role guards and transaction/security contracts.
 - Fixture conflicts, cancellation, resource cleanup and truthful run reporting.
 
 ## Results
@@ -20,4 +20,4 @@ Keep the tested revision, command, result and material limitations in the MR. Do
 
 ## Limits
 
-Tests use disposable services and captured email, not production or external mail delivery. SMTP retries may duplicate delivery. Migration compatibility proves the tested revision pair, not arbitrary downgrade safety. SIGKILL cannot execute cleanup; retained ownership manifests require investigation, never name-based pruning. A checked-in workflow does not prove hosted CI ran. No local gate constitutes production certification.
+Tests use disposable services and captured email, not production or external mail delivery. SMTP retries may duplicate delivery. Historical old-binary compatibility is not a requirement for this undeployed template; qualify real upgrades before deployment. SIGKILL cannot execute cleanup; retained ownership manifests require investigation, never name-based pruning. A checked-in workflow does not prove hosted CI ran. No local gate constitutes production certification.

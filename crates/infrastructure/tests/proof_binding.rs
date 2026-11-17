@@ -4,15 +4,15 @@
     reason = "Test setup and assertions must fail immediately on unexpected errors"
 )]
 
-use application::{
-    IdentityRepository, Organizations, Secrets,
-    memberships::{Memberships, ReauthenticationRepository},
-};
+use application::Organizations;
+use application::Secrets;
+use application::authentication::IdentityRepository;
+use application::memberships::Memberships;
+use application::reauthentication::ReauthenticationRepository;
 use domain::{Error, Role};
-use infrastructure::{
-    Database,
-    auth::{SystemClock, SystemIds, SystemSecrets},
-};
+use infrastructure::postgres::Database;
+use infrastructure::system::SystemIds;
+use infrastructure::system::SystemSecrets;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -25,7 +25,9 @@ async fn fresh_proof_rejects_live_wrong_user_session_action_target_tenant_expiry
     let pool = sqlx::PgPool::connect(&std::env::var("TEST_DATABASE_URL").unwrap())
         .await
         .unwrap();
-    infrastructure::migrate(&pool).await.unwrap();
+    infrastructure::postgres::migrations::migrate(&pool)
+        .await
+        .unwrap();
     let db = Arc::new(Database::new(pool.clone()).unwrap());
     let email = format!("{}@example.test", Uuid::now_v7());
     let mut actors = Vec::new();
@@ -77,7 +79,7 @@ async fn fresh_proof_rejects_live_wrong_user_session_action_target_tenant_expiry
         .execute(&pool)
         .await
         .unwrap();
-    let memberships = Memberships::new(db.clone(), Arc::new(SystemIds), Arc::new(SystemClock));
+    let memberships = Memberships::new(db.clone());
     let proof = SystemSecrets.token();
     db.issue_proof(owner, "change_role", targets[0], org, &proof)
         .await
@@ -131,7 +133,7 @@ async fn fresh_proof_rejects_live_wrong_user_session_action_target_tenant_expiry
     db.issue_proof(owner, "change_role", targets[1], org, &expired)
         .await
         .unwrap();
-    sqlx::query("UPDATE reauthentication_proofs SET expires_at=clock_timestamp()-interval '1 second' WHERE token_hash=$1").bind(infrastructure::auth::token_hash(&expired)).execute(&pool).await.unwrap();
+    sqlx::query("UPDATE reauthentication_proofs SET expires_at=clock_timestamp()-interval '1 second' WHERE token_hash=$1").bind(infrastructure::postgres::token_hash(&expired)).execute(&pool).await.unwrap();
     assert!(matches!(
         memberships
             .change_role(owner, org, targets[1].into(), Role::Admin, &expired)

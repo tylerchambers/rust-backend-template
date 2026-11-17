@@ -10,7 +10,9 @@ async fn sqlx_rejects_modified_applied_migration() {
     let pool = sqlx::PgPool::connect(&std::env::var("TEST_DATABASE_URL").unwrap())
         .await
         .unwrap();
-    infrastructure::migrate(&pool).await.unwrap();
+    infrastructure::postgres::migrations::migrate(&pool)
+        .await
+        .unwrap();
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../migrations");
     let temp = PathBuf::from(std::env::var("TMPDIR").expect("scratch directory required"))
         .join(format!("rbt-migrations-{}", uuid::Uuid::now_v7()));
