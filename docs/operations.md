@@ -23,7 +23,7 @@ Use a secret manager or restricted environment injection. Avoid DSNs on interact
 2. Serialize deployment migrations. Run `cli migrate` using a deployment credential. SQLx owns application checksums/locking; official River owns its independent schema.
 3. Start API and worker using the restricted role. Startup rejects owner/superuser/BYPASSRLS credentials. Do not run migrations in replicas.
 4. Gate traffic on `/ready`; `/health` is process liveness only.
-5. Roll back **binaries**, not applied migration files. Migration 9 is additive/nullable; the compatibility gate builds commit `1b266ba502ae8e207a667aa27681913264341ec6`, creates live identity/session/tenant data on its schema, applies the current migrations and runs both old/current binaries against the expanded schema. Older job payloads decode without correlation IDs. This proves that specific rolling-upgrade pair, not arbitrary future revisions.
+5. Do not rewrite applied migrations. This template has never deployed and does not qualify a historical old/current executable pair. Before a real deployment, define supported rolling-upgrade/rollback behavior and verify it against the actual revisions and retained data.
 
 There are no destructive down migrations. A contract/drop migration requires a new compatibility plan and backup/restore exercise. Applied SQL files remain immutable. Migration 2 creates the cluster role `template_app`; a second installation sharing a cluster where that role already exists is not supported by this template's current provisioning boundary. Use a dedicated cluster rather than editing checksums or catching unrelated DDL errors. Migration 7 repairs the prior revision's missing River runtime grants.
 
@@ -48,7 +48,7 @@ Project indexing is idempotent by project/version. SMTP cannot provide exactly-o
 ## Observability
 
 - JSON stderr events contain server-generated request IDs and matched route templates, never raw URLs.
-- Application actor context carries that ID into tenant audit rows and durable Project/invitation payloads. Worker tracing spans restore it with job ID/kind/attempt. `tests/observability.py` correlates actual native and OCI HTTP/job logs and rejects token/mailbox/link leakage.
+- Application actor context carries that ID into tenant audit rows and durable Project/invitation payloads. Worker tracing spans restore it with job ID/kind/attempt. `tests/system/observability.py` correlates actual native and OCI HTTP/job logs and rejects token/mailbox/link leakage.
 - `/metrics/http`: requests, authentication/authorization denials, rate-limited authentication, aggregate request duration.
 - `/metrics`: queue depth/lag, retryable/discarded jobs, retained attempt retries, DB pool size/idle slots; when enabled, Redis requests/errors/aggregate latency.
 - These are process counters and database gauges, not a historical telemetry store. Scrape both metrics routes privately. Alert on sustained readiness failures, growing due-job lag, discarded jobs, Redis errors and exhausted pool idle capacity. Tracing is implemented; no OTLP collector/exporter is deployed.
@@ -59,4 +59,4 @@ API requests have a deadline; production pools have acquire, statement, lock and
 
 `.forgejo/workflows/check.yaml` pins checkout and targets a dedicated trusted runner with preinstalled Rust/Bun/Python/Podman. Fixed fixture ports require serialized jobs. Do not execute untrusted fork code on that runner. At implementation time repository Actions was disabled; no hosted-CI execution or runner provisioning is claimed.
 
-`verify.py` runs current RustSec and Bun advisory scans, locked builds, generated-contract drift and digest-pinned fixture/runtime images. RustSec currently reports no vulnerabilities or warnings; consult retained evidence for the database revision and rerun before release. This is not an image-vulnerability scan, SBOM attestation or signing claim. Operators must add their approved image-scanning/signing policy before production distribution.
+`verify.py` runs current RustSec and Bun advisory scans, locked builds, generated-contract drift and digest-pinned fixture/runtime images. Consult the current run evidence for advisory results and database revision; rerun before release. This is not an image-vulnerability scan, SBOM attestation or signing claim. Operators must add their approved image-scanning/signing policy before production distribution.

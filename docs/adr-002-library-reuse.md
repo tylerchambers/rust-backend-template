@@ -64,7 +64,9 @@ Source: https://docs.rs/crate/axum_csrf/0.12.0/source/src/token.rs and `src/conf
 - The existing role decoder is reused. Missing membership remains Forbidden; an impossible stored role is treated consistently as unavailable/corrupt storage, not an authorized role.
 - No migrations, session/proof SQL, policy engine, local limiter, generic cache/KV layer, queue engine, product login flow or generated API contract changed.
 
-## Acceptance matrix
+## Historical qualification matrix
+
+This records the original library-adoption evaluation, not current branch acceptance. The ordinary gate and module paths have since changed; use `docs/acceptance.md` and current-run evidence.
 
 | Requirement | Evidence |
 |---|---|
@@ -75,6 +77,6 @@ Source: https://docs.rs/crate/axum_csrf/0.12.0/source/src/token.rs and `src/conf
 | SQLx decoding and existing transaction semantics | Missing private ProjectRow RED; malformed-row decode returns SQLx error rather than panic. Shared PostgreSQL project contract, rollback, auth budget, sessions, proof and owner-race suites |
 | Tower composition and timeout | HTTP generated-ID/headers assertions; paused-time JSON timeout; native/OCI sanitized correlated HTTP/job logs |
 | Session/CSRF adoption evaluation | Compatible stack compiles; real PostgreSQL persistence/resurrection and pool mismatch evidence; CSRF extractor round-trip and configuration/protocol/ambiguity evidence |
-| Full ordinary gates | `python3 scripts/verify.py`: all 25 recorded gates pass, including lint/negative controls/advisories, real PostgreSQL/Redis/SMTP/River, native/OCI HTTP/SDK/Chromium, live-data two-revision compatibility and generated-contract drift |
+| Full ordinary gates | Original evaluation included lint/negative controls/advisories, real PostgreSQL/Redis/SMTP/River, native/OCI HTTP/SDK/Chromium, historical two-revision compatibility and generated-contract drift; this is not a result for the current revision |
 
 Independent parent review/fresh-checkout acceptance, hosted CI and deployment are not claimed. Raw RED logs intentionally fail; current final status is `docs/evidence/results.json`. Original audit checkout/evidence was not modified. No host tools/services were installed, pushed or merged by this refactor.

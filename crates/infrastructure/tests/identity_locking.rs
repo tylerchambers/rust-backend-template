@@ -3,15 +3,16 @@
     clippy::expect_used,
     reason = "Database regression assertions"
 )]
-use application::{
-    Actor, IdentityRepository, Organizations, Secrets,
-    memberships::{Memberships, ReauthenticationRepository},
-};
+use application::Actor;
+use application::Organizations;
+use application::Secrets;
+use application::authentication::IdentityRepository;
+use application::memberships::Memberships;
+use application::reauthentication::ReauthenticationRepository;
 use domain::{OrganizationId, Role};
-use infrastructure::{
-    Database,
-    auth::{SystemClock, SystemIds, SystemSecrets},
-};
+use infrastructure::postgres::Database;
+use infrastructure::system::SystemIds;
+use infrastructure::system::SystemSecrets;
 use sqlx::{PgPool, Postgres, Transaction};
 use std::{sync::Arc, time::Duration};
 use uuid::Uuid;
@@ -106,7 +107,9 @@ impl Fixture {
         let admin = PgPool::connect(&std::env::var("TEST_DATABASE_URL").unwrap())
             .await
             .unwrap();
-        infrastructure::migrate(&admin).await.unwrap();
+        infrastructure::postgres::migrations::migrate(&admin)
+            .await
+            .unwrap();
         let runtime =
             PgPool::connect("postgres://template_app:local-app-test@127.0.0.1:55439/template")
                 .await
@@ -142,7 +145,7 @@ impl Fixture {
         }
     }
     fn service(&self) -> Memberships {
-        Memberships::new(self.db.clone(), Arc::new(SystemIds), Arc::new(SystemClock))
+        Memberships::new(self.db.clone())
     }
     async fn proof(&self, actor: usize, target: usize, org: OrganizationId) -> String {
         let proof = SystemSecrets.token();

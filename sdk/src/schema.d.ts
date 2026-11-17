@@ -323,8 +323,19 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        ConfirmRequest: {
+        AcceptInvitationRequest: {
             token: string;
+        };
+        ChangeMemberRoleRequest: {
+            proof: string;
+            /** @enum {string} */
+            role: "owner" | "admin" | "member" | "viewer";
+        };
+        CreateOrganizationRequest: {
+            name: string;
+        };
+        CreateProjectRequest: {
+            name: string;
         };
         ErrorBody: {
             code: string;
@@ -339,6 +350,13 @@ export interface components {
             /** @enum {string} */
             role: "owner" | "admin" | "member" | "viewer";
         };
+        InvitationResponse: {
+            /** Format: uuid */
+            id: string;
+        };
+        LoginConfirmationRequest: {
+            token: string;
+        };
         LoginRequest: {
             email: string;
         };
@@ -347,9 +365,6 @@ export interface components {
             role: "owner" | "admin" | "member" | "viewer";
             /** Format: uuid */
             user_id: string;
-        };
-        NameRequest: {
-            name: string;
         };
         OrganizationResponse: {
             /** Format: uuid */
@@ -361,9 +376,6 @@ export interface components {
             name: string;
             /** @enum {string} */
             role: "owner" | "admin" | "member" | "viewer";
-        };
-        PrivilegedRequest: {
-            proof: string;
         };
         ProjectResponse: {
             archived: boolean;
@@ -383,15 +395,16 @@ export interface components {
             /** Format: uuid */
             target: string;
         };
-        RenameRequest: {
+        RemoveMemberRequest: {
+            proof: string;
+        };
+        RenameProjectRequest: {
             name: string;
             /** Format: int64 */
             version: number;
         };
-        RoleRequest: {
+        RevokeInvitationRequest: {
             proof: string;
-            /** @enum {string} */
-            role: "owner" | "admin" | "member" | "viewer";
         };
     };
     responses: never;
@@ -416,7 +429,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ConfirmRequest"];
+                "application/json": components["schemas"]["LoginConfirmationRequest"];
             };
         };
         responses: {
@@ -820,7 +833,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["NameRequest"];
+                "application/json": components["schemas"]["CreateOrganizationRequest"];
             };
         };
         responses: {
@@ -868,7 +881,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["OrganizationResponse"];
+                    "application/json": components["schemas"]["InvitationResponse"];
                 };
             };
             /** @description Stable JSON error envelope, including transport, authentication, authorization and availability failures */
@@ -899,7 +912,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ConfirmRequest"];
+                "application/json": components["schemas"]["AcceptInvitationRequest"];
             };
         };
         responses: {
@@ -937,7 +950,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["PrivilegedRequest"];
+                "application/json": components["schemas"]["RevokeInvitationRequest"];
             };
         };
         responses: {
@@ -1008,7 +1021,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["PrivilegedRequest"];
+                "application/json": components["schemas"]["RemoveMemberRequest"];
             };
         };
         responses: {
@@ -1046,7 +1059,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["RoleRequest"];
+                "application/json": components["schemas"]["ChangeMemberRoleRequest"];
             };
         };
         responses: {
@@ -1116,7 +1129,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["NameRequest"];
+                "application/json": components["schemas"]["CreateProjectRequest"];
             };
         };
         responses: {
@@ -1156,7 +1169,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["RenameRequest"];
+                "application/json": components["schemas"]["RenameProjectRequest"];
             };
         };
         responses: {

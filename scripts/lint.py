@@ -39,7 +39,7 @@ def main():
         run(["cargo", "fmt", "--all"])
         run([*ruff, "check", "--fix", "scripts", "tests"])
         run([*ruff, "format", "scripts", "tests"])
-        run([*biome, "--write", "--error-on-warnings", "sdk"])
+        run([*biome, "--write", "--error-on-warnings", "sdk", "tests/system"])
         return
 
     metadata = json.loads(
@@ -57,7 +57,7 @@ def main():
     run(["cargo", "fmt", "--all", "--check"])
     run([*ruff, "format", "--check", "scripts", "tests"])
     run([*ruff, "check", "scripts", "tests"])
-    run([*biome, "--error-on-warnings", "sdk"])
+    run([*biome, "--error-on-warnings", "sdk", "tests/system"])
     run(
         [
             "cargo",

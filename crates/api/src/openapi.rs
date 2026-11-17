@@ -1,0 +1,82 @@
+use crate::{
+    authentication::{self, IdentityResponse, LoginConfirmationRequest, LoginRequest},
+    error::ErrorBody,
+    invitations, memberships,
+    organizations::{self, CreateOrganizationRequest, OrganizationResponse},
+    projects::{self, CreateProjectRequest, ProjectResponse, RenameProjectRequest},
+    reauthentication, sessions,
+};
+use utoipa::OpenApi;
+
+#[derive(OpenApi)]
+#[openapi(
+    paths(
+        authentication::request_login,
+        authentication::confirm,
+        authentication::confirmation,
+        authentication::logout,
+        organizations::create_org,
+        organizations::list_organizations,
+        memberships::list_members,
+        projects::create_project,
+        projects::list_projects,
+        projects::rename_project,
+        reauthentication::request_proof,
+        invitations::revoke_invitation,
+        memberships::remove_member,
+        invitations::invite,
+        invitations::accept,
+        memberships::change_role,
+        sessions::sessions,
+        sessions::rotate,
+        sessions::revoke_all,
+        sessions::revoke_session,
+        reauthentication::proof_confirmation,
+        invitations::invitation_confirmation
+    ),
+    modifiers(&ContractSecurity),
+    components(schemas(
+        LoginRequest,
+        LoginConfirmationRequest,
+        CreateOrganizationRequest,
+        CreateProjectRequest,
+        RenameProjectRequest,
+        IdentityResponse,
+        OrganizationResponse,
+        ProjectResponse,
+        ErrorBody
+    ))
+)]
+pub struct Contract;
+pub(crate) fn role_schema() -> utoipa::openapi::schema::Object {
+    utoipa::openapi::schema::ObjectBuilder::new()
+        .schema_type(utoipa::openapi::schema::Type::String)
+        .enum_values(Some(["owner", "admin", "member", "viewer"]))
+        .build()
+}
+struct ContractSecurity;
+impl utoipa::Modify for ContractSecurity {
+    fn modify(&self, contract: &mut utoipa::openapi::OpenApi) {
+        use utoipa::openapi::security::{ApiKey, ApiKeyValue, SecurityScheme};
+        if let Some(components) = &mut contract.components {
+            components.add_security_scheme(
+                "session",
+                SecurityScheme::ApiKey(ApiKey::Cookie(ApiKeyValue::new("__Host-session"))),
+            );
+        }
+    }
+}
+#[must_use]
+/// Serialize the statically derived API contract.
+///
+/// # Panics
+/// Panics if the derived contract cannot be serialized, indicating a schema defect.
+#[expect(
+    clippy::expect_used,
+    reason = "Serialization failure of the static contract is a programmer defect"
+)]
+pub fn openapi() -> String {
+    Contract::openapi()
+        .to_pretty_json()
+        .expect("serializable contract")
+}

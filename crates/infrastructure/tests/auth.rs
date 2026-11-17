@@ -4,10 +4,12 @@
     reason = "Test setup and assertions must fail immediately on unexpected errors"
 )]
 
-use application::{Authentication, LoginMailer};
+use application::Authentication;
+use application::authentication::LoginMailer;
 use async_trait::async_trait;
 use domain::Error;
-use infrastructure::{Database, auth::SystemSecrets};
+use infrastructure::postgres::Database;
+use infrastructure::system::SystemSecrets;
 use std::sync::{Arc, Mutex};
 use uuid::Uuid;
 #[derive(Default)]
@@ -24,14 +26,16 @@ async fn magic_tokens_are_single_use_identity_is_unique_and_logout_revokes() {
     let pool = sqlx::PgPool::connect(&std::env::var("TEST_DATABASE_URL").unwrap())
         .await
         .unwrap();
-    infrastructure::migrate(&pool).await.unwrap();
+    infrastructure::postgres::migrations::migrate(&pool)
+        .await
+        .unwrap();
     let db = Arc::new(Database::new(pool.clone()).unwrap());
     let mail = Arc::new(Capture::default());
     let auth = Authentication::new(db.clone(), mail.clone(), Arc::new(SystemSecrets));
-    let memberships = application::memberships::Memberships::new(
+    let memberships = application::invitations::Invitations::new(
         db,
-        Arc::new(infrastructure::auth::SystemIds),
-        Arc::new(infrastructure::auth::SystemClock),
+        Arc::new(infrastructure::system::SystemIds),
+        Arc::new(infrastructure::system::SystemClock),
     );
     let actor = application::Actor {
         user_id: Uuid::now_v7().into(),
@@ -40,10 +44,10 @@ async fn magic_tokens_are_single_use_identity_is_unique_and_logout_revokes() {
     };
     for invalid in ["@", "a@@b", "a@", "@example.test", "a..b@example.test"] {
         let before: (i64, Option<i32>) = sqlx::query_as("SELECT (SELECT count(*) FROM magic_links WHERE email=$1), (SELECT attempts FROM auth_limits WHERE key_hash=$2)")
-            .bind(invalid).bind(infrastructure::auth::token_hash(invalid)).fetch_one(&pool).await.unwrap();
+            .bind(invalid).bind(infrastructure::postgres::token_hash(invalid)).fetch_one(&pool).await.unwrap();
         assert_eq!(auth.request(invalid).await, Err(Error::Invalid));
         let after: (i64, Option<i32>) = sqlx::query_as("SELECT (SELECT count(*) FROM magic_links WHERE email=$1), (SELECT attempts FROM auth_limits WHERE key_hash=$2)")
-            .bind(invalid).bind(infrastructure::auth::token_hash(invalid)).fetch_one(&pool).await.unwrap();
+            .bind(invalid).bind(infrastructure::postgres::token_hash(invalid)).fetch_one(&pool).await.unwrap();
         assert_eq!(
             before, after,
             "invalid mailbox mutated credentials or budget"

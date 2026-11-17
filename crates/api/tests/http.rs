@@ -4,8 +4,11 @@
     reason = "Test setup and assertions must fail immediately on unexpected errors"
 )]
 
-use application::{Authentication, LoginMailer, Organizations, Projects};
-use application::{IdentityRepository, Secrets};
+use application::Secrets;
+use application::{
+    Authentication, Organizations, Projects,
+    authentication::{IdentityRepository, LoginMailer},
+};
 use async_trait::async_trait;
 use axum::{body::Body, http::Request};
 use domain::Error;
@@ -27,9 +30,11 @@ async fn scanner_get_does_not_authenticate_and_mutations_require_csrf() {
     let pool = sqlx::PgPool::connect(&std::env::var("TEST_DATABASE_URL").unwrap())
         .await
         .unwrap();
-    infrastructure::migrate(&pool).await.unwrap();
-    let db = Arc::new(infrastructure::Database::new(pool.clone()).unwrap());
-    let secrets = Arc::new(infrastructure::auth::SystemSecrets);
+    infrastructure::postgres::migrations::migrate(&pool)
+        .await
+        .unwrap();
+    let db = Arc::new(infrastructure::postgres::Database::new(pool.clone()).unwrap());
+    let secrets = Arc::new(infrastructure::system::SystemSecrets);
     let state = api::State::new(
         Arc::new(Authentication::new(
             db.clone(),
@@ -38,23 +43,24 @@ async fn scanner_get_does_not_authenticate_and_mutations_require_csrf() {
         )),
         Arc::new(Organizations::new(
             db.clone(),
-            std::sync::Arc::new(infrastructure::auth::SystemIds),
+            std::sync::Arc::new(infrastructure::system::SystemIds),
         )),
         Arc::new(Projects::new(
             db.clone(),
-            std::sync::Arc::new(infrastructure::auth::SystemIds),
+            std::sync::Arc::new(infrastructure::system::SystemIds),
         )),
         secrets.clone(),
         "http://localhost:58039".into(),
-        Arc::new(application::memberships::Memberships::new(
+        Arc::new(application::memberships::Memberships::new(db.clone())),
+        Arc::new(application::invitations::Invitations::new(
             db.clone(),
-            std::sync::Arc::new(infrastructure::auth::SystemIds),
-            std::sync::Arc::new(infrastructure::auth::SystemClock),
+            std::sync::Arc::new(infrastructure::system::SystemIds),
+            std::sync::Arc::new(infrastructure::system::SystemClock),
         )),
-        Arc::new(application::memberships::Reauthentication::new(
+        Arc::new(application::reauthentication::Reauthentication::new(
             db.clone(),
             Arc::new(
-                infrastructure::mail::SmtpMailer::local_capture(
+                infrastructure::smtp::SmtpMailer::local_capture(
                     "127.0.0.1",
                     51029,
                     "http://localhost:58039",
@@ -99,13 +105,13 @@ async fn scanner_get_does_not_authenticate_and_mutations_require_csrf() {
             "#/components/schemas/ErrorBody"
         );
     }
-    let login = infrastructure::auth::SystemSecrets.token();
-    let session = infrastructure::auth::SystemSecrets.token();
+    let login = infrastructure::system::SystemSecrets.token();
+    let session = infrastructure::system::SystemSecrets.token();
     db.issue_login(&format!("{}@example.test", uuid::Uuid::now_v7()), &login)
         .await
         .unwrap();
     let owner = db.consume_login(&login, &session).await.unwrap();
-    let org = Organizations::new(db.clone(), Arc::new(infrastructure::auth::SystemIds))
+    let org = Organizations::new(db.clone(), Arc::new(infrastructure::system::SystemIds))
         .create(&owner, "Discoverable".into())
         .await
         .unwrap();
@@ -118,7 +124,7 @@ async fn scanner_get_does_not_authenticate_and_mutations_require_csrf() {
         )
         .bind(id)
         .bind(owner.user_id.into_uuid())
-        .bind(infrastructure::auth::token_hash(&format!(
+        .bind(infrastructure::postgres::token_hash(&format!(
             "{session}-{index}"
         )))
         .execute(&pool)
@@ -147,7 +153,7 @@ async fn scanner_get_does_not_authenticate_and_mutations_require_csrf() {
     ] {
         sqlx::query("INSERT INTO sessions(id,user_id,token_hash,expires_at,revoked_at,last_seen_at) VALUES($1,$2,$3,CASE WHEN $4='expired' THEN clock_timestamp()-interval '1 day' ELSE clock_timestamp()+interval '1 day' END,CASE WHEN $4='revoked' THEN clock_timestamp() END,CASE WHEN $4='idle' THEN clock_timestamp()-interval '1 hour' ELSE clock_timestamp() END)")
             .bind(uuid::Uuid::now_v7()).bind(user)
-            .bind(infrastructure::auth::token_hash(&format!("{session}-excluded-{index}")))
+            .bind(infrastructure::postgres::token_hash(&format!("{session}-excluded-{index}")))
             .bind(state).execute(&pool).await.unwrap();
     }
     let mut collected = Vec::new();

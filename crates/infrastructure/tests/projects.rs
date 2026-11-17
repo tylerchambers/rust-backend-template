@@ -4,9 +4,11 @@
     reason = "Test setup and assertions must fail immediately on unexpected errors"
 )]
 
-use application::{Actor, Organizations, Projects};
+use application::Actor;
+use application::Organizations;
+use application::Projects;
 use domain::Error;
-use infrastructure::Database;
+use infrastructure::postgres::Database;
 use std::sync::Arc;
 use uuid::Uuid;
 struct FixedIds {
@@ -29,7 +31,9 @@ async fn project_policy_concurrency_and_organization_atomicity() {
     let pool = sqlx::PgPool::connect(&std::env::var("TEST_DATABASE_URL").unwrap())
         .await
         .unwrap();
-    infrastructure::migrate(&pool).await.unwrap();
+    infrastructure::postgres::migrations::migrate(&pool)
+        .await
+        .unwrap();
     let user_id = Uuid::now_v7();
     let session_id = Uuid::now_v7();
     sqlx::query("INSERT INTO users(id,email) VALUES($1,$2)")
@@ -41,7 +45,7 @@ async fn project_policy_concurrency_and_organization_atomicity() {
     sqlx::query("INSERT INTO sessions(id,user_id,token_hash) VALUES($1,$2,$3)")
         .bind(session_id)
         .bind(user_id)
-        .bind(infrastructure::auth::token_hash(&user_id.to_string()))
+        .bind(infrastructure::postgres::token_hash(&user_id.to_string()))
         .execute(&pool)
         .await
         .unwrap();

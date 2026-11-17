@@ -4,17 +4,20 @@
     reason = "Test setup and assertions must fail immediately on unexpected errors"
 )]
 
-use application::{IdentityRepository, Secrets};
+use application::Secrets;
+use application::authentication::IdentityRepository;
 #[tokio::test]
 async fn identity_lifecycle_is_audited_without_credentials() {
     let pool = sqlx::PgPool::connect(&std::env::var("TEST_DATABASE_URL").unwrap())
         .await
         .unwrap();
-    infrastructure::migrate(&pool).await.unwrap();
-    let db = infrastructure::Database::new(pool.clone()).unwrap();
+    infrastructure::postgres::migrations::migrate(&pool)
+        .await
+        .unwrap();
+    let db = infrastructure::postgres::Database::new(pool.clone()).unwrap();
     let email = format!("audit-{}@example.test", uuid::Uuid::now_v7());
-    let login = infrastructure::auth::SystemSecrets.token();
-    let session = infrastructure::auth::SystemSecrets.token();
+    let login = infrastructure::system::SystemSecrets.token();
+    let session = infrastructure::system::SystemSecrets.token();
     db.issue_login(&email, &login).await.unwrap();
     let actor = db.consume_login(&login, &session).await.unwrap();
     db.revoke(&session).await.unwrap();

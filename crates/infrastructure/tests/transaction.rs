@@ -4,7 +4,8 @@
     reason = "Test setup and assertions must fail immediately on unexpected errors"
 )]
 
-use infrastructure::{Database, migrate};
+use infrastructure::postgres::Database;
+use infrastructure::postgres::migrations::migrate;
 use sqlx::postgres::PgPoolOptions;
 use uuid::Uuid;
 

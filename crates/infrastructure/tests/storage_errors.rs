@@ -4,7 +4,7 @@
     reason = "Test setup and assertions must fail immediately on unexpected errors"
 )]
 
-use application::IdentityRepository;
+use application::authentication::IdentityRepository;
 use std::{
     io::Write,
     sync::{Arc, Mutex},
@@ -30,7 +30,7 @@ async fn storage_failure_is_categorized_without_token_or_cause_leakage() {
         .finish();
     let _guard = tracing::subscriber::set_default(subscriber);
     let pool = sqlx::PgPool::connect_lazy("postgres://unused@127.0.0.1/unused").unwrap();
-    let db = infrastructure::Database::new(pool.clone()).unwrap();
+    let db = infrastructure::postgres::Database::new(pool.clone()).unwrap();
     pool.close().await;
     let secret = "sensitive-test-token".repeat(4);
     assert!(matches!(

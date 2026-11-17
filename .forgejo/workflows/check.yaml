@@ -1,7 +1,7 @@
 name: backend acceptance
 on:
   push:
-    branches: [main, feat/saas-backend]
+    branches: [main, refactor/tasteful-rust]
   pull_request:
 concurrency:
   group: backend-disposable-ports

@@ -4,15 +4,15 @@
     reason = "Test setup and assertions must fail immediately on unexpected errors"
 )]
 
-use application::{
-    IdentityRepository, Organizations, Secrets,
-    memberships::{Memberships, ReauthenticationRepository},
-};
+use application::Organizations;
+use application::Secrets;
+use application::authentication::IdentityRepository;
+use application::memberships::Memberships;
+use application::reauthentication::ReauthenticationRepository;
 use domain::{Error, Role};
-use infrastructure::{
-    Database,
-    auth::{SystemClock, SystemIds, SystemSecrets},
-};
+use infrastructure::postgres::Database;
+use infrastructure::system::SystemIds;
+use infrastructure::system::SystemSecrets;
 use std::sync::Arc;
 use uuid::Uuid;
 #[tokio::test]
@@ -20,7 +20,9 @@ async fn concurrent_owner_demotions_leave_one_owner_and_retire_only_changed_cred
     let pool = sqlx::PgPool::connect(&std::env::var("TEST_DATABASE_URL").unwrap())
         .await
         .unwrap();
-    infrastructure::migrate(&pool).await.unwrap();
+    infrastructure::postgres::migrations::migrate(&pool)
+        .await
+        .unwrap();
     let db = Arc::new(Database::new(pool.clone()).unwrap());
     let mut actors = Vec::new();
     let mut tokens = Vec::new();
@@ -55,7 +57,7 @@ async fn concurrent_owner_demotions_leave_one_owner_and_retire_only_changed_cred
         .await
         .unwrap();
     }
-    let service = Memberships::new(db.clone(), Arc::new(SystemIds), Arc::new(SystemClock));
+    let service = Memberships::new(db.clone());
     let (a, b) = tokio::join!(
         service.change_role(&actors[0], org, actors[0].user_id, Role::Member, &proofs[0]),
         service.change_role(&actors[1], org, actors[1].user_id, Role::Member, &proofs[1])

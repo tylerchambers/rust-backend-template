@@ -24,7 +24,7 @@ lint:
     python3 scripts/lint.py check
 
 lint-controls:
-    python3 tests/lint_policy.py
+    python3 scripts/tests/lint_policy.py
 
 # DATABASE_URL must be the deployment/migration credential, not the runtime role.
 migrate:

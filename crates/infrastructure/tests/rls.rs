@@ -14,7 +14,9 @@ async fn nonowner_role_denies_unscoped_and_cross_tenant_operations() {
         .connect(&std::env::var("TEST_DATABASE_URL").unwrap())
         .await
         .unwrap();
-    infrastructure::migrate(&pool).await.unwrap();
+    infrastructure::postgres::migrations::migrate(&pool)
+        .await
+        .unwrap();
     let a = Uuid::now_v7();
     let b = Uuid::now_v7();
     for id in [a, b] {

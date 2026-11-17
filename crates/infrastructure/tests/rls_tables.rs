@@ -16,7 +16,9 @@ async fn every_tenant_table_hides_other_tenants_and_discovery_is_read_only_local
     let pool = PgPool::connect(&std::env::var("TEST_DATABASE_URL").unwrap())
         .await
         .unwrap();
-    infrastructure::migrate(&pool).await.unwrap();
+    infrastructure::postgres::migrations::migrate(&pool)
+        .await
+        .unwrap();
     let user = Uuid::now_v7();
     let other_user = Uuid::now_v7();
     for u in [user, other_user] {
@@ -48,7 +50,7 @@ async fn every_tenant_table_hides_other_tenants_and_discovery_is_read_only_local
             .unwrap();
         sqlx::query("INSERT INTO project_index(project_id,organization_id,name,version) VALUES($1,$1,'RLS',1)").bind(org).execute(&pool).await.unwrap();
         sqlx::query("INSERT INTO audit_events(id,organization_id,actor_id,action,subject) VALUES($1,$1,$2,'test',$1)").bind(org).bind(u).execute(&pool).await.unwrap();
-        sqlx::query("INSERT INTO invitations(id,organization_id,email,role,token_hash,expires_at) VALUES($1,$1,'rls@example.test','viewer',$2,clock_timestamp()+interval '1 hour')").bind(org).bind(infrastructure::auth::token_hash(&org.to_string())).execute(&pool).await.unwrap();
+        sqlx::query("INSERT INTO invitations(id,organization_id,email,role,token_hash,expires_at) VALUES($1,$1,'rls@example.test','viewer',$2,clock_timestamp()+interval '1 hour')").bind(org).bind(infrastructure::postgres::token_hash(&org.to_string())).execute(&pool).await.unwrap();
     }
     let tables = [
         ("organizations", "id"),

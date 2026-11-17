@@ -11,7 +11,9 @@
   "paths": {
     "/v1/auth/confirm": {
       "post": {
-        "tags": [],
+        "tags": [
+          "authentication"
+        ],
         "operationId": "confirm",
         "parameters": [
           {
@@ -37,7 +39,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ConfirmRequest"
+                "$ref": "#/components/schemas/LoginConfirmationRequest"
               }
             }
           },
@@ -79,7 +81,9 @@
     },
     "/v1/auth/confirmation": {
       "get": {
-        "tags": [],
+        "tags": [
+          "authentication"
+        ],
         "operationId": "confirmation",
         "responses": {
           "200": {
@@ -107,7 +111,9 @@
     },
     "/v1/auth/logout": {
       "post": {
-        "tags": [],
+        "tags": [
+          "authentication"
+        ],
         "operationId": "logout",
         "parameters": [
           {
@@ -154,7 +160,7 @@
     "/v1/auth/reauth/confirmation": {
       "get": {
         "tags": [
-          "memberships"
+          "reauthentication"
         ],
         "operationId": "proof_confirmation",
         "responses": {
@@ -184,7 +190,7 @@
     "/v1/auth/reauth/request": {
       "post": {
         "tags": [
-          "memberships"
+          "reauthentication"
         ],
         "operationId": "request_proof",
         "parameters": [
@@ -241,7 +247,9 @@
     },
     "/v1/auth/request": {
       "post": {
-        "tags": [],
+        "tags": [
+          "authentication"
+        ],
         "operationId": "request_login",
         "parameters": [
           {
@@ -303,7 +311,7 @@
     "/v1/auth/sessions": {
       "get": {
         "tags": [
-          "memberships"
+          "sessions"
         ],
         "operationId": "sessions",
         "parameters": [
@@ -354,7 +362,7 @@
     "/v1/auth/sessions/revoke-all": {
       "post": {
         "tags": [
-          "memberships"
+          "sessions"
         ],
         "operationId": "revoke_all",
         "parameters": [
@@ -402,7 +410,7 @@
     "/v1/auth/sessions/rotate": {
       "post": {
         "tags": [
-          "memberships"
+          "sessions"
         ],
         "operationId": "rotate",
         "parameters": [
@@ -450,7 +458,7 @@
     "/v1/auth/sessions/{session}/revoke": {
       "post": {
         "tags": [
-          "memberships"
+          "sessions"
         ],
         "operationId": "revoke_session",
         "parameters": [
@@ -517,7 +525,7 @@
     "/v1/invitations/confirmation": {
       "get": {
         "tags": [
-          "memberships"
+          "invitations"
         ],
         "operationId": "invitation_confirmation",
         "responses": {
@@ -546,7 +554,9 @@
     },
     "/v1/organizations": {
       "get": {
-        "tags": [],
+        "tags": [
+          "organizations"
+        ],
         "operationId": "list_organizations",
         "parameters": [
           {
@@ -592,7 +602,9 @@
         ]
       },
       "post": {
-        "tags": [],
+        "tags": [
+          "organizations"
+        ],
         "operationId": "create_org",
         "parameters": [
           {
@@ -618,7 +630,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/NameRequest"
+                "$ref": "#/components/schemas/CreateOrganizationRequest"
               }
             }
           },
@@ -656,7 +668,7 @@
     "/v1/organizations/{organization}/invitations": {
       "post": {
         "tags": [
-          "memberships"
+          "invitations"
         ],
         "operationId": "invite",
         "parameters": [
@@ -704,7 +716,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/OrganizationResponse"
+                  "$ref": "#/components/schemas/InvitationResponse"
                 }
               }
             }
@@ -730,7 +742,7 @@
     "/v1/organizations/{organization}/invitations/{invitation}/accept": {
       "post": {
         "tags": [
-          "memberships"
+          "invitations"
         ],
         "operationId": "accept",
         "parameters": [
@@ -775,7 +787,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ConfirmRequest"
+                "$ref": "#/components/schemas/AcceptInvitationRequest"
               }
             }
           },
@@ -806,7 +818,7 @@
     "/v1/organizations/{organization}/invitations/{invitation}/revoke": {
       "post": {
         "tags": [
-          "memberships"
+          "invitations"
         ],
         "operationId": "revoke_invitation",
         "parameters": [
@@ -851,7 +863,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/PrivilegedRequest"
+                "$ref": "#/components/schemas/RevokeInvitationRequest"
               }
             }
           },
@@ -881,7 +893,9 @@
     },
     "/v1/organizations/{organization}/members": {
       "get": {
-        "tags": [],
+        "tags": [
+          "memberships"
+        ],
         "operationId": "list_members",
         "parameters": [
           {
@@ -984,7 +998,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/PrivilegedRequest"
+                "$ref": "#/components/schemas/RemoveMemberRequest"
               }
             }
           },
@@ -1060,7 +1074,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RoleRequest"
+                "$ref": "#/components/schemas/ChangeMemberRoleRequest"
               }
             }
           },
@@ -1090,7 +1104,9 @@
     },
     "/v1/organizations/{organization}/projects": {
       "get": {
-        "tags": [],
+        "tags": [
+          "projects"
+        ],
         "operationId": "list_projects",
         "parameters": [
           {
@@ -1145,7 +1161,9 @@
         ]
       },
       "post": {
-        "tags": [],
+        "tags": [
+          "projects"
+        ],
         "operationId": "create_project",
         "parameters": [
           {
@@ -1180,7 +1198,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/NameRequest"
+                "$ref": "#/components/schemas/CreateProjectRequest"
               }
             }
           },
@@ -1217,7 +1235,9 @@
     },
     "/v1/organizations/{organization}/projects/{project}": {
       "patch": {
-        "tags": [],
+        "tags": [
+          "projects"
+        ],
         "operationId": "rename_project",
         "parameters": [
           {
@@ -1261,7 +1281,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RenameRequest"
+                "$ref": "#/components/schemas/RenameProjectRequest"
               }
             }
           },
@@ -1309,13 +1329,59 @@
   },
   "components": {
     "schemas": {
-      "ConfirmRequest": {
+      "AcceptInvitationRequest": {
         "type": "object",
         "required": [
           "token"
         ],
         "properties": {
           "token": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ChangeMemberRoleRequest": {
+        "type": "object",
+        "required": [
+          "role",
+          "proof"
+        ],
+        "properties": {
+          "proof": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "owner",
+              "admin",
+              "member",
+              "viewer"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "CreateOrganizationRequest": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CreateProjectRequest": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
             "type": "string"
           }
         },
@@ -1370,6 +1436,30 @@
         },
         "additionalProperties": false
       },
+      "InvitationResponse": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "LoginConfirmationRequest": {
+        "type": "object",
+        "required": [
+          "token"
+        ],
+        "properties": {
+          "token": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "LoginRequest": {
         "type": "object",
         "required": [
@@ -1403,18 +1493,6 @@
             "format": "uuid"
           }
         }
-      },
-      "NameRequest": {
-        "type": "object",
-        "required": [
-          "name"
-        ],
-        "properties": {
-          "name": {
-            "type": "string"
-          }
-        },
-        "additionalProperties": false
       },
       "OrganizationResponse": {
         "type": "object",
@@ -1453,18 +1531,6 @@
             ]
           }
         }
-      },
-      "PrivilegedRequest": {
-        "type": "object",
-        "required": [
-          "proof"
-        ],
-        "properties": {
-          "proof": {
-            "type": "string"
-          }
-        },
-        "additionalProperties": false
       },
       "ProjectResponse": {
         "type": "object",
@@ -1524,7 +1590,19 @@
         },
         "additionalProperties": false
       },
-      "RenameRequest": {
+      "RemoveMemberRequest": {
+        "type": "object",
+        "required": [
+          "proof"
+        ],
+        "properties": {
+          "proof": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "RenameProjectRequest": {
         "type": "object",
         "required": [
           "name",
@@ -1541,24 +1619,14 @@
         },
         "additionalProperties": false
       },
-      "RoleRequest": {
+      "RevokeInvitationRequest": {
         "type": "object",
         "required": [
-          "role",
           "proof"
         ],
         "properties": {
           "proof": {
             "type": "string"
-          },
-          "role": {
-            "type": "string",
-            "enum": [
-              "owner",
-              "admin",
-              "member",
-              "viewer"
-            ]
           }
         },
         "additionalProperties": false

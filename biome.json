@@ -4,6 +4,7 @@
 	"files": {
 		"includes": [
 			"sdk/**/*.{js,jsx,ts,tsx,cjs,mjs,cts,mts}",
+			"tests/system/*.mjs",
 			"!sdk/src/schema.d.ts",
 			"!sdk/node_modules/**"
 		]
