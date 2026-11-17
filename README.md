@@ -80,4 +80,6 @@ See [Contributing](CONTRIBUTING.md) for development rules,
 [operations](docs/operations.md) for configuration and deployment, and
 [verification](docs/acceptance.md) for test details.
 
-No project license has been selected.
+## License
+
+[MIT](LICENSE) © 2026 Tyler Chambers.
