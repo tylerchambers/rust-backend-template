@@ -18,7 +18,7 @@ async fn production_smtp_requires_verified_starttls_and_delivers_to_capture() {
         51029,
         "capture".into(),
         "capture".into(),
-        "login@example.test".into(),
+        "login@example.test",
         "https://example.test".into(),
         Some(&ca),
     )
@@ -34,7 +34,7 @@ async fn production_smtp_requires_verified_starttls_and_delivers_to_capture() {
         51029,
         "capture".into(),
         "capture".into(),
-        "login@example.test".into(),
+        "login@example.test",
         "https://example.test".into(),
         None,
     )

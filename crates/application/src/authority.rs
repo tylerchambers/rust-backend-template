@@ -1,7 +1,6 @@
-use crate::Actor;
+use crate::{Actor, reauthentication::ProofPurpose};
 use async_trait::async_trait;
 use domain::{Error, OrganizationId, Role, UserId};
-use uuid::Uuid;
 
 /// Current session and tenant membership authority, held until transaction completion.
 /// Membership writers must first lock every involved identity via `lock_users`;
@@ -28,8 +27,7 @@ pub trait AuthorityMutation: Send {
     async fn consume_proof(
         &mut self,
         actor: &Actor,
-        action: &str,
-        target: Uuid,
+        purpose: ProofPurpose,
         token: &str,
     ) -> Result<(), Error>;
 }

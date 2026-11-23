@@ -17,3 +17,15 @@ async fn smtp_adapter_delivers_to_external_capture() {
         .await
         .unwrap();
 }
+
+#[test]
+fn invalid_sender_is_rejected_when_configuring_production_mail() {
+    let mail = infrastructure::smtp::SmtpMailer::production(
+        "smtp.example.test",
+        "user".into(),
+        "password".into(),
+        "not a mailbox",
+        "https://example.test".into(),
+    );
+    assert!(matches!(mail, Err(domain::Error::Invalid)));
+}

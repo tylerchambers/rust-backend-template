@@ -1585,7 +1585,8 @@
           },
           "target": {
             "type": "string",
-            "format": "uuid"
+            "format": "uuid",
+            "description": "For `invite`, use `organization_id`; for `revoke_invitation`, use the invitation ID.\nFor `change_role` and `remove_member`, use the affected user's ID."
           }
         },
         "additionalProperties": false

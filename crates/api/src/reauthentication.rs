@@ -3,6 +3,7 @@ use crate::{
     error::{ApiError, ErrorBody},
     state::State,
 };
+use application::reauthentication::ProofPurpose;
 use axum::{
     Json,
     extract::State as Extract,
@@ -18,6 +19,8 @@ use uuid::Uuid;
 pub struct ProofRequest {
     #[schema(schema_with = action_schema)]
     action: String,
+    /// For `invite`, use `organization_id`; for `revoke_invitation`, use the invitation ID.
+    /// For `change_role` and `remove_member`, use the affected user's ID.
     target: Uuid,
     organization_id: Uuid,
 }
@@ -54,14 +57,16 @@ pub(crate) async fn request_proof(
     Json(input): Json<ProofRequest>,
 ) -> Result<StatusCode, ApiError> {
     let actor = actor(&state, &headers).await?;
+    let purpose = match input.action.as_str() {
+        "change_role" => ProofPurpose::ChangeRole(input.target.into()),
+        "invite" if input.target == input.organization_id => ProofPurpose::Invite,
+        "revoke_invitation" => ProofPurpose::RevokeInvitation(input.target.into()),
+        "remove_member" => ProofPurpose::RemoveMember(input.target.into()),
+        _ => return Err(ApiError(domain::Error::Invalid)),
+    };
     state
         .reauthentication
-        .request(
-            &actor,
-            &input.action,
-            input.target,
-            input.organization_id.into(),
-        )
+        .request(&actor, purpose, input.organization_id.into())
         .await?;
     Ok(StatusCode::ACCEPTED)
 }

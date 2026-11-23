@@ -8,7 +8,7 @@ use application::Organizations;
 use application::Secrets;
 use application::authentication::IdentityRepository;
 use application::invitations::Invitations;
-use application::reauthentication::ReauthenticationRepository;
+use application::reauthentication::{ProofPurpose, ReauthenticationRepository};
 use domain::Role;
 use infrastructure::postgres::Database;
 use infrastructure::system::SystemSecrets;
@@ -58,7 +58,7 @@ async fn concurrent_invitation_acceptance_has_one_winner_and_is_email_bound() {
         std::sync::Arc::new(FixedClock(fixed_now)),
     );
     let proof = secrets.token();
-    db.issue_proof(&actors[0], "invite", org.into_uuid(), org, &proof)
+    db.issue_proof(&actors[0], ProofPurpose::Invite, org, &proof)
         .await
         .unwrap();
     let invitation = service
@@ -95,7 +95,7 @@ async fn concurrent_invitation_acceptance_has_one_winner_and_is_email_bound() {
     assert_eq!(usize::from(a.is_ok()) + usize::from(b.is_ok()), 1);
     // An invitation is a join grant, not an alternate role-change operation.
     let proof = secrets.token();
-    db.issue_proof(&actors[0], "invite", org.into_uuid(), org, &proof)
+    db.issue_proof(&actors[0], ProofPurpose::Invite, org, &proof)
         .await
         .unwrap();
     let duplicate = service
@@ -125,7 +125,7 @@ async fn concurrent_invitation_acceptance_has_one_winner_and_is_email_bound() {
             .is_err()
     );
     let proof = secrets.token();
-    db.issue_proof(&actors[0], "invite", org.into_uuid(), org, &proof)
+    db.issue_proof(&actors[0], ProofPurpose::Invite, org, &proof)
         .await
         .unwrap();
     let cancelled = service
@@ -135,8 +135,7 @@ async fn concurrent_invitation_acceptance_has_one_winner_and_is_email_bound() {
     let proof = secrets.token();
     db.issue_proof(
         &actors[0],
-        "revoke_invitation",
-        cancelled.into_uuid(),
+        ProofPurpose::RevokeInvitation(cancelled),
         org,
         &proof,
     )

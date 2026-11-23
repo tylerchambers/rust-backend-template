@@ -8,7 +8,7 @@ use application::Organizations;
 use application::Secrets;
 use application::authentication::IdentityRepository;
 use application::memberships::Memberships;
-use application::reauthentication::ReauthenticationRepository;
+use application::reauthentication::{ProofPurpose, ReauthenticationRepository};
 use domain::{Error, Role};
 use infrastructure::postgres::Database;
 use infrastructure::system::SystemIds;
@@ -81,9 +81,14 @@ async fn fresh_proof_rejects_live_wrong_user_session_action_target_tenant_expiry
         .unwrap();
     let memberships = Memberships::new(db.clone());
     let proof = SystemSecrets.token();
-    db.issue_proof(owner, "change_role", targets[0], org, &proof)
-        .await
-        .unwrap();
+    db.issue_proof(
+        owner,
+        ProofPurpose::ChangeRole(targets[0].into()),
+        org,
+        &proof,
+    )
+    .await
+    .unwrap();
     // Both alternate actors have live sessions and adequate authority, so failure must bind the proof.
     for actor in [&actors[1], &actors[2]] {
         assert!(matches!(
@@ -130,9 +135,14 @@ async fn fresh_proof_rejects_live_wrong_user_session_action_target_tenant_expiry
         Err(Error::Forbidden)
     ));
     let expired = SystemSecrets.token();
-    db.issue_proof(owner, "change_role", targets[1], org, &expired)
-        .await
-        .unwrap();
+    db.issue_proof(
+        owner,
+        ProofPurpose::ChangeRole(targets[1].into()),
+        org,
+        &expired,
+    )
+    .await
+    .unwrap();
     sqlx::query("UPDATE reauthentication_proofs SET expires_at=clock_timestamp()-interval '1 second' WHERE token_hash=$1").bind(infrastructure::postgres::token_hash(&expired)).execute(&pool).await.unwrap();
     assert!(matches!(
         memberships

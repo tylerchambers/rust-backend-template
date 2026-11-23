@@ -54,11 +54,13 @@ impl Database {
         .await
         .map_err(storage)?;
         if let Some(id) = id {
-            sqlx::query("UPDATE sessions SET revoked_at=clock_timestamp() WHERE id=$1")
-                .bind(id)
-                .execute(&self.pool)
-                .await
-                .map_err(storage)?;
+            sqlx::query(
+                "UPDATE sessions SET revoked_at=clock_timestamp() WHERE id=$1 AND revoked_at IS NULL",
+            )
+            .bind(id)
+            .execute(&self.pool)
+            .await
+            .map_err(storage)?;
         }
         Ok(())
     }
@@ -134,7 +136,7 @@ impl Database {
         let changed = sqlx::query(
             r"
             UPDATE sessions
-            SET revoked_at=clock_timestamp()
+            SET revoked_at=COALESCE(revoked_at,clock_timestamp())
             WHERE id=$1
             AND user_id=$2
             AND EXISTS(SELECT 1
@@ -161,13 +163,61 @@ impl Database {
             Err(Error::NotFound)
         }
     }
-    pub(super) async fn session_revoke_all(&self, actor: &Actor) -> Result<(), Error> {
-        sqlx::query("UPDATE sessions SET revoked_at=clock_timestamp() WHERE user_id=$1")
-            .bind(actor.user_id.into_uuid())
-            .execute(&self.pool)
+    pub(super) async fn session_revoke_all(&self, token: &str) -> Result<(), Error> {
+        if token.len() != 64 {
+            return Err(Error::Unauthenticated);
+        }
+        let hash = token_hash(token);
+        let mut tx = riverqueue::database::begin_postgres(&self.pool)
             .await
             .map_err(storage)?;
-        Ok(())
+        // Login holds this identity lock from its upsert through session insertion.
+        // Take it before any session locks; the next statement sees preceding logins.
+        let user_id: Uuid = sqlx::query_scalar(
+            r"
+            SELECT u.id FROM users u JOIN sessions s ON s.user_id=u.id
+            WHERE s.token_hash=$1 AND s.revoked_at IS NULL AND NOT u.disabled
+            FOR UPDATE OF u
+            ",
+        )
+        .bind(&hash)
+        .fetch_optional(&mut *tx)
+        .await
+        .map_err(storage)?
+        .ok_or(Error::Unauthenticated)?;
+        // Acquire every row lock the mutation needs before its database-time authority check.
+        sqlx::query(
+            r"
+            SELECT count(*) FROM (
+                SELECT id FROM sessions WHERE user_id=$1 AND revoked_at IS NULL FOR NO KEY UPDATE
+            ) locked
+            ",
+        )
+        .bind(user_id)
+        .execute(&mut *tx)
+        .await
+        .map_err(storage)?;
+        let retired = sqlx::query(
+            r"
+            UPDATE sessions SET revoked_at=clock_timestamp()
+            WHERE user_id=$1 AND revoked_at IS NULL AND EXISTS (
+                SELECT 1 FROM sessions caller
+                WHERE caller.user_id=$1 AND caller.token_hash=$2 AND caller.revoked_at IS NULL
+                AND caller.expires_at>clock_timestamp()
+                AND caller.last_seen_at>clock_timestamp()-interval '30 minutes'
+            )
+            ",
+        )
+        .bind(user_id)
+        .bind(hash)
+        .execute(&mut *tx)
+        .await
+        .map_err(storage)?
+        .rows_affected();
+        if retired == 0 {
+            return Err(Error::Unauthenticated);
+        }
+        tx.commit().await.map_err(storage)
     }
 }
 

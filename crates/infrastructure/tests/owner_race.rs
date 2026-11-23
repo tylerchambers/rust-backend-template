@@ -8,7 +8,7 @@ use application::Organizations;
 use application::Secrets;
 use application::authentication::IdentityRepository;
 use application::memberships::Memberships;
-use application::reauthentication::ReauthenticationRepository;
+use application::reauthentication::{ProofPurpose, ReauthenticationRepository};
 use domain::{Error, Role};
 use infrastructure::postgres::Database;
 use infrastructure::system::SystemIds;
@@ -49,8 +49,7 @@ async fn concurrent_owner_demotions_leave_one_owner_and_retire_only_changed_cred
     for i in 0..2 {
         db.issue_proof(
             &actors[i],
-            "change_role",
-            actors[i].user_id.into_uuid(),
+            ProofPurpose::ChangeRole(actors[i].user_id),
             org,
             &proofs[i],
         )

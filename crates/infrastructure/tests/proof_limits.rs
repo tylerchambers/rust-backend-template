@@ -6,9 +6,11 @@
 
 use application::Secrets;
 use application::authentication::IdentityRepository;
-use application::reauthentication::ReauthenticationRepository;
+use application::memberships::Memberships;
+use application::reauthentication::{ProofPurpose, ReauthenticationRepository};
+use domain::{Error, Role};
 #[tokio::test]
-async fn concurrent_fresh_email_requests_cannot_bypass_limit() {
+async fn concurrent_requests_cap_outstanding_proofs_and_consumption_releases_one_slot() {
     let pool = sqlx::PgPool::connect(&std::env::var("TEST_DATABASE_URL").unwrap())
         .await
         .unwrap();
@@ -44,23 +46,56 @@ async fn concurrent_fresh_email_requests_cannot_bypass_limit() {
         let db = db.clone();
         let actor = actor.clone();
         tasks.spawn(async move {
+            let token = infrastructure::system::SystemSecrets.token();
             db.issue_proof(
                 &actor,
-                "invite",
-                uuid::Uuid::now_v7(),
+                ProofPurpose::ChangeRole(actor.user_id),
                 organization,
-                &infrastructure::system::SystemSecrets.token(),
+                &token,
             )
-            .await
+            .await?;
+            Ok::<_, Error>(token)
         });
     }
     tokio::time::sleep(std::time::Duration::from_millis(200)).await;
     lock.commit().await.unwrap();
-    let mut admitted = 0;
+    let mut admitted = Vec::new();
+    let mut limited = 0;
     while let Some(result) = tasks.join_next().await {
-        if result.unwrap().is_ok() {
-            admitted += 1;
+        match result.unwrap() {
+            Ok(token) => admitted.push(token),
+            Err(Error::RateLimited) => limited += 1,
+            Err(error) => panic!("unexpected proof issuance error: {error:?}"),
         }
     }
-    assert_eq!(admitted, 5);
+    assert_eq!((admitted.len(), limited), (5, 3));
+
+    Memberships::new(std::sync::Arc::new(db.clone()))
+        .change_role(
+            &actor,
+            organization,
+            actor.user_id,
+            Role::Owner,
+            &admitted[0],
+        )
+        .await
+        .unwrap();
+    db.issue_proof(
+        &actor,
+        ProofPurpose::Invite,
+        organization,
+        &infrastructure::system::SystemSecrets.token(),
+    )
+    .await
+    .unwrap();
+    assert!(matches!(
+        db.issue_proof(
+            &actor,
+            ProofPurpose::Invite,
+            organization,
+            &infrastructure::system::SystemSecrets.token(),
+        )
+        .await,
+        Err(Error::RateLimited)
+    ));
 }

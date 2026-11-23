@@ -392,7 +392,11 @@ export interface components {
             action: "change_role" | "invite" | "revoke_invitation" | "remove_member";
             /** Format: uuid */
             organization_id: string;
-            /** Format: uuid */
+            /**
+             * Format: uuid
+             * @description For `invite`, use `organization_id`; for `revoke_invitation`, use the invitation ID.
+             *     For `change_role` and `remove_member`, use the affected user's ID.
+             */
             target: string;
         };
         RemoveMemberRequest: {
