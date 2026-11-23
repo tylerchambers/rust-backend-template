@@ -2,6 +2,7 @@ use crate::{Failure, config::Config};
 use application::Authentication;
 use application::Organizations;
 use application::Projects;
+use application::administration::Administration;
 use application::invitations::Invitations;
 use application::memberships::Memberships;
 use application::reauthentication::Reauthentication;
@@ -94,6 +95,7 @@ impl ServerServices {
                 Arc::new(SystemClock),
             )),
             Arc::new(Reauthentication::new(db.clone(), mail, secrets)),
+            Arc::new(Administration::new(db.clone())),
         );
         Ok(Self {
             db,

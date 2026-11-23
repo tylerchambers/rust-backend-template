@@ -3,6 +3,12 @@ use async_trait::async_trait;
 use domain::{Error, SessionId, UserId};
 use std::sync::Arc;
 
+/// Account identity resolved from a live session.
+pub struct CurrentAccount {
+    pub user_id: UserId,
+    pub email: String,
+}
+
 /// Newly issued bearer credentials; never include the token in logs.
 pub struct IssuedSession {
     pub token: String,
@@ -29,6 +35,7 @@ pub trait IdentityRepository: Send + Sync {
     async fn issue_login(&self, email: &str, token: &str) -> Result<(), Error>;
     async fn consume_login(&self, token: &str, session: &str) -> Result<Actor, Error>;
     async fn authenticate(&self, token: &str) -> Result<Actor, Error>;
+    async fn current_account(&self, token: &str) -> Result<CurrentAccount, Error>;
     async fn revoke(&self, token: &str) -> Result<(), Error>;
     async fn list_sessions(
         &self,
@@ -105,6 +112,13 @@ impl Authentication {
     /// Rejects invalid, revoked or expired credentials; propagates repository errors.
     pub async fn authenticate(&self, token: &str) -> Result<Actor, Error> {
         self.identities.authenticate(token).await
+    }
+    /// Resolve the session owner's identity and verified email.
+    ///
+    /// # Errors
+    /// Propagates authentication and repository errors.
+    pub async fn current_account(&self, token: &str) -> Result<CurrentAccount, Error> {
+        self.identities.current_account(token).await
     }
     /// List at most 50 live sessions in ascending ID order after an exclusive cursor.
     /// Continue with the last returned ID until an empty page; concurrent creation

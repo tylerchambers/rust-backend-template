@@ -1,3 +1,4 @@
+mod audit_events;
 mod authentication;
 mod cookies;
 mod error;

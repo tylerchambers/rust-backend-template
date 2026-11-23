@@ -175,6 +175,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_me"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/organizations": {
         parameters: {
             query?: never;
@@ -191,6 +207,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/organizations/{organization}/audit-events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_audit_events"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/organizations/{organization}/invitations": {
         parameters: {
             query?: never;
@@ -198,7 +230,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        get: operations["list_invitations"];
         put?: never;
         post: operations["invite"];
         delete?: never;
@@ -233,6 +265,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["revoke_invitation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organization}/member-directory": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_member_directory"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -310,7 +358,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        get: operations["get_project"];
         put?: never;
         post?: never;
         delete?: never;
@@ -326,6 +374,17 @@ export interface components {
         AcceptInvitationRequest: {
             token: string;
         };
+        AuditEventResponse: {
+            action: string;
+            /** Format: uuid */
+            actor_id: string;
+            /** Format: uuid */
+            id: string;
+            /** Format: date-time */
+            occurred_at: string;
+            /** Format: uuid */
+            subject: string;
+        };
         ChangeMemberRoleRequest: {
             proof: string;
             /** @enum {string} */
@@ -336,6 +395,18 @@ export interface components {
         };
         CreateProjectRequest: {
             name: string;
+        };
+        CurrentAccountResponse: {
+            email: string;
+            /** Format: uuid */
+            user_id: string;
+        };
+        DirectoryMemberResponse: {
+            email: string;
+            /** @enum {string} */
+            role: "owner" | "admin" | "member" | "viewer";
+            /** Format: uuid */
+            user_id: string;
         };
         ErrorBody: {
             code: string;
@@ -353,6 +424,18 @@ export interface components {
         InvitationResponse: {
             /** Format: uuid */
             id: string;
+        };
+        /** @enum {string} */
+        InvitationStatusResponse: "pending" | "accepted" | "revoked" | "expired";
+        InvitationSummaryResponse: {
+            email: string;
+            /** Format: date-time */
+            expires_at: string;
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            role: "owner" | "admin" | "member" | "viewer";
+            status: components["schemas"]["InvitationStatusResponse"];
         };
         LoginConfirmationRequest: {
             token: string;
@@ -792,6 +875,34 @@ export interface operations {
             };
         };
     };
+    get_me: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CurrentAccountResponse"];
+                };
+            };
+            /** @description Stable JSON error envelope, including transport, authentication, authorization and availability failures */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     list_organizations: {
         parameters: {
             query?: {
@@ -847,6 +958,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OrganizationResponse"];
+                };
+            };
+            /** @description Stable JSON error envelope, including transport, authentication, authorization and availability failures */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    list_audit_events: {
+        parameters: {
+            query?: {
+                /** @description Exclusive event ID cursor. Up to 50 rows in ascending ID order, not commit order; continue with the last ID until empty. */
+                after?: string;
+            };
+            header?: never;
+            path: {
+                organization: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditEventResponse"][];
+                };
+            };
+            /** @description Stable JSON error envelope, including transport, authentication, authorization and availability failures */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    list_invitations: {
+        parameters: {
+            query?: {
+                /** @description Exclusive invitation ID cursor. Up to 50 rows in ascending ID order; continue with the last ID until empty. */
+                after?: string;
+            };
+            header?: never;
+            path: {
+                organization: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitationSummaryResponse"][];
                 };
             };
             /** @description Stable JSON error envelope, including transport, authentication, authorization and availability failures */
@@ -963,6 +1140,39 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Stable JSON error envelope, including transport, authentication, authorization and availability failures */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    list_member_directory: {
+        parameters: {
+            query?: {
+                /** @description Exclusive user ID cursor. Up to 50 rows in ascending user ID order; continue with the last user ID until empty. */
+                after?: string;
+            };
+            header?: never;
+            path: {
+                organization: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DirectoryMemberResponse"][];
+                };
             };
             /** @description Stable JSON error envelope, including transport, authentication, authorization and availability failures */
             default: {
@@ -1138,6 +1348,37 @@ export interface operations {
         };
         responses: {
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectResponse"];
+                };
+            };
+            /** @description Stable JSON error envelope, including transport, authentication, authorization and availability failures */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_project: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization: string;
+                project: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };

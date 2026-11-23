@@ -141,3 +141,46 @@ pub(crate) async fn list_members(
             .collect(),
     ))
 }
+
+#[derive(Serialize, ToSchema)]
+pub struct DirectoryMemberResponse {
+    user_id: Uuid,
+    email: String,
+    #[schema(schema_with = role_schema)]
+    role: domain::Role,
+}
+
+#[utoipa::path(
+    get,
+    path="/v1/organizations/{organization}/member-directory",
+    params(
+        ("organization"=Uuid,Path),
+        ("after"=Option<Uuid>,Query,description="Exclusive user ID cursor. Up to 50 rows in ascending user ID order; continue with the last user ID until empty."),
+    ),
+    security(("session"=[])),
+    responses(
+        (status="default",description="Stable JSON error envelope, including transport, authentication, authorization and availability failures",body=ErrorBody),
+        (status=200,body=Vec<DirectoryMemberResponse>),
+    )
+)]
+pub(crate) async fn list_member_directory(
+    Extract(state): Extract<State>,
+    Path(org): Path<Uuid>,
+    Query(page): Query<UuidCursor>,
+    headers: HeaderMap,
+) -> Result<Json<Vec<DirectoryMemberResponse>>, ApiError> {
+    let actor = actor(&state, &headers).await?;
+    Ok(Json(
+        state
+            .administration
+            .member_directory(&actor, org.into(), page.after.map(Into::into))
+            .await?
+            .into_iter()
+            .map(|row| DirectoryMemberResponse {
+                user_id: row.user_id.into_uuid(),
+                email: row.email,
+                role: row.role,
+            })
+            .collect(),
+    ))
+}

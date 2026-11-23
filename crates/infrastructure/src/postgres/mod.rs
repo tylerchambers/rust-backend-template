@@ -1,4 +1,5 @@
 //! PostgreSQL persistence and transaction-scoped capability implementations.
+mod administration;
 mod authentication;
 mod authority;
 mod database;

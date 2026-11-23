@@ -80,7 +80,8 @@ async fn magic_tokens_are_single_use_identity_is_unique_and_logout_revokes() {
         .await
         .unwrap();
     let next = mail.0.lock().unwrap()[1].clone();
-    assert_eq!(auth.confirm(&next).await.unwrap().user_id, session.user_id);
+    let second_session = auth.confirm(&next).await.unwrap();
+    assert_eq!(second_session.user_id, session.user_id);
     auth.logout(&session.token).await.unwrap();
     assert!(matches!(
         auth.authenticate(&session.token).await,
@@ -91,6 +92,10 @@ async fn magic_tokens_are_single_use_identity_is_unique_and_logout_revokes() {
         .execute(&pool)
         .await
         .unwrap();
+    assert!(matches!(
+        auth.current_account(&second_session.token).await,
+        Err(Error::Unauthenticated)
+    ));
     auth.request(&email).await.unwrap();
     let blocked = mail.0.lock().unwrap()[2].clone();
     assert!(matches!(

@@ -56,6 +56,16 @@ impl Database {
         Ok(tx)
     }
 }
+#[async_trait]
+impl application::administration::AdminReadUnitOfWork for Database {
+    async fn begin_admin_read(
+        &self,
+        org: domain::OrganizationId,
+    ) -> Result<Box<dyn application::administration::AdminReadTransaction>, Error> {
+        Ok(Box::new(self.tenant_work(org).await?))
+    }
+}
+
 #[async_trait::async_trait]
 impl application::projects::ProjectUnitOfWork for Database {
     async fn begin_projects(

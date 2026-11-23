@@ -58,6 +58,14 @@ async fn expiry_limits_and_hashed_storage_are_enforced() {
     .await
     .unwrap();
     assert!(db.authenticate(&session).await.is_err());
+    assert!(matches!(
+        db.current_account(&session).await,
+        Err(Error::Unauthenticated)
+    ));
     sqlx::query("UPDATE sessions SET last_seen_at=clock_timestamp(),expires_at=clock_timestamp()-interval '1 second' WHERE id=$1").bind(actor.session_id.into_uuid()).execute(&pool).await.unwrap();
     assert!(db.authenticate(&session).await.is_err());
+    assert!(matches!(
+        db.current_account(&session).await,
+        Err(Error::Unauthenticated)
+    ));
 }

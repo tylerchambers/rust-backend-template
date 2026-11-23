@@ -1,16 +1,14 @@
 use super::{Database, authentication::token_hash};
 use application::Actor;
+use application::authentication::CurrentAccount;
 use domain::{Error, SessionId};
 use uuid::Uuid;
 fn storage(error: sqlx::Error) -> Error {
     super::errors::unavailable(error, "auth")
 }
-impl Database {
-    pub(super) async fn session_authenticate(&self, token: &str) -> Result<Actor, Error> {
-        if token.len() != 64 {
-            return Err(Error::Unauthenticated);
-        }
-        let row: Option<(Uuid, Uuid)> = sqlx::query_as(
+macro_rules! authenticated_session_sql {
+    ($projection:literal) => {
+        concat!(
             r"
             UPDATE sessions s
             SET last_seen_at=clock_timestamp()
@@ -20,18 +18,46 @@ impl Database {
             AND NOT u.disabled
             AND s.revoked_at IS NULL
             AND s.expires_at>clock_timestamp()
-            AND s.last_seen_at>clock_timestamp()-interval '30 minutes'
-            RETURNING s.user_id,s.id
-            ",
+            AND s.last_seen_at>clock_timestamp()-interval '30 minutes'",
+            " RETURNING ",
+            $projection
         )
-        .bind(token_hash(token))
-        .fetch_optional(&self.pool)
-        .await
-        .map_err(storage)?;
+    };
+}
+impl Database {
+    pub(super) async fn session_authenticate(&self, token: &str) -> Result<Actor, Error> {
+        if token.len() != 64 {
+            return Err(Error::Unauthenticated);
+        }
+        let row: Option<(Uuid, Uuid)> =
+            sqlx::query_as(authenticated_session_sql!("s.user_id,s.id"))
+                .bind(token_hash(token))
+                .fetch_optional(&self.pool)
+                .await
+                .map_err(storage)?;
         row.map(|(user_id, session_id)| Actor {
             correlation_id: Uuid::now_v7(),
             user_id: user_id.into(),
             session_id: session_id.into(),
+        })
+        .ok_or(Error::Unauthenticated)
+    }
+    pub(super) async fn session_current_account(
+        &self,
+        token: &str,
+    ) -> Result<CurrentAccount, Error> {
+        if token.len() != 64 {
+            return Err(Error::Unauthenticated);
+        }
+        let row: Option<(Uuid, String)> =
+            sqlx::query_as(authenticated_session_sql!("s.user_id,u.email"))
+                .bind(token_hash(token))
+                .fetch_optional(&self.pool)
+                .await
+                .map_err(storage)?;
+        row.map(|(id, email)| CurrentAccount {
+            user_id: id.into(),
+            email,
         })
         .ok_or(Error::Unauthenticated)
     }
