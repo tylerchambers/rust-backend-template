@@ -37,7 +37,8 @@ pub trait IdentityRepository: Send + Sync {
     ) -> Result<Vec<SessionId>, Error>;
     async fn rotate(&self, actor: &Actor, old: &str, new: &str) -> Result<(), Error>;
     async fn revoke_session(&self, actor: &Actor, session: SessionId) -> Result<(), Error>;
-    async fn revoke_all(&self, actor: &Actor) -> Result<(), Error>;
+    /// Validate the current bearer and retire the account's sessions atomically with respect to login.
+    async fn revoke_all(&self, token: &str) -> Result<(), Error>;
 }
 
 pub struct Authentication {
@@ -132,8 +133,7 @@ impl Authentication {
     /// # Errors
     /// Propagates authentication and repository errors.
     pub async fn revoke_all(&self, token: &str) -> Result<(), Error> {
-        let actor = self.authenticate(token).await?;
-        self.identities.revoke_all(&actor).await
+        self.identities.revoke_all(token).await
     }
     /// Rotate credentials while retaining revocation-only lineage.
     ///

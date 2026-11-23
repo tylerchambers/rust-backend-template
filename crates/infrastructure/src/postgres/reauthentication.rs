@@ -1,9 +1,8 @@
 use super::{Database, authentication::token_hash, transaction::TenantWork};
 use application::Actor;
-use application::reauthentication::ReauthenticationRepository;
+use application::reauthentication::{ProofPurpose, ReauthenticationRepository};
 use async_trait::async_trait;
 use domain::{Error, OrganizationId};
-use uuid::Uuid;
 fn storage(error: sqlx::Error) -> Error {
     super::errors::unavailable(error, "memberships")
 }
@@ -12,17 +11,11 @@ impl ReauthenticationRepository for Database {
     async fn issue_proof(
         &self,
         actor: &Actor,
-        action: &str,
-        target: Uuid,
+        purpose: ProofPurpose,
         organization: OrganizationId,
         token: &str,
     ) -> Result<String, Error> {
-        if !matches!(
-            action,
-            "change_role" | "invite" | "revoke_invitation" | "remove_member"
-        ) {
-            return Err(Error::Invalid);
-        }
+        let (action, target) = purpose.binding(organization);
         let mut tx = self
             .begin_tenant(organization.into_uuid())
             .await
@@ -47,11 +40,12 @@ impl ReauthenticationRepository for Database {
         let email = super::authority::live_email(&mut tx, actor)
             .await?
             .ok_or(Error::Forbidden)?;
-        let attempts: i64 = sqlx::query_scalar(
+        let outstanding: i64 = sqlx::query_scalar(
             r"
             SELECT count(*)
             FROM reauthentication_proofs
             WHERE user_id=$1
+            AND consumed_at IS NULL
             AND expires_at>clock_timestamp()
             ",
         )
@@ -59,7 +53,7 @@ impl ReauthenticationRepository for Database {
         .fetch_one(&mut *tx)
         .await
         .map_err(storage)?;
-        if attempts >= 5 {
+        if outstanding >= 5 {
             return Err(Error::RateLimited);
         }
         sqlx::query(r"
@@ -83,10 +77,10 @@ impl TenantWork {
     pub(super) async fn consume_proof_record(
         &mut self,
         actor: &Actor,
-        action: &str,
-        target: Uuid,
+        purpose: ProofPurpose,
         token: &str,
     ) -> Result<(), Error> {
+        let (action, target) = purpose.binding(self.organization.into());
         let n = sqlx::query(
             r"
             UPDATE reauthentication_proofs

@@ -8,7 +8,7 @@ use application::Organizations;
 use application::Secrets;
 use application::authentication::IdentityRepository;
 use application::memberships::Memberships;
-use application::reauthentication::ReauthenticationRepository;
+use application::reauthentication::{ProofPurpose, ReauthenticationRepository};
 use domain::{OrganizationId, Role};
 use infrastructure::postgres::Database;
 use infrastructure::system::SystemIds;
@@ -152,8 +152,7 @@ impl Fixture {
         self.db
             .issue_proof(
                 &self.actors[actor],
-                "change_role",
-                self.actors[target].user_id.into_uuid(),
+                ProofPurpose::ChangeRole(self.actors[target].user_id),
                 org,
                 &proof,
             )
@@ -224,14 +223,8 @@ async fn application_change_and_proof_are_atomic_without_deadlock() {
     let db = f.db.clone();
     let target = f.actors[1].clone();
     let issuing = tokio::spawn(async move {
-        db.issue_proof(
-            &target,
-            "invite",
-            org.into_uuid(),
-            org,
-            &SystemSecrets.token(),
-        )
-        .await
+        db.issue_proof(&target, ProofPurpose::Invite, org, &SystemSecrets.token())
+            .await
     });
     let proof_pid = blocked_by(&f.admin, change_pid).await;
     let db = f.db.clone();
@@ -426,14 +419,8 @@ async fn proof_first_does_not_cycle_on_organization_foreign_key() {
     let actor = f.actors[1].clone();
     let org = f.org;
     let issuing = tokio::spawn(async move {
-        db.issue_proof(
-            &actor,
-            "invite",
-            org.into_uuid(),
-            org,
-            &SystemSecrets.token(),
-        )
-        .await
+        db.issue_proof(&actor, ProofPurpose::Invite, org, &SystemSecrets.token())
+            .await
     });
     let proof_pid = blocked_by(&f.admin, blocker).await;
     let service = f.service();

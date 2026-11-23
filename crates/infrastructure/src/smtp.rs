@@ -2,7 +2,7 @@ use application::authentication::LoginMailer;
 use async_trait::async_trait;
 use domain::Error;
 use lettre::{
-    AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor,
+    AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor, message::Mailbox,
     transport::smtp::authentication::Credentials,
 };
 use std::time::Duration;
@@ -10,12 +10,12 @@ use std::time::Duration;
 pub struct SmtpMailer {
     transport: AsyncSmtpTransport<Tokio1Executor>,
     origin: String,
-    from: String,
+    from: Mailbox,
 }
 impl SmtpMailer {
     async fn send_message(&self, email: &str, subject: &str, body: String) -> Result<(), Error> {
         let message = Message::builder()
-            .from(self.from.parse().map_err(|_| Error::Invalid)?)
+            .from(self.from.clone())
             .to(email.parse().map_err(|_| Error::Invalid)?)
             .subject(subject)
             .body(body)
@@ -39,17 +39,17 @@ impl SmtpMailer {
                 .timeout(Some(Duration::from_secs(10)))
                 .build(),
             origin: origin.into(),
-            from: "login@example.test".into(),
+            from: "login@example.test".parse().map_err(|_| Error::Invalid)?,
         })
     }
     /// Production SMTP requires STARTTLS with certificate verification.
     /// # Errors
-    /// Returns `Invalid` for invalid TLS configuration or a non-HTTPS public origin.
+    /// Returns `Invalid` for an invalid sender, TLS configuration or non-HTTPS public origin.
     pub fn production(
         host: &str,
         username: String,
         password: String,
-        from: String,
+        from: &str,
         origin: String,
     ) -> Result<Self, Error> {
         Self::production_endpoint(host, 587, username, password, from, origin, None)
@@ -57,13 +57,13 @@ impl SmtpMailer {
     /// Configure verified STARTTLS with an optional additional trust root.
     ///
     /// # Errors
-    /// Returns `Invalid` for invalid origin, host, certificate or TLS configuration.
+    /// Returns `Invalid` for an invalid sender, origin, host, certificate or TLS configuration.
     pub fn production_endpoint(
         host: &str,
         port: u16,
         username: String,
         password: String,
-        from: String,
+        from: &str,
         origin: String,
         ca: Option<&[u8]>,
     ) -> Result<Self, Error> {
@@ -71,6 +71,7 @@ impl SmtpMailer {
         if !origin.starts_with("https://") {
             return Err(Error::Invalid);
         }
+        let from = from.parse().map_err(|_| Error::Invalid)?;
         let mut tls = TlsParameters::builder(host.into());
         if let Some(ca) = ca {
             tls = tls.add_root_certificate(Certificate::from_pem(ca).map_err(|_| Error::Invalid)?);
@@ -107,11 +108,11 @@ impl application::reauthentication::ReauthenticationMailer for SmtpMailer {
     async fn send_proof(
         &self,
         email: &str,
-        action: &str,
-        target: uuid::Uuid,
+        purpose: application::reauthentication::ProofPurpose,
         org: domain::OrganizationId,
         token: &str,
     ) -> Result<(), Error> {
+        let (action, target) = purpose.binding(org);
         self.send_message(email,"Confirm privileged operation",format!("This proof authorizes {action} on {target} in organization {org}. It expires in five minutes and is bound to your requesting session.\n{}/v1/auth/reauth/confirmation#{}",self.origin,token)).await
     }
 }

@@ -7,7 +7,7 @@ use application::Organizations;
 use application::Secrets;
 use application::authentication::IdentityRepository;
 use application::memberships::MembershipUnitOfWork;
-use application::reauthentication::ReauthenticationRepository;
+use application::reauthentication::{ProofPurpose, ReauthenticationRepository};
 use infrastructure::postgres::Database;
 use infrastructure::system::SystemIds;
 use infrastructure::system::SystemSecrets;
@@ -64,13 +64,7 @@ async fn proof_issuance_and_session_retirement_do_not_deadlock() {
     let actor = actors[1].clone();
     let issuing = tokio::spawn(async move {
         proof_db
-            .issue_proof(
-                &actor,
-                "invite",
-                org.into_uuid(),
-                org,
-                &SystemSecrets.token(),
-            )
+            .issue_proof(&actor, ProofPurpose::Invite, org, &SystemSecrets.token())
             .await
     });
     tokio::time::timeout(std::time::Duration::from_secs(5), async {

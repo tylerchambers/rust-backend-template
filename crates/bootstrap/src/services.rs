@@ -39,7 +39,7 @@ impl Config {
                 &std::env::var("SMTP_HOST")?,
                 std::env::var("SMTP_USERNAME")?,
                 std::env::var("SMTP_PASSWORD")?,
-                std::env::var("SMTP_FROM")?,
+                &std::env::var("SMTP_FROM")?,
                 self.origin.clone(),
             )?))
         }

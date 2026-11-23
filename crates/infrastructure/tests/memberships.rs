@@ -9,17 +9,13 @@ use application::Organizations;
 use application::Secrets;
 use application::authentication::IdentityRepository;
 use application::memberships::Memberships;
-use application::reauthentication::ReauthenticationRepository;
+use application::reauthentication::{ProofPurpose, ReauthenticationRepository};
 use domain::{Error, Role};
 use infrastructure::postgres::Database;
 use infrastructure::system::SystemSecrets;
 use std::sync::Arc;
 use uuid::Uuid;
 #[tokio::test]
-#[expect(
-    clippy::too_many_lines,
-    reason = "One ordered integration journey retains shared state and security assertions"
-)]
 async fn bound_proof_is_single_use_and_last_owner_is_guarded() {
     let pool = sqlx::PgPool::connect(&std::env::var("TEST_DATABASE_URL").unwrap())
         .await
@@ -65,7 +61,7 @@ async fn bound_proof_is_single_use_and_last_owner_is_guarded() {
         .await
         .unwrap();
     let proof = secret.token();
-    db.issue_proof(&actor, "change_role", target, org, &proof)
+    db.issue_proof(&actor, ProofPurpose::ChangeRole(target.into()), org, &proof)
         .await
         .unwrap();
     let wrong = Actor {
@@ -94,33 +90,22 @@ async fn bound_proof_is_single_use_and_last_owner_is_guarded() {
             .await
             .is_err()
     );
+    let owner = actor.user_id;
     let proof = secret.token();
-    db.issue_proof(
-        &actor,
-        "remove_member",
-        actor.user_id.into_uuid(),
-        org,
-        &proof,
-    )
-    .await
-    .unwrap();
+    db.issue_proof(&actor, ProofPurpose::RemoveMember(owner), org, &proof)
+        .await
+        .unwrap();
     assert!(matches!(
-        service.remove(&actor, org, actor.user_id, &proof).await,
+        service.remove(&actor, org, owner, &proof).await,
         Err(Error::Conflict)
     ));
     let proof = secret.token();
-    db.issue_proof(
-        &actor,
-        "change_role",
-        actor.user_id.into_uuid(),
-        org,
-        &proof,
-    )
-    .await
-    .unwrap();
+    db.issue_proof(&actor, ProofPurpose::ChangeRole(owner), org, &proof)
+        .await
+        .unwrap();
     assert!(matches!(
         service
-            .change_role(&actor, org, actor.user_id, Role::Member, &proof)
+            .change_role(&actor, org, owner, Role::Member, &proof)
             .await,
         Err(Error::Conflict)
     ));

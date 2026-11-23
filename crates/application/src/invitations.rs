@@ -1,6 +1,7 @@
 use crate::{
     Actor,
     authority::{AuthorityMutation, TenantAuthority},
+    reauthentication::ProofPurpose,
     transaction::TenantTransaction,
 };
 use async_trait::async_trait;
@@ -110,8 +111,7 @@ impl Invitations {
         }) {
             return Err(Error::Forbidden);
         }
-        tx.consume_proof(actor, "invite", org.into_uuid(), proof)
-            .await?;
+        tx.consume_proof(actor, ProofPurpose::Invite, proof).await?;
         let id = self.ids.invitation();
         tx.insert_invitation(
             id,
@@ -168,7 +168,7 @@ impl Invitations {
         {
             return Err(Error::Forbidden);
         }
-        tx.consume_proof(actor, "revoke_invitation", id.into_uuid(), proof)
+        tx.consume_proof(actor, ProofPurpose::RevokeInvitation(id), proof)
             .await?;
         tx.revoke_invitation(id).await?;
         tx.audit(actor, "invitation.revoked", id.into_uuid())

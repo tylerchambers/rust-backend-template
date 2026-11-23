@@ -1,6 +1,7 @@
 use crate::{
     Actor,
     authority::{AuthorityMutation, TenantAuthority},
+    reauthentication::ProofPurpose,
     transaction::TenantTransaction,
 };
 use async_trait::async_trait;
@@ -73,7 +74,7 @@ impl Memberships {
         }) {
             return Err(Error::Forbidden);
         }
-        tx.consume_proof(actor, "remove_member", user.into_uuid(), proof)
+        tx.consume_proof(actor, ProofPurpose::RemoveMember(user), proof)
             .await?;
         if old == Role::Owner && tx.owner_count().await? <= 1 {
             return Err(Error::Conflict);
@@ -110,7 +111,7 @@ impl Memberships {
         if !caller.allows(permission) {
             return Err(Error::Forbidden);
         }
-        tx.consume_proof(actor, "change_role", user.into_uuid(), proof)
+        tx.consume_proof(actor, ProofPurpose::ChangeRole(user), proof)
             .await?;
         if old == Role::Owner && role != Role::Owner && tx.owner_count().await? <= 1 {
             return Err(Error::Conflict);

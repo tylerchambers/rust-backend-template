@@ -9,7 +9,7 @@
 | `BIND_ADDRESS` | Listener; default `127.0.0.1:8080`. |
 | `ENVIRONMENT` | `development` alone allows loopback HTTP/capture. Other values retain production restrictions. |
 | `MAIL_MODE` | `smtp` in production; `capture` only for local development. |
-| `SMTP_HOST`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM` | Production SMTP on port 587, required verified STARTTLS. Credentials stay in deployment secrets, never Git/logs. |
+| `SMTP_HOST`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM` | Production SMTP on port 587 with verified STARTTLS. API and worker reject an invalid sender mailbox at startup. Credentials stay in deployment secrets, never Git/logs. |
 | `SMTP_PORT` | Development loopback capture port; default 1025. |
 | `REDIS_URL` | Optional; omit to use PostgreSQL-only authority and rate limits. |
 
@@ -29,9 +29,10 @@ There are no destructive down migrations. A contract/drop migration requires a n
 
 ## Authentication and incident response
 
-- Login links: 256-bit random token, SHA-256 persistence, ten-minute TTL, atomic one-time consumption. Tokens travel in URL fragments, never request queries. Inert GET plus explicit CSRF-protected POST.
-- Reauthentication: five-minute action/user/session/tenant/target binding, consumed atomically with the privileged mutation. A recent login alone does not authorize it.
-- Sessions: seven-day absolute and thirty-minute idle expiry. Rotation retires the old authentication token but preserves a revocation-only lineage handle. List, revoke an owned session, revoke all, or log out. Disabled users cannot authenticate.
+- Confirmation pages clear link fragments from browser history. Opening a replacement link in the same tab selects the new link; only the confirmation button submits or reveals it.
+- Login links: 256-bit random token, SHA-256 persistence, ten-minute TTL, atomic one-time consumption. GET is inert; sign-in requires an explicit CSRF-protected POST.
+- Reauthentication: five-minute action/user/session/tenant/target binding, consumed atomically with the privileged mutation. For an invitation to join, the target must equal the organization ID. Consuming a proof releases its outstanding-proof slot.
+- Sessions: seven-day absolute and thirty-minute idle expiry. Rotation retires the old authentication token but preserves a revocation-only lineage handle. Account-wide revocation checks the current credential in the same transaction that retires sessions. Subsequent revocations preserve the original revocation time and do not duplicate the audit event. Disabled users cannot authenticate.
 - Rate limits: PostgreSQL normalized-email issuance bucket (five per fifteen minutes), source bucket across auth initiation/confirmation/reauthentication (120 per fifteen minutes), five outstanding fresh proofs per user. Configured Redis adds a fail-closed distributed limiter. Unknown tokens have no trustworthy mailbox identity; source admission bounds those confirmations without exposing an account lookup.
 - On suspected mailbox compromise, disable the user through a reviewed deployment/database operation and revoke sessions. No recovery endpoint, email-change flow or alternate credential can bypass mailbox ownership. Session theft permits ordinary operations until expiry/revocation, but not proof-bound membership changes.
 

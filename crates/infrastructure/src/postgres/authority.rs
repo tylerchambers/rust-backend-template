@@ -51,6 +51,7 @@ pub(crate) async fn live_email(
 use super::transaction::TenantWork;
 use application::authority::AuthorityMutation;
 use application::authority::TenantAuthority;
+use application::reauthentication::ProofPurpose;
 use async_trait::async_trait;
 use domain::UserId;
 use domain::{OrganizationId, Role};
@@ -108,11 +109,9 @@ impl AuthorityMutation for TenantWork {
     async fn consume_proof(
         &mut self,
         actor: &Actor,
-        action: &str,
-        target: Uuid,
+        purpose: ProofPurpose,
         token: &str,
     ) -> Result<(), Error> {
-        self.consume_proof_record(actor, action, target, token)
-            .await
+        self.consume_proof_record(actor, purpose, token).await
     }
 }

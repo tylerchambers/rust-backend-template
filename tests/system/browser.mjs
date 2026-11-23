@@ -12,6 +12,12 @@ const browser = await chromium.launch({ headless: true });
 try {
 	const context = await browser.newContext();
 	const page = await context.newPage();
+	const openReplacement = async (tab, fragment) => {
+		await tab.evaluate((value) => {
+			location.hash = value;
+		}, fragment);
+		await tab.waitForFunction(() => location.hash === "");
+	};
 	await page.goto("http://localhost:58039/v1/auth/confirmation");
 	const email = `${randomUUID()}@example.test`;
 	const requested = await page.evaluate(async (email) => {
@@ -62,6 +68,8 @@ try {
 	const response = await confirmationResponse;
 	assert.equal(response.status(), 200);
 	await page.getByText("Signed in", { exact: true }).waitFor();
+	await openReplacement(page, "another-login-link");
+	assert.equal(await page.locator("#result").textContent(), "");
 	assert.equal(
 		(
 			await page.request.get("http://localhost:58039/v1/auth/sessions")
@@ -127,9 +135,9 @@ try {
 	).json();
 	const proof = /confirmation#([a-f0-9]{64})/.exec(proofContent.Text)?.[1];
 	assert.ok(proof);
-	await page.goto(
-		`http://localhost:58039/v1/auth/reauth/confirmation#${proof}`,
-	);
+	await page.goto("http://localhost:58039/v1/auth/reauth/confirmation#first");
+	await page.waitForFunction(() => location.hash === "");
+	await openReplacement(page, proof);
 	assert.equal(await page.locator("#proof").textContent(), "");
 	assert.equal(
 		(await post(invitePath, { email: invitee, role: "viewer", proof }, false))
@@ -140,6 +148,8 @@ try {
 		.getByRole("button", { name: "Confirm and reveal proof", exact: true })
 		.click();
 	assert.equal(await page.locator("#proof").textContent(), proof);
+	await openReplacement(page, "another-proof");
+	assert.equal(await page.locator("#proof").textContent(), "");
 	const invitation = await post(invitePath, {
 		email: invitee,
 		role: "viewer",
@@ -179,7 +189,16 @@ try {
 			invitationText,
 		)?.[0];
 	assert.ok(invitationLink);
-	await page.goto(invitationLink);
+	const inviteUrl = new URL(invitationLink);
+	let acceptRequests = 0;
+	page.on("request", (request) => {
+		if (request.method() === "POST" && request.url().endsWith("/accept"))
+			acceptRequests++;
+	});
+	await page.goto(`${inviteUrl.origin}${inviteUrl.pathname}#first:first:first`);
+	await page.waitForFunction(() => location.hash === "");
+	await openReplacement(page, inviteUrl.hash);
+	assert.equal(await page.locator("#result").textContent(), "");
 	await otherTab.goto("http://localhost:58039/v1/auth/confirmation");
 	assert.equal(
 		(await post("/v1/auth/request", { email: invitee })).status,
@@ -196,6 +215,7 @@ try {
 		.getByRole("button", { name: "Confirm sign in", exact: true })
 		.click();
 	await otherTab.getByText("Signed in", { exact: true }).waitFor();
+	assert.equal(acceptRequests, 0);
 	const accepted = page.waitForResponse((response) =>
 		response.url().endsWith(`/invitations/${invitationId}/accept`),
 	);
@@ -203,6 +223,10 @@ try {
 		.getByRole("button", { name: "Accept invitation", exact: true })
 		.click();
 	assert.equal((await accepted).status(), 204);
+	await page.getByText("Accepted", { exact: true }).waitFor();
+	assert.equal(acceptRequests, 1);
+	await openReplacement(page, "another:invitation:link");
+	assert.equal(await page.locator("#result").textContent(), "");
 	const memberships = await (
 		await page.request.get("http://localhost:58039/v1/organizations")
 	).json();

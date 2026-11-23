@@ -151,8 +151,8 @@ impl IdentityRepository for Database {
     async fn revoke_session(&self, actor: &Actor, session: SessionId) -> Result<(), Error> {
         self.session_revoke_session(actor, session).await
     }
-    async fn revoke_all(&self, actor: &Actor) -> Result<(), Error> {
-        self.session_revoke_all(actor).await
+    async fn revoke_all(&self, token: &str) -> Result<(), Error> {
+        self.session_revoke_all(token).await
     }
 }
 
