@@ -4,17 +4,87 @@ use crate::{
     error::{ApiError, ErrorBody},
     memberships::role,
     openapi::role_schema,
+    pagination::UuidCursor,
     state::State,
 };
+use application::administration::InvitationStatus;
 use axum::{
     Json,
-    extract::{Path, State as Extract},
+    extract::{Path, Query, State as Extract},
     http::{HeaderMap, StatusCode, header},
     response::{Html, IntoResponse, Response},
 };
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
+
+#[derive(Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum InvitationStatusResponse {
+    Pending,
+    Accepted,
+    Revoked,
+    Expired,
+}
+
+impl From<InvitationStatus> for InvitationStatusResponse {
+    fn from(status: InvitationStatus) -> Self {
+        match status {
+            InvitationStatus::Pending => Self::Pending,
+            InvitationStatus::Accepted => Self::Accepted,
+            InvitationStatus::Revoked => Self::Revoked,
+            InvitationStatus::Expired => Self::Expired,
+        }
+    }
+}
+
+#[derive(Serialize, ToSchema)]
+pub struct InvitationSummaryResponse {
+    id: Uuid,
+    email: String,
+    #[schema(schema_with = role_schema)]
+    role: domain::Role,
+    status: InvitationStatusResponse,
+    expires_at: DateTime<Utc>,
+}
+
+#[utoipa::path(
+    get,
+    path="/v1/organizations/{organization}/invitations",
+    params(
+        ("organization"=Uuid,Path),
+        ("after"=Option<Uuid>,Query,description="Exclusive invitation ID cursor. Up to 50 rows in ascending ID order; continue with the last ID until empty."),
+    ),
+    security(("session"=[])),
+    responses(
+        (status="default",description="Stable JSON error envelope, including transport, authentication, authorization and availability failures",body=ErrorBody),
+        (status=200,body=Vec<InvitationSummaryResponse>),
+    )
+)]
+pub(crate) async fn list_invitations(
+    Extract(state): Extract<State>,
+    Path(org): Path<Uuid>,
+    Query(page): Query<UuidCursor>,
+    headers: HeaderMap,
+) -> Result<Json<Vec<InvitationSummaryResponse>>, ApiError> {
+    let actor = actor(&state, &headers).await?;
+    Ok(Json(
+        state
+            .administration
+            .invitations(&actor, org.into(), page.after.map(Into::into))
+            .await?
+            .into_iter()
+            .map(|row| InvitationSummaryResponse {
+                id: row.id.into_uuid(),
+                email: row.email,
+                role: row.role,
+                status: row.status.into(),
+                expires_at: row.expires_at,
+            })
+            .collect(),
+    ))
+}
 
 #[derive(Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]

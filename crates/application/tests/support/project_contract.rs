@@ -20,6 +20,12 @@ pub async fn project_contract(
         .unwrap();
     assert_eq!(renamed.version, 2);
     assert_eq!(renamed.name, "Renamed");
+    let detail = service.get(owner, org, created.id).await.unwrap();
+    assert_eq!(detail.id, created.id);
+    assert_eq!(detail.organization_id, org);
+    assert_eq!(detail.name, renamed.name);
+    assert_eq!(detail.version, renamed.version);
+    assert_eq!(detail.archived, renamed.archived);
     assert!(matches!(
         service
             .rename(owner, org, created.id, 1, "Stale".into())

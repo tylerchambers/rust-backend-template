@@ -552,6 +552,41 @@
         }
       }
     },
+    "/v1/me": {
+      "get": {
+        "tags": [
+          "authentication"
+        ],
+        "operationId": "get_me",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CurrentAccountResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable JSON error envelope, including transport, authentication, authorization and availability failures",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ]
+      }
+    },
     "/v1/organizations": {
       "get": {
         "tags": [
@@ -665,7 +700,123 @@
         ]
       }
     },
+    "/v1/organizations/{organization}/audit-events": {
+      "get": {
+        "tags": [
+          "audit_events"
+        ],
+        "operationId": "list_audit_events",
+        "parameters": [
+          {
+            "name": "organization",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "description": "Exclusive event ID cursor. Up to 50 rows in ascending ID order, not commit order; continue with the last ID until empty.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AuditEventResponse"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable JSON error envelope, including transport, authentication, authorization and availability failures",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ]
+      }
+    },
     "/v1/organizations/{organization}/invitations": {
+      "get": {
+        "tags": [
+          "invitations"
+        ],
+        "operationId": "list_invitations",
+        "parameters": [
+          {
+            "name": "organization",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "description": "Exclusive invitation ID cursor. Up to 50 rows in ascending ID order; continue with the last ID until empty.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/InvitationSummaryResponse"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable JSON error envelope, including transport, authentication, authorization and availability failures",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ]
+      },
       "post": {
         "tags": [
           "invitations"
@@ -872,6 +1023,65 @@
         "responses": {
           "204": {
             "description": ""
+          },
+          "default": {
+            "description": "Stable JSON error envelope, including transport, authentication, authorization and availability failures",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ]
+      }
+    },
+    "/v1/organizations/{organization}/member-directory": {
+      "get": {
+        "tags": [
+          "memberships"
+        ],
+        "operationId": "list_member_directory",
+        "parameters": [
+          {
+            "name": "organization",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "description": "Exclusive user ID cursor. Up to 50 rows in ascending user ID order; continue with the last user ID until empty.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DirectoryMemberResponse"
+                  }
+                }
+              }
+            }
           },
           "default": {
             "description": "Stable JSON error envelope, including transport, authentication, authorization and availability failures",
@@ -1234,6 +1444,59 @@
       }
     },
     "/v1/organizations/{organization}/projects/{project}": {
+      "get": {
+        "tags": [
+          "projects"
+        ],
+        "operationId": "get_project",
+        "parameters": [
+          {
+            "name": "organization",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "project",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable JSON error envelope, including transport, authentication, authorization and availability failures",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ]
+      },
       "patch": {
         "tags": [
           "projects"
@@ -1341,6 +1604,37 @@
         },
         "additionalProperties": false
       },
+      "AuditEventResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "actor_id",
+          "action",
+          "subject",
+          "occurred_at"
+        ],
+        "properties": {
+          "action": {
+            "type": "string"
+          },
+          "actor_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "subject": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
       "ChangeMemberRoleRequest": {
         "type": "object",
         "required": [
@@ -1386,6 +1680,48 @@
           }
         },
         "additionalProperties": false
+      },
+      "CurrentAccountResponse": {
+        "type": "object",
+        "required": [
+          "user_id",
+          "email"
+        ],
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "user_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "DirectoryMemberResponse": {
+        "type": "object",
+        "required": [
+          "user_id",
+          "email",
+          "role"
+        ],
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "owner",
+              "admin",
+              "member",
+              "viewer"
+            ]
+          },
+          "user_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
       },
       "ErrorBody": {
         "type": "object",
@@ -1445,6 +1781,50 @@
           "id": {
             "type": "string",
             "format": "uuid"
+          }
+        }
+      },
+      "InvitationStatusResponse": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "accepted",
+          "revoked",
+          "expired"
+        ]
+      },
+      "InvitationSummaryResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "email",
+          "role",
+          "status",
+          "expires_at"
+        ],
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "owner",
+              "admin",
+              "member",
+              "viewer"
+            ]
+          },
+          "status": {
+            "$ref": "#/components/schemas/InvitationStatusResponse"
           }
         }
       },

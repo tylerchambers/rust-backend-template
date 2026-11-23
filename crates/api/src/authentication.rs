@@ -32,6 +32,39 @@ pub struct IdentityResponse {
     user_id: Uuid,
 }
 
+#[derive(Serialize, ToSchema)]
+pub struct CurrentAccountResponse {
+    user_id: Uuid,
+    email: String,
+}
+
+#[utoipa::path(
+    get,
+    path="/v1/me",
+    security(("session"=[])),
+    responses(
+        (status="default",description="Stable JSON error envelope, including transport, authentication, authorization and availability failures",body=ErrorBody),
+        (status=200,body=CurrentAccountResponse),
+    )
+)]
+pub(crate) async fn get_me(
+    Extract(state): Extract<State>,
+    headers: HeaderMap,
+) -> Result<Json<CurrentAccountResponse>, ApiError> {
+    let account = state
+        .auth
+        .current_account(
+            cookie(&headers, "__Host-session")
+                .as_deref()
+                .ok_or(Error::Unauthenticated)?,
+        )
+        .await?;
+    Ok(Json(CurrentAccountResponse {
+        user_id: account.user_id.into_uuid(),
+        email: account.email,
+    }))
+}
+
 #[utoipa::path(
     post,
     path="/v1/auth/request",

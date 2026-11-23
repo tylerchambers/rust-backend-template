@@ -70,6 +70,7 @@ fn test_app(db: &Arc<Database>, proof_mail: Arc<ProofMailbox>) -> axum::Router {
             proof_mail,
             secrets,
         )),
+        Arc::new(application::administration::Administration::new(db.clone())),
     );
     api::router(state).layer(axum::Extension(axum::extract::ConnectInfo(
         std::net::SocketAddr::new(

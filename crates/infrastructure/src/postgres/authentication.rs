@@ -1,6 +1,6 @@
 use super::Database;
 use application::Actor;
-use application::authentication::IdentityRepository;
+use application::authentication::{CurrentAccount, IdentityRepository};
 use async_trait::async_trait;
 use domain::{Error, SessionId};
 use sha2::{Digest, Sha256};
@@ -134,6 +134,9 @@ impl IdentityRepository for Database {
     }
     async fn authenticate(&self, token: &str) -> Result<Actor, Error> {
         self.session_authenticate(token).await
+    }
+    async fn current_account(&self, token: &str) -> Result<CurrentAccount, Error> {
+        self.session_current_account(token).await
     }
     async fn revoke(&self, token: &str) -> Result<(), Error> {
         self.session_revoke(token).await

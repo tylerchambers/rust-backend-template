@@ -134,6 +134,21 @@ impl Projects {
         }
         Ok(project)
     }
+    /// Load one project within the caller's organization.
+    ///
+    /// # Errors
+    /// Rejects insufficient authority or a missing project; propagates transaction errors.
+    pub async fn get(
+        &self,
+        actor: &Actor,
+        org: OrganizationId,
+        id: ProjectId,
+    ) -> Result<Project, Error> {
+        let mut tx = self.authorized(actor, org, Permission::ReadProject).await?;
+        let project = tx.load_project(id).await?;
+        tx.commit().await?;
+        Ok(project)
+    }
     /// List one project page after checking current tenant membership.
     ///
     /// # Errors

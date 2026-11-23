@@ -1,6 +1,7 @@
 //! Application workflows and their consumer-owned capabilities.
 
 pub mod actor;
+pub mod administration;
 pub mod authentication;
 pub mod authority;
 pub mod clock;

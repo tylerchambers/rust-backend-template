@@ -1,11 +1,11 @@
 use crate::{
-    authentication, invitations, memberships, metrics, middleware, openapi::openapi, organizations,
-    projects, reauthentication, sessions, state::State,
+    audit_events, authentication, invitations, memberships, metrics, middleware, openapi::openapi,
+    organizations, projects, reauthentication, sessions, state::State,
 };
 use axum::{
     Router,
     http::{StatusCode, header},
-    routing::{get, patch, post},
+    routing::{get, post},
 };
 
 pub fn router(state: State) -> Router {
@@ -20,6 +20,7 @@ pub(crate) fn routes() -> Router<State> {
             "/openapi.json",
             get(|| async { ([(header::CONTENT_TYPE, "application/json")], openapi()) }),
         )
+        .route("/v1/me", get(authentication::get_me))
         .route("/v1/auth/request", post(authentication::request_login))
         .route("/v1/auth/confirm", post(authentication::confirm))
         .route("/v1/auth/confirmation", get(authentication::confirmation))
@@ -44,8 +45,12 @@ pub(crate) fn routes() -> Router<State> {
         .route("/v1/auth/sessions/rotate", post(sessions::rotate))
         .route("/v1/auth/sessions/revoke-all", post(sessions::revoke_all))
         .route(
+            "/v1/organizations/{organization}/audit-events",
+            get(audit_events::list_audit_events),
+        )
+        .route(
             "/v1/organizations/{organization}/invitations",
-            post(invitations::invite),
+            get(invitations::list_invitations).post(invitations::invite),
         )
         .route(
             "/v1/organizations/{organization}/invitations/{invitation}/accept",
@@ -72,11 +77,15 @@ pub(crate) fn routes() -> Router<State> {
             get(memberships::list_members),
         )
         .route(
+            "/v1/organizations/{organization}/member-directory",
+            get(memberships::list_member_directory),
+        )
+        .route(
             "/v1/organizations/{organization}/projects",
             get(projects::list_projects).post(projects::create_project),
         )
         .route(
             "/v1/organizations/{organization}/projects/{project}",
-            patch(projects::rename_project),
+            get(projects::get_project).patch(projects::rename_project),
         )
 }

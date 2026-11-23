@@ -4,8 +4,8 @@
 )]
 use crate::State;
 use application::{
-    Authentication, Organizations, Projects, invitations::Invitations, memberships::Memberships,
-    reauthentication::Reauthentication,
+    Authentication, Organizations, Projects, administration::Administration,
+    invitations::Invitations, memberships::Memberships, reauthentication::Reauthentication,
 };
 use axum::{
     Router,
@@ -84,7 +84,8 @@ fn test_state() -> State {
             ids,
             Arc::new(infrastructure::system::SystemClock),
         )),
-        Arc::new(Reauthentication::new(db, mail, secrets)),
+        Arc::new(Reauthentication::new(db.clone(), mail, secrets)),
+        Arc::new(Administration::new(db)),
     )
 }
 

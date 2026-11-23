@@ -1,7 +1,7 @@
 use crate::metrics::HttpMetrics;
 use application::{
-    Authentication, Organizations, Projects, Secrets, invitations::Invitations,
-    memberships::Memberships, reauthentication::Reauthentication,
+    Authentication, Organizations, Projects, Secrets, administration::Administration,
+    invitations::Invitations, memberships::Memberships, reauthentication::Reauthentication,
 };
 use prometheus_client::registry::Registry;
 use std::sync::Arc;
@@ -17,6 +17,7 @@ pub struct State {
     pub(crate) invitations: Arc<Invitations>,
     pub(crate) memberships: Arc<Memberships>,
     pub(crate) reauthentication: Arc<Reauthentication>,
+    pub(crate) administration: Arc<Administration>,
 }
 impl State {
     /// Register this application's instruments in the composition root's registry.
@@ -37,6 +38,7 @@ impl State {
         memberships: Arc<Memberships>,
         invitations: Arc<Invitations>,
         reauthentication: Arc<Reauthentication>,
+        administration: Arc<Administration>,
     ) -> Self {
         Self {
             metrics: Arc::new(HttpMetrics::default()),
@@ -48,6 +50,7 @@ impl State {
             memberships,
             invitations,
             reauthentication,
+            administration,
         }
     }
 }

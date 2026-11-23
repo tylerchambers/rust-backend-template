@@ -106,6 +106,29 @@ pub(crate) async fn list_projects(
 }
 
 #[utoipa::path(
+    get,
+    path="/v1/organizations/{organization}/projects/{project}",
+    params(
+        ("organization"=Uuid,Path),
+        ("project"=Uuid,Path),
+    ),
+    security(("session"=[])),
+    responses(
+        (status="default",description="Stable JSON error envelope, including transport, authentication, authorization and availability failures",body=ErrorBody),
+        (status=200,body=ProjectResponse),
+    )
+)]
+pub(crate) async fn get_project(
+    Extract(state): Extract<State>,
+    Path((org, id)): Path<(Uuid, Uuid)>,
+    headers: HeaderMap,
+) -> Result<Json<ProjectResponse>, ApiError> {
+    let actor = actor(&state, &headers).await?;
+    let project = state.projects.get(&actor, org.into(), id.into()).await?;
+    Ok(Json(project.into()))
+}
+
+#[utoipa::path(
     patch,
     path="/v1/organizations/{organization}/projects/{project}",
     params(
