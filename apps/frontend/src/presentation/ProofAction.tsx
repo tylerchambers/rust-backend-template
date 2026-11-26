@@ -2,14 +2,13 @@ import {
 	Alert,
 	Button,
 	Group,
-	Paper,
+	Modal,
 	Stack,
 	Text,
 	TextInput,
-	Title,
 } from "@mantine/core";
 import { useMutation } from "@tanstack/react-query";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { useBackend } from "../application/backend";
 import {
 	requestTeamProof,
@@ -25,6 +24,10 @@ type Props = TeamProofRequest & {
 	onCancel: () => void;
 };
 
+function focusProof(input: HTMLInputElement | null): void {
+	input?.focus();
+}
+
 export function ProofAction({
 	organizationId,
 	action,
@@ -36,6 +39,20 @@ export function ProofAction({
 	onCancel,
 }: Props): React.JSX.Element {
 	const client = useBackend();
+	const [opener] = useState(() => document.activeElement);
+	// The dialog unmounts on close rather than toggling `opened`.
+	useEffect(
+		() => () => {
+			if (
+				opener instanceof HTMLElement &&
+				opener.isConnected &&
+				document.activeElement === document.body
+			) {
+				opener.focus({ preventScroll: true });
+			}
+		},
+		[opener],
+	);
 	const [submitting, setSubmitting] = useState(false);
 	const [error, setError] = useState("");
 	const request = useMutation({
@@ -64,22 +81,37 @@ export function ProofAction({
 		}
 		onSuccess();
 	}
+	const busy = submitting || request.isPending;
+	const destructive =
+		action === "remove_member" || action === "revoke_invitation";
 	return (
-		<Paper withBorder p="md" component="section">
-			<Stack gap="sm">
-				<Title order={3}>{label}</Title>
+		<Modal
+			opened
+			onClose={onCancel}
+			title={label}
+			withCloseButton={false}
+			closeOnEscape={!busy}
+			closeOnClickOutside={!busy}
+		>
+			<Stack gap="sm" style={{ overflowWrap: "anywhere" }}>
 				<Text>{description}</Text>
-				<Text size="sm" c="dimmed" style={{ overflowWrap: "anywhere" }}>
-					Organization: {organizationId}
-					{target !== organizationId && <> · Target: {target}</>}
-				</Text>
+				<div>
+					<Text size="sm" c="dimmed">
+						Organization: {organizationId}
+					</Text>
+					{target !== organizationId && (
+						<Text size="sm" c="dimmed">
+							Target: {target}
+						</Text>
+					)}
+				</div>
 				{request.isSuccess ? (
 					<form onSubmit={confirm}>
 						<Stack gap="sm">
-							<Text size="sm">
-								Open the confirmation email in this browser. Check the action
-								and target, choose “Confirm and reveal proof”, then paste the
-								proof here. It expires after five minutes.
+							<Text size="sm" role="status">
+								Open the email in this browser. Check the action and target, then
+								choose "Confirm and reveal proof". Paste the proof within five
+								minutes.
 							</Text>
 							<TextInput
 								name="proof"
@@ -89,27 +121,39 @@ export function ProofAction({
 								spellCheck={false}
 								required
 								disabled={submitting}
+								ref={focusProof}
 							/>
 							{error && (
 								<Alert color="red" title="Action not confirmed">
-									{error} If the proof expired or was already used, request a
-									new one.
+									{error} Request a new proof if yours has expired or been used.
 								</Alert>
 							)}
-							<Group>
-								<Button type="submit" loading={submitting}>
+							<Group gap="sm">
+								<Button
+									type="submit"
+									{...(destructive && { variant: "subtle", color: "red" })}
+									loading={submitting}
+								>
 									{label}
 								</Button>
 								<Button
 									type="button"
-									variant="subtle"
+									variant="default"
 									disabled={submitting}
 									onClick={() => {
-										request.reset();
 										setError("");
+										request.mutate();
 									}}
 								>
-									Use a new proof
+									Email a new proof
+								</Button>
+								<Button
+									type="button"
+									variant="default"
+									disabled={submitting}
+									onClick={onCancel}
+								>
+									Cancel
 								</Button>
 							</Group>
 						</Stack>
@@ -121,24 +165,25 @@ export function ProofAction({
 								{workspaceError(request.error)}
 							</Alert>
 						)}
-						<Button
-							style={{ alignSelf: "start" }}
-							loading={request.isPending}
-							onClick={() => request.mutate()}
-						>
-							Email me a proof
-						</Button>
+						<Group gap="sm">
+							<Button
+								data-autofocus
+								loading={request.isPending}
+								onClick={() => request.mutate()}
+							>
+								Email me a proof
+							</Button>
+							<Button
+								variant="default"
+								disabled={request.isPending}
+								onClick={onCancel}
+							>
+								Cancel
+							</Button>
+						</Group>
 					</>
 				)}
-				<Button
-					variant="default"
-					style={{ alignSelf: "start" }}
-					disabled={submitting || request.isPending}
-					onClick={onCancel}
-				>
-					Cancel
-				</Button>
 			</Stack>
-		</Paper>
+		</Modal>
 	);
 }

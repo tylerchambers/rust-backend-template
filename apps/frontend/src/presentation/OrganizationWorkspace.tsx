@@ -1,6 +1,5 @@
 import {
 	Alert,
-	Badge,
 	Button,
 	Group,
 	Stack,
@@ -35,7 +34,7 @@ function OrganizationView({
 			<Alert color="red" title="Could not load organization">
 				<Text>{workspaceError(organizations.error)}</Text>
 				<Button
-					variant="light"
+					variant="default"
 					mt="sm"
 					onClick={() =>
 						void (organizations.isFetchNextPageError
@@ -53,13 +52,13 @@ function OrganizationView({
 	if (!org && organizations.hasNextPage)
 		return (
 			<Stack align="start">
-				<Text>This organization is not on the loaded pages.</Text>
+				<Text c="dimmed">Organization not found on this page.</Text>
 				<Button
-					variant="light"
+					variant="default"
 					loading={organizations.isFetchingNextPage}
 					onClick={() => void organizations.fetchNextPage()}
 				>
-					Search next page of organizations
+					Search next page
 				</Button>
 			</Stack>
 		);
@@ -72,10 +71,8 @@ function OrganizationTabs({ org }: { org: Organization }): React.JSX.Element {
 	return (
 		<>
 			<Group gap="sm">
-				<Title order={1} style={{ overflowWrap: "anywhere" }}>
-					{org.name}
-				</Title>
-				<Badge variant="light">{org.role}</Badge>
+				<Title order={1}>{org.name}</Title>
+				<Text c="dimmed">{org.role}</Text>
 			</Group>
 			<Tabs key={org.role} defaultValue="projects" keepMounted={false}>
 				<Tabs.List aria-label="Organization sections">
@@ -115,7 +112,9 @@ export function OrganizationWorkspace({
 }): React.JSX.Element {
 	return (
 		<Stack gap="lg">
-			<Link to="/">All organizations</Link>
+			<nav aria-label="Organization navigation">
+				<Link to="/">Organizations</Link>
+			</nav>
 			{organizationId === null ? (
 				<Title order={1}>Invalid organization link</Title>
 			) : (

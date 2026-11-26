@@ -2,8 +2,6 @@ import {
 	Alert,
 	Button,
 	Group,
-	Loader,
-	Paper,
 	Stack,
 	Text,
 	TextInput,
@@ -21,10 +19,9 @@ import { Sessions } from "./Sessions";
 
 function SessionStatus({ text }: { text: string }): React.JSX.Element {
 	return (
-		<Group role="status" justify="center" gap="sm" py="xl">
-			<Loader size="sm" />
-			<Text c="dimmed">{text}</Text>
-		</Group>
+		<Text role="status" c="dimmed">
+			{text}
+		</Text>
 	);
 }
 
@@ -42,94 +39,64 @@ function SignIn({ checking, recheck }: SessionCheck): React.JSX.Element {
 	}
 
 	return (
-		<Paper
-			withBorder
-			shadow="xs"
-			radius="lg"
-			maw={480}
-			mx="auto"
-			my="xl"
-			p="xl"
-		>
-			<Stack gap="lg">
-				<Stack gap={6}>
-					<Text c="teal" size="xs" fw={700} tt="uppercase" lts="0.08em">
-						Account access
+		<Stack className="entry-form" gap="lg">
+			<Title order={1}>
+				{request.isSuccess ? "Check your inbox" : "Sign in"}
+			</Title>
+			{request.isSuccess ? (
+				<Stack gap="sm">
+					<Text role="status">
+						Open the sign-in link sent to <strong>{request.variables}</strong>.
 					</Text>
-					<Title order={1} size="h2">
-						{request.isSuccess
-							? "Check your inbox"
-							: "Sign in to your workspace"}
-					</Title>
-					{request.isSuccess ? (
-						<Text c="dimmed" role="status" style={{ overflowWrap: "anywhere" }}>
-							Open the link sent to <strong>{request.variables}</strong> and
-							choose <strong>Confirm sign in</strong>. Your workspace will open
-							in the same tab as the link.
-						</Text>
-					) : (
-						<Text c="dimmed">
-							Enter your email and we’ll send you a one-time sign-in link. No
-							password needed.
-						</Text>
-					)}
-				</Stack>
-				{request.isSuccess ? (
-					<Stack gap="xs">
+					<Group gap="sm">
 						<Button onClick={recheck} loading={checking}>
 							Check session
 						</Button>
-						<Button variant="subtle" onClick={() => request.reset()}>
+						<Button variant="default" onClick={() => request.reset()}>
 							Use a different email
 						</Button>
-					</Stack>
-				) : (
-					<>
-						<form onSubmit={submit}>
-							<Stack gap="md">
-								<TextInput
-									label="Email address"
-									placeholder="you@example.com"
-									name="email"
-									type="email"
-									required
-									maxLength={254}
-									autoComplete="email"
-									autoCapitalize="none"
-									spellCheck={false}
-									disabled={request.isPending}
-								/>
-								{request.isError && (
-									<Alert title="Sign-in link not requested" color="red">
-										{authenticationMessage(request.error)}
-									</Alert>
-								)}
-								<Button
-									type="submit"
-									loading={request.isPending}
-									disabled={checking}
-								>
-									Send sign-in link
-								</Button>
-							</Stack>
-						</form>
-						<Group justify="space-between" gap="xs">
-							<Text size="sm" c="dimmed">
-								Already confirmed your link?
-							</Text>
+					</Group>
+				</Stack>
+			) : (
+				<form onSubmit={submit}>
+					<Stack gap="sm">
+						<TextInput
+							label="Email address"
+							name="email"
+							type="email"
+							required
+							maxLength={254}
+							autoComplete="email"
+							autoCapitalize="none"
+							spellCheck={false}
+							disabled={request.isPending}
+						/>
+						{request.isError && (
+							<Alert title="Could not request a sign-in link" color="red">
+								{authenticationMessage(request.error)}
+							</Alert>
+						)}
+						<Group gap="sm">
 							<Button
-								size="xs"
-								variant="subtle"
+								type="submit"
+								loading={request.isPending}
+								disabled={checking}
+							>
+								Send sign-in link
+							</Button>
+							<Button
+								type="button"
+								variant="default"
 								onClick={recheck}
 								loading={checking}
 							>
 								Check session
 							</Button>
 						</Group>
-					</>
-				)}
-			</Stack>
-		</Paper>
+					</Stack>
+				</form>
+			)}
+		</Stack>
 	);
 }
 
@@ -160,46 +127,27 @@ function AccountWorkspace({
 			)}
 			<div hidden={verifying}>
 				<Stack gap="lg">
-					<Paper
-						component="section"
-						aria-label="Account"
-						withBorder
-						radius="md"
-						px="lg"
-						py="sm"
-					>
-						<Group justify="space-between" gap="sm">
-							<Stack gap={0} miw={0}>
-								<Text size="xs" c="dimmed">
-									Signed in as
-								</Text>
-								<Text size="sm" fw={600} style={{ overflowWrap: "anywhere" }}>
-									{account.email}
-								</Text>
-							</Stack>
-							<Group gap="xs">
+					<section aria-label="Account">
+						<div className="record-row">
+							<Text>{account.email}</Text>
+							<Group gap="sm">
 								<Button
-									variant="subtle"
-									size="xs"
+									variant="default"
 									aria-expanded={sessionsOpen}
 									aria-controls={sessionsOpen ? "account-sessions" : undefined}
 									onClick={() => setSessionsOpen((open) => !open)}
 								>
 									{sessionsOpen ? "Hide sessions" : "Manage sessions"}
 								</Button>
-								<Button variant="subtle" size="xs" onClick={recheck}>
+								<Button variant="default" onClick={recheck}>
 									Check session
 								</Button>
-								<Button
-									variant="default"
-									size="xs"
-									onClick={() => logout.mutate()}
-								>
+								<Button variant="default" onClick={() => logout.mutate()}>
 									Sign out
 								</Button>
 							</Group>
-						</Group>
-					</Paper>
+						</div>
+					</section>
 					{sessionsOpen && <Sessions />}
 					{logout.isError && (
 						<Alert color="red" title="Sign-out not confirmed">
@@ -227,7 +175,6 @@ export function SessionGate({
 				<Stack align="flex-start" gap="sm">
 					<Text size="sm">{authenticationMessage(identity.error)}</Text>
 					<Button
-						size="xs"
 						variant="default"
 						loading={identity.isFetching}
 						onClick={recheck}

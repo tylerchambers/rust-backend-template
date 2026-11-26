@@ -1,13 +1,10 @@
 import {
 	Alert,
-	Badge,
 	Button,
 	Group,
 	NativeSelect,
-	Paper,
 	Stack,
 	Text,
-	Title,
 } from "@mantine/core";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useState } from "react";
@@ -45,8 +42,8 @@ function MemberActions({
 	const [draft, setDraft] = useState<MemberChange | null>(null);
 	const label = member.email ?? member.userId;
 	const roles = grantableRoles(role, member.role);
-	if (!draft) {
-		return (
+	return (
+		<>
 			<Group align="end" gap="sm">
 				<NativeSelect
 					label="Change role"
@@ -60,7 +57,7 @@ function MemberActions({
 					}}
 				>
 					<option value="" disabled>
-						Select a new role
+						Select role
 					</option>
 					{roles.map((role) => (
 						<option key={role} value={role}>
@@ -69,39 +66,38 @@ function MemberActions({
 					))}
 				</NativeSelect>
 				<Button
-					variant="light"
+					variant="subtle"
 					color="red"
-					aria-label={`Remove ${label}`}
+					aria-label={`Remove member ${label}`}
 					onClick={() => setDraft({ action: "remove_member" })}
 				>
 					Remove member
 				</Button>
 			</Group>
-		);
-	}
-	const change = draft.action === "change_role";
-	return (
-		<ProofAction
-			organizationId={organizationId}
-			action={draft.action}
-			target={member.userId}
-			label={change ? "Change role" : "Remove member"}
-			description={
-				change
-					? `Change ${label} from ${member.role} to ${draft.role}? This signs them out of all sessions.`
-					: `Remove ${label} from this organization? They will lose access to its projects.`
-			}
-			submit={(proof) => changeMember(draft, proof)}
-			onSuccess={() => {
-				onSuccess(
-					change
-						? `Changed the role for ${label} to ${draft.role}.`
-						: `Removed ${label}.`,
-				);
-				setDraft(null);
-			}}
-			onCancel={() => setDraft(null)}
-		/>
+			{draft && (
+				<ProofAction
+					organizationId={organizationId}
+					action={draft.action}
+					target={member.userId}
+					label={draft.action === "change_role" ? "Change role" : "Remove member"}
+					description={
+						draft.action === "change_role"
+							? `Change ${label} from ${member.role} to ${draft.role}? This signs them out of all sessions.`
+							: `Remove ${label} from this organization? They will lose access to its projects.`
+					}
+					submit={(proof) => changeMember(draft, proof)}
+					onSuccess={() => {
+						onSuccess(
+							draft.action === "change_role"
+								? `Changed the role for ${label} to ${draft.role}.`
+								: `Removed ${label}.`,
+						);
+						setDraft(null);
+					}}
+					onCancel={() => setDraft(null)}
+				/>
+			)}
+		</>
 	);
 }
 
@@ -120,7 +116,9 @@ function OrganizationMembers({
 			aria-label="Organization members"
 			aria-busy={members.isFetching}
 		>
-			<Title order={2}>Members</Title>
+			{notice && !isWorkspaceUnavailableToUser(members.error) && (
+				<Text role="status">{notice}</Text>
+			)}
 			{members.isPending && <Text role="status">Loading members…</Text>}
 			{members.isError && (
 				<Alert
@@ -133,8 +131,7 @@ function OrganizationMembers({
 				>
 					<Text size="sm">{workspaceError(members.error)}</Text>
 					<Button
-						variant="light"
-						size="xs"
+						variant="default"
 						mt="sm"
 						loading={members.isFetching}
 						onClick={() => {
@@ -148,42 +145,22 @@ function OrganizationMembers({
 			)}
 			{rows && !isWorkspaceUnavailableToUser(members.error) && (
 				<>
-					{notice && <Text role="status">{notice}</Text>}
 					{rows.length === 0 ? (
 						<Text>No organization members.</Text>
 					) : (
-						<Stack
-							component="ul"
-							m={0}
-							p={0}
-							gap="xs"
-							style={{ listStyle: "none" }}
-						>
+						<ul className="record-list" aria-label="Members">
 							{rows.map((member) => {
 								const access = memberAccess(role, member.role, multipleOwners);
 								return (
-									<Paper
-										key={`${member.userId}:${member.role}`}
-										component="li"
-										withBorder
-										p="md"
-									>
-										<Stack gap="xs">
-											<Group>
-												<Text fw={600} style={{ overflowWrap: "anywhere" }}>
-													{member.email ?? member.userId}
+									<li key={`${member.userId}:${member.role}`}>
+										<div className="record-row">
+											<div>
+												<Text fw={600}>{member.email ?? member.userId}</Text>
+												<Text size="sm" c="dimmed">
+													{member.role}
+													{member.email && ` · ${member.userId}`}
 												</Text>
-												<Badge variant="light">{member.role}</Badge>
-											</Group>
-											{member.email && (
-												<Text
-													size="sm"
-													c="dimmed"
-													style={{ overflowWrap: "anywhere" }}
-												>
-													{member.userId}
-												</Text>
-											)}
+											</div>
 											{members.isSuccess && access === "editable" && (
 												<MemberActions
 													organizationId={organizationId}
@@ -199,16 +176,16 @@ function OrganizationMembers({
 														: "The organization must keep at least one owner."}
 												</Text>
 											)}
-										</Stack>
-									</Paper>
+										</div>
+									</li>
 								);
 							})}
-						</Stack>
+						</ul>
 					)}
 					{members.hasNextPage && !members.isFetchNextPageError && (
 						<Button
-							variant="light"
-							style={{ alignSelf: "start" }}
+							variant="default"
+							className="fit-action"
 							disabled={members.isFetching}
 							loading={members.isFetchingNextPage}
 							onClick={() => void members.fetchNextPage()}

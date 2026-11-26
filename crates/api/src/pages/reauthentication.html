@@ -1,9 +1,18 @@
 <!doctype html>
+<html lang="en">
+<head>
 <meta charset="utf-8">
-<title>Privileged operation confirmation</title>
-<p>Return this proof to the requesting client. Only its CSRF-protected privileged POST can consume it. Check the action and target in your email before proceeding.</p>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Email proof · Project desk</title>
+<link rel="stylesheet" href="/assets/desk.css">
+</head>
+<body class="confirmation">
+<main>
+<h1>Email proof</h1>
+<p>Check the action and target in your email. Paste the proof in the tab that requested it.</p>
 <button id="show" disabled>Confirm and reveal proof</button>
-<pre id="proof"></pre>
+<p id="proof" role="status"></p>
+</main>
 <script>
 const button = document.getElementById('show');
 const result = document.getElementById('proof');
@@ -20,3 +29,5 @@ addEventListener('hashchange', event => {
 });
 button.onclick = () => { result.textContent = proof; };
 </script>
+</body>
+</html>

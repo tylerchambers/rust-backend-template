@@ -15,6 +15,8 @@ export function RenameProject({
 	const conflict = edit.conflict;
 	return (
 		<form
+			className="entry-form"
+			aria-label={`Rename ${project.name}`}
 			onSubmit={(event) => {
 				event.preventDefault();
 				edit.save();
@@ -23,7 +25,11 @@ export function RenameProject({
 			<Stack gap="sm">
 				<TextInput
 					label="New project name"
-					description={`Editing version ${edit.base.version}: ${edit.base.name}`}
+					description={
+						edit.base.version !== project.version
+							? `Editing version ${edit.base.version}: ${edit.base.name}`
+							: undefined
+					}
 					required
 					value={edit.name}
 					disabled={edit.isSaving}
@@ -31,27 +37,21 @@ export function RenameProject({
 					onChange={(event) => edit.setName(event.currentTarget.value)}
 				/>
 				{conflict && (
-					<Alert
-						title="This project changed while you were editing"
-						color="yellow"
-					>
-						<Stack gap="xs">
-							<Text size="sm">
-								Your draft was not saved. Compare it with the current name
-								before trying again.
-							</Text>
-							{conflict.kind === "pending" && conflict.fetching && (
+					<Alert title="Project changed. Name not saved." color="yellow">
+						<Stack gap="sm">
+							{conflict.kind === "pending" && (
 								<Text role="status" size="sm">
-									Loading the latest version…
+									{conflict.fetching
+										? "Loading the latest version…"
+										: "Waiting for the latest version…"}
 								</Text>
 							)}
 							{conflict.kind === "failed" && (
 								<>
 									<Text size="sm">{conflict.message}</Text>
 									<Button
-										variant="light"
-										size="xs"
-										style={{ alignSelf: "start" }}
+										variant="default"
+										className="fit-action"
 										onClick={conflict.retry}
 									>
 										Retry loading version
@@ -65,9 +65,8 @@ export function RenameProject({
 										<strong>{conflict.name}</strong>
 									</Text>
 									<Button
-										variant="light"
-										size="xs"
-										style={{ alignSelf: "start" }}
+										variant="default"
+										className="fit-action"
 										onClick={conflict.accept}
 									>
 										Continue with this version
@@ -82,10 +81,9 @@ export function RenameProject({
 						{edit.saveError}
 					</Alert>
 				)}
-				<Group gap="xs">
+				<Group gap="sm">
 					<Button
 						type="submit"
-						size="xs"
 						loading={edit.isSaving}
 						disabled={!edit.canSave}
 					>
@@ -93,8 +91,7 @@ export function RenameProject({
 					</Button>
 					<Button
 						type="button"
-						variant="subtle"
-						size="xs"
+						variant="default"
 						disabled={edit.isSaving}
 						onClick={edit.cancel}
 					>

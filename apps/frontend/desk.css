@@ -1,0 +1,55 @@
+:root {
+	--desk-font: system-ui, sans-serif;
+	--desk-title: 1.5rem;
+	--desk-ink: #212529;
+	--desk-link: #087f5b;
+	--desk-form-width: 32rem;
+}
+
+.confirmation {
+	margin: 0;
+	color: var(--desk-ink);
+	font: 1rem/1.5 var(--desk-font);
+}
+
+.confirmation main {
+	max-width: var(--desk-form-width);
+	margin-inline: auto;
+	padding: 2rem 1rem;
+	overflow-wrap: anywhere;
+}
+
+.confirmation main > * {
+	margin: 0 0 1rem;
+}
+
+.confirmation h1 {
+	font-size: var(--desk-title);
+	font-weight: 600;
+	line-height: 1.25;
+}
+
+.confirmation button {
+	border: 0;
+	border-radius: 0.25rem;
+	padding: 0.5rem 1rem;
+	background: var(--desk-link);
+	color: white;
+	font: 600 0.875rem/1.5 var(--desk-font);
+	cursor: pointer;
+}
+
+.confirmation button:disabled {
+	background: #e9ecef;
+	color: #495057;
+	cursor: default;
+}
+
+.confirmation a {
+	color: var(--desk-link);
+}
+
+:focus-visible {
+	outline: 2px solid var(--desk-link);
+	outline-offset: 2px;
+}

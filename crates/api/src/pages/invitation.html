@@ -1,9 +1,18 @@
 <!doctype html>
+<html lang="en">
+<head>
 <meta charset="utf-8">
-<title>Accept invitation</title>
-<p>Sign in as the invited email address in <a href="/" target="_blank" rel="noopener noreferrer">Project desk (new tab)</a>, then return here to accept. After accepting, open your organization in Project desk.</p>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Organization invitation · Project desk</title>
+<link rel="stylesheet" href="/assets/desk.css">
+</head>
+<body class="confirmation">
+<main>
+<h1>Organization invitation</h1>
+<p><a href="/" target="_blank" rel="noopener noreferrer">Sign in to Project desk (new tab)</a> with the invited email address, then return here.</p>
 <button id="accept" disabled>Accept invitation</button>
-<pre id="result"></pre>
+<p id="result" role="status"></p>
+</main>
 <script>
 const button = document.getElementById('accept');
 const result = document.getElementById('result');
@@ -39,3 +48,5 @@ button.onclick = async () => {
     }
 };
 </script>
+</body>
+</html>

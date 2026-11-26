@@ -1,12 +1,4 @@
-import {
-	Alert,
-	Button,
-	Paper,
-	Stack,
-	Text,
-	TextInput,
-	Title,
-} from "@mantine/core";
+import { Alert, Button, Stack, Text, TextInput } from "@mantine/core";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
@@ -31,17 +23,14 @@ export function CreateOrganization(): React.JSX.Element {
 		},
 	});
 	return (
-		<Paper component="section" withBorder p="lg">
-			<form
+		<form
+			className="entry-form"
 				onSubmit={(event) => {
 					event.preventDefault();
 					if (parsed.success && !create.isPending) create.mutate(parsed.data);
 				}}
 			>
-				<Stack align="stretch" gap="sm">
-					<Title order={2} size="h3">
-						Create an organization
-					</Title>
+				<Stack>
 					<TextInput
 						label="Organization name"
 						required
@@ -77,12 +66,11 @@ export function CreateOrganization(): React.JSX.Element {
 						type="submit"
 						loading={create.isPending}
 						disabled={!parsed.success}
-						style={{ alignSelf: "start" }}
+						className="fit-action"
 					>
 						Create organization
 					</Button>
 				</Stack>
 			</form>
-		</Paper>
 	);
 }

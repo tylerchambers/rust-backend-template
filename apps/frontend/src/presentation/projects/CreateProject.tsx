@@ -1,12 +1,4 @@
-import {
-	Alert,
-	Button,
-	Paper,
-	Stack,
-	Text,
-	TextInput,
-	Title,
-} from "@mantine/core";
+import { Alert, Button, Stack, Text, TextInput } from "@mantine/core";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useBackend } from "../../application/backend";
@@ -34,52 +26,47 @@ export function CreateProject({
 		},
 	});
 	return (
-		<Paper component="section" withBorder p="lg">
-			<form
-				onSubmit={(event) => {
-					event.preventDefault();
-					if (parsed.success && !create.isPending) create.mutate(parsed.data);
-				}}
-			>
-				<Stack gap="sm">
-					<Title order={2} size="h3">
-						Create a project
-					</Title>
-					<TextInput
-						label="Project name"
-						required
-						disabled={create.isPending}
-						value={name}
-						error={
-							name && !parsed.success
-								? parsed.error.issues[0]?.message
-								: undefined
-						}
-						onChange={(event) => {
-							setName(event.currentTarget.value);
-							create.reset();
-						}}
-					/>
-					{create.isError && (
-						<Alert title="Project not created" color="red">
-							{workspaceError(create.error)}
-						</Alert>
-					)}
-					{create.isSuccess && (
-						<Text role="status" size="sm">
-							Created {create.data.name}.
-						</Text>
-					)}
-					<Button
-						type="submit"
-						style={{ alignSelf: "start" }}
-						disabled={!parsed.success}
-						loading={create.isPending}
-					>
-						Create project
-					</Button>
-				</Stack>
-			</form>
-		</Paper>
+		<form
+			className="entry-form"
+			aria-label="Create project"
+			onSubmit={(event) => {
+				event.preventDefault();
+				if (parsed.success && !create.isPending) create.mutate(parsed.data);
+			}}
+		>
+			<Stack gap="sm">
+				<TextInput
+					label="Project name"
+					required
+					disabled={create.isPending}
+					value={name}
+					error={
+						name && !parsed.success ? parsed.error.issues[0]?.message : undefined
+					}
+					onChange={(event) => {
+						setName(event.currentTarget.value);
+						create.reset();
+					}}
+				/>
+				{create.isError && (
+					<Alert title="Project not created" color="red">
+						{workspaceError(create.error)}
+					</Alert>
+				)}
+				{create.isSuccess && (
+					<Text role="status" size="sm">
+						Created {create.data.name}.
+					</Text>
+				)}
+				<Button
+					type="submit"
+					className="fit-action"
+					disabled={!parsed.success}
+					loading={create.isPending}
+				>
+					Create project
+				</Button>
+			</Stack>
+		</form>
 	);
 }

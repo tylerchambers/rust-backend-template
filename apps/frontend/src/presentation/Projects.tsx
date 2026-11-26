@@ -1,4 +1,4 @@
-import { Alert, Button, Group, Paper, Stack, Text, Title } from "@mantine/core";
+import { Alert, Button, Stack, Text, Title } from "@mantine/core";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { useBackend } from "../application/backend";
@@ -10,7 +10,7 @@ import {
 import { CreateProject } from "./projects/CreateProject";
 import { RenameProject } from "./projects/RenameProject";
 
-function ProjectCard({
+function ProjectRow({
 	project,
 	canWrite,
 }: {
@@ -20,22 +20,21 @@ function ProjectCard({
 	const [editing, setEditing] = useState(false);
 	const [notice, setNotice] = useState("");
 	return (
-		<Paper component="li" withBorder p="md">
+		<li>
 			<Stack gap="sm">
-				<Group justify="space-between">
+				<div className="record-row">
 					<div>
-						<Title order={2} size="h4" style={{ overflowWrap: "anywhere" }}>
+						<Title order={2}>
 							{project.name}
 						</Title>
-						<Text size="xs" c="dimmed">
+						<Text size="sm" c="dimmed">
 							{project.archived ? "Archived" : "Active"} · Version{" "}
 							{project.version}
 						</Text>
 					</div>
 					{canWrite && !editing && (
 						<Button
-							size="xs"
-							variant="light"
+							variant="default"
 							aria-label={`Rename ${project.name}`}
 							onClick={() => {
 								setNotice("");
@@ -45,7 +44,7 @@ function ProjectCard({
 							Rename
 						</Button>
 					)}
-				</Group>
+				</div>
 				{canWrite && editing && (
 					<RenameProject
 						project={project}
@@ -62,7 +61,7 @@ function ProjectCard({
 					</Text>
 				)}
 			</Stack>
-		</Paper>
+		</li>
 	);
 }
 
@@ -77,8 +76,13 @@ export function Projects({
 	const projects = useInfiniteQuery(projectList(client, organizationId));
 	const rows = projects.data?.pages.flat();
 	return (
-		<Stack gap="xl">
-			<section
+		<Stack gap="lg">
+			{canWrite && projects.isSuccess && (
+				<CreateProject organizationId={organizationId} />
+			)}
+			<Stack
+				component="section"
+				gap="sm"
 				aria-label="Organization projects"
 				aria-busy={projects.isFetching}
 			>
@@ -94,8 +98,7 @@ export function Projects({
 					>
 						<Text size="sm">{workspaceError(projects.error)}</Text>
 						<Button
-							variant="light"
-							size="xs"
+							variant="default"
 							mt="sm"
 							loading={projects.isFetching}
 							onClick={() => {
@@ -109,39 +112,24 @@ export function Projects({
 					</Alert>
 				)}
 				{rows && !isWorkspaceUnavailableToUser(projects.error) && (
-					<Stack>
+					<>
 						{rows.length === 0 ? (
-							<Paper withBorder p="lg">
-								<Title order={2} size="h4">
-									No projects yet
-								</Title>
-								<Text size="sm" c="dimmed">
-									{canWrite
-										? "Create the first project for this organization below."
-										: "Projects created by your team will appear here."}
-								</Text>
-							</Paper>
+							<Text c="dimmed">No projects yet.</Text>
 						) : (
-							<Stack
-								component="ul"
-								p={0}
-								m={0}
-								gap="xs"
-								style={{ listStyle: "none" }}
-							>
+							<ul className="record-list">
 								{rows.map((project) => (
-									<ProjectCard
+									<ProjectRow
 										key={project.id}
 										project={project}
 										canWrite={canWrite}
 									/>
 								))}
-							</Stack>
+							</ul>
 						)}
 						{projects.hasNextPage && !projects.isFetchNextPageError && (
 							<Button
-								variant="light"
-								style={{ alignSelf: "start" }}
+								variant="default"
+								className="fit-action"
 								disabled={projects.isFetching}
 								loading={projects.isFetchingNextPage}
 								onClick={() => void projects.fetchNextPage()}
@@ -149,17 +137,9 @@ export function Projects({
 								Load more projects
 							</Button>
 						)}
-					</Stack>
+					</>
 				)}
-			</section>
-			{canWrite && projects.isSuccess && (
-				<CreateProject organizationId={organizationId} />
-			)}
-			{!canWrite && (
-				<Text c="dimmed" size="sm">
-					You have view-only access to this organization.
-				</Text>
-			)}
+			</Stack>
 		</Stack>
 	);
 }
