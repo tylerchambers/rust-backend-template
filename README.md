@@ -37,12 +37,21 @@ Ctrl-C stops the API and worker. `just down` stops PostgreSQL and Mailpit
 without deleting the database.
 
 Find the email at <http://localhost:58029>, open the link in the same browser,
-and click **Confirm sign in**. Return to Project desk to open an organization,
-create a project or rename one. Development email stays in the capture service.
+and click **Confirm sign in**. Return to Project desk to open an organization.
+The Projects tab lets you create or rename projects; the Members tab shows
+member IDs and roles. Owners and admins can also see member emails, manage
+roles and invitations, and read the organization’s audit events.
 
-Use `localhost` consistently: the frontend and API share the origin and session
-cookies. Sign-in requires mailbox access. The [API contract](http://localhost:58039/openapi.json)
-also covers features without a frontend, including invitations and member administration.
+To invite someone, revoke an invitation, change a role or remove a member,
+review the action and request a proof. Open the confirmation email, check the
+action and target, and reveal the proof. Paste it into the original tab to
+confirm. Each proof is single-use and expires in five minutes. Recipients sign
+in with the invited email address and accept from their invitation link.
+
+Open the session controls next to your signed-in email to list or revoke
+sessions, rotate the current credential, or sign out everywhere. Use
+`localhost` consistently: the frontend and [API](http://localhost:58039/openapi.json)
+share the origin and cookies. Development email stays in the capture service.
 
 ## Development
 

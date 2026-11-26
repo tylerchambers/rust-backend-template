@@ -12,13 +12,17 @@ import {
 import {
 	QueryClient,
 	QueryClientProvider,
+	useIsMutating,
 	useMutation,
 	useQuery,
 	useQueryClient,
 } from "@tanstack/react-query";
 import {
+	createContext,
 	type FormEvent,
 	type ReactNode,
+	useCallback,
+	useContext,
 	useEffect,
 	useMemo,
 	useState,
@@ -30,6 +34,8 @@ import {
 	AuthenticationError,
 	identityQueryKey,
 } from "../infrastructure/authentication";
+import { sessionChangeKey } from "../infrastructure/sessions";
+import { Sessions } from "./Sessions";
 
 function message(error: unknown): string {
 	return error instanceof AuthenticationError
@@ -49,8 +55,17 @@ function SessionStatus({ text }: { text: string }): React.JSX.Element {
 type SessionActions = {
 	authentication: Authentication;
 	checking: boolean;
-	recheck: () => void;
+	recheck: () => Promise<void>;
 };
+
+type AccountSession = Pick<SessionActions, "recheck"> & { account: Account };
+const AccountSessionContext = createContext<AccountSession | null>(null);
+
+export function useAccountSession(): AccountSession {
+	const session = useContext(AccountSessionContext);
+	if (!session) throw new Error("Account session is not available");
+	return session;
+}
 
 function SignIn({
 	authentication,
@@ -179,6 +194,13 @@ function AccountWorkspace({
 		() => new QueryClient({ defaultOptions: root.getDefaultOptions() }),
 	);
 	useEffect(() => () => workspace.clear(), [workspace]);
+	const accountSession = useMemo(
+		() => ({ account, recheck }),
+		[account, recheck],
+	);
+	const [sessionsOpen, setSessionsOpen] = useState(false);
+	const changingSession =
+		useIsMutating({ mutationKey: sessionChangeKey }, workspace) > 0;
 	const logout = useMutation(
 		{
 			mutationFn: () => authentication.signOut(),
@@ -190,12 +212,18 @@ function AccountWorkspace({
 		workspace,
 	);
 
-	const verifying = checking || logout.isPending;
+	const verifying = checking || logout.isPending || changingSession;
 	return (
 		<QueryClientProvider client={workspace}>
 			{verifying && (
 				<SessionStatus
-					text={logout.isPending ? "Signing out…" : "Checking your session…"}
+					text={
+						logout.isPending
+							? "Signing out…"
+							: changingSession
+								? "Updating sessions…"
+								: "Checking your session…"
+					}
 				/>
 			)}
 			<div hidden={verifying}>
@@ -218,6 +246,15 @@ function AccountWorkspace({
 								</Text>
 							</Stack>
 							<Group gap="xs">
+								<Button
+									variant="subtle"
+									size="xs"
+									aria-expanded={sessionsOpen}
+									aria-controls={sessionsOpen ? "account-sessions" : undefined}
+									onClick={() => setSessionsOpen((open) => !open)}
+								>
+									{sessionsOpen ? "Hide sessions" : "Manage sessions"}
+								</Button>
 								<Button variant="subtle" size="xs" onClick={recheck}>
 									Check session
 								</Button>
@@ -231,12 +268,15 @@ function AccountWorkspace({
 							</Group>
 						</Group>
 					</Paper>
+					{sessionsOpen && <Sessions recheck={recheck} />}
 					{logout.isError && (
 						<Alert color="red" title="Sign-out not confirmed">
 							{message(logout.error)}
 						</Alert>
 					)}
-					{children}
+					<AccountSessionContext.Provider value={accountSession}>
+						{children}
+					</AccountSessionContext.Provider>
 				</Stack>
 			</div>
 		</QueryClientProvider>
@@ -269,9 +309,9 @@ export function SessionGate({
 		window.addEventListener("focus", focus);
 		return () => window.removeEventListener("focus", focus);
 	}, [refetch]);
-	const recheck = (): void => {
-		void refetch();
-	};
+	const recheck = useCallback(async (): Promise<void> => {
+		await refetch();
+	}, [refetch]);
 	if (identity.isPending)
 		return <SessionStatus text="Checking your session…" />;
 	if (identity.isError) {

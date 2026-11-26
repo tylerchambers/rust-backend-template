@@ -1,6 +1,5 @@
 import {
 	Alert,
-	Badge,
 	Button,
 	Group,
 	Paper,
@@ -15,15 +14,12 @@ import {
 	useQuery,
 	useQueryClient,
 } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { z } from "zod";
 import { useBackend } from "../bootstrap/context";
 import {
 	createProject,
 	isVersionConflict,
 	isWorkspaceUnavailableToUser,
-	organizationList,
 	type Project,
 	projectDetail,
 	projectList,
@@ -300,21 +296,17 @@ function ProjectCard({
 	);
 }
 
-function OrganizationProjects({
+export function Projects({
 	organizationId,
+	canWrite,
 }: {
 	organizationId: string;
+	canWrite: boolean;
 }): React.JSX.Element {
 	const client = useBackend();
 	const cache = useQueryClient();
 	const options = projectList(client, organizationId);
 	const projects = useInfiniteQuery(options);
-	const organizations = useInfiniteQuery(organizationList(client));
-	const org = organizations.data?.pages
-		.flat()
-		.find((item) => item.id === organizationId);
-	const canWrite =
-		org !== undefined && org.role !== "viewer" && !organizations.isError;
 	const rows = projects.data?.pages.flat();
 	function updateProject(updated: Project): void {
 		cache.setQueryData(
@@ -334,16 +326,6 @@ function OrganizationProjects({
 	}
 	return (
 		<Stack gap="xl">
-			<header>
-				<Link to="/">All organizations</Link>
-				<Group mt="md" gap="sm">
-					<Title order={1}>Projects</Title>
-					{org && <Badge variant="light">{org.role}</Badge>}
-				</Group>
-				<Text c="dimmed" style={{ overflowWrap: "anywhere" }}>
-					{org?.name ?? `Organization ${organizationId}`}
-				</Text>
-			</header>
 			<section
 				aria-label="Organization projects"
 				aria-busy={projects.isFetching}
@@ -422,33 +404,11 @@ function OrganizationProjects({
 			{canWrite && projects.isSuccess && (
 				<CreateProject organizationId={organizationId} />
 			)}
-			{org?.role === "viewer" && (
+			{!canWrite && (
 				<Text c="dimmed" size="sm">
 					You have view-only access to this organization.
 				</Text>
 			)}
-			{!org && !organizations.isPending && (
-				<Text c="dimmed" size="sm">
-					To manage projects, select this organization from{" "}
-					<Link to="/">All organizations</Link>.
-				</Text>
-			)}
 		</Stack>
 	);
-}
-
-export function Projects({
-	organizationId,
-}: {
-	organizationId: string;
-}): React.JSX.Element {
-	const id = z.uuid().safeParse(organizationId);
-	if (!id.success)
-		return (
-			<Stack>
-				<Title order={1}>Invalid organization link</Title>
-				<Link to="/">Back to organizations</Link>
-			</Stack>
-		);
-	return <OrganizationProjects organizationId={id.data.toLowerCase()} />;
 }

@@ -130,24 +130,19 @@ export async function checkTenantAccess({
 		ids.filter((id) => id > foreign.id).slice(0, 50),
 	);
 
-	await admin.post(
-		"/v1/auth/reauth/request",
-		{
-			action: "change_role",
-			target: account.user_id,
-			organization_id: org,
-		},
-		202,
-	);
+	const team = await owner.newPage();
+	await team.goto(`/#/organizations/${org}`);
+	await team.getByRole("tab", { name: "Members" }).click();
+	await team.getByLabel(`Change role for ${invitee}`).selectOption("member");
+	await team.getByRole("button", { name: "Email me a proof" }).click();
 	const proof = /confirmation#([a-f0-9]{64})/.exec(
 		await mailText("Confirm privileged operation"),
 	)?.[1];
 	assert.ok(proof);
-	await admin.post(
-		`${base}/members/${account.user_id}/role`,
-		{ role: "member", proof },
-		204,
-	);
+	await team.getByLabel("Email proof").fill(proof);
+	await team.getByRole("button", { name: "Change role", exact: true }).click();
+	await team.getByText(`Changed the role for ${invitee} to member.`).waitFor();
+	await team.close();
 	const directory = await admin.get(`${base}/member-directory`);
 	assert.deepEqual(
 		directory.find((member) => member.user_id === account.user_id),
