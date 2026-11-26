@@ -10,9 +10,13 @@ import {
 } from "@mantine/core";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { z } from "zod";
-import { useBackend } from "../bootstrap/context";
-import { organizationList, workspaceError } from "../infrastructure/workspace";
+import { useBackend } from "../application/backend";
+import { canManageTeam, canWriteProjects } from "../domain/workspace";
+import {
+	type Organization,
+	organizationList,
+} from "../infrastructure/organizations";
+import { workspaceError } from "../infrastructure/workspaceResponse";
 import { AuditEvents } from "./AuditEvents";
 import { Invitations } from "./Invitations";
 import { Members } from "./Members";
@@ -23,13 +27,7 @@ function OrganizationView({
 }: {
 	organizationId: string;
 }): React.JSX.Element {
-	const client = useBackend();
-	const id = z.uuid().safeParse(organizationId.toLowerCase());
-	const organizations = useInfiniteQuery({
-		...organizationList(client),
-		enabled: id.success,
-	});
-	if (!id.success) return <Title order={1}>Invalid organization link</Title>;
+	const organizations = useInfiniteQuery(organizationList(useBackend()));
 	if (organizations.isPending)
 		return <Text role="status">Loading organization…</Text>;
 	if (organizations.isError)
@@ -49,7 +47,9 @@ function OrganizationView({
 				</Button>
 			</Alert>
 		);
-	const org = organizations.data.pages.flat().find((row) => row.id === id.data);
+	const org = organizations.data.pages
+		.flat()
+		.find((row) => row.id === organizationId);
 	if (!org && organizations.hasNextPage)
 		return (
 			<Stack align="start">
@@ -64,7 +64,11 @@ function OrganizationView({
 			</Stack>
 		);
 	if (!org) return <Title order={1}>Organization not available</Title>;
-	const managesTeam = org.role === "owner" || org.role === "admin";
+	return <OrganizationTabs org={org} />;
+}
+
+function OrganizationTabs({ org }: { org: Organization }): React.JSX.Element {
+	const managesTeam = canManageTeam(org.role);
 	return (
 		<>
 			<Group gap="sm">
@@ -81,7 +85,10 @@ function OrganizationView({
 					{managesTeam && <Tabs.Tab value="audit">Audit events</Tabs.Tab>}
 				</Tabs.List>
 				<Tabs.Panel value="projects" pt="lg">
-					<Projects organizationId={org.id} canWrite={org.role !== "viewer"} />
+					<Projects
+						organizationId={org.id}
+						canWrite={canWriteProjects(org.role)}
+					/>
 				</Tabs.Panel>
 				<Tabs.Panel value="members" pt="lg">
 					<Members organizationId={org.id} role={org.role} />
@@ -104,12 +111,16 @@ function OrganizationView({
 export function OrganizationWorkspace({
 	organizationId,
 }: {
-	organizationId: string;
+	organizationId: string | null;
 }): React.JSX.Element {
 	return (
 		<Stack gap="lg">
 			<Link to="/">All organizations</Link>
-			<OrganizationView organizationId={organizationId} />
+			{organizationId === null ? (
+				<Title order={1}>Invalid organization link</Title>
+			) : (
+				<OrganizationView organizationId={organizationId} />
+			)}
 		</Stack>
 	);
 }

@@ -1,25 +1,12 @@
 import { infiniteQueryOptions } from "@tanstack/react-query";
 import type { BackendClient } from "rust-backend-template-sdk";
 import { z } from "zod";
+import { type InvitationDraft, invitationStatus } from "../domain/team";
+import { workspaceRole } from "../domain/workspace";
 import { type WriteHeaders, writeHeaders } from "./browser";
-import { type WorkspaceRole, workspaceBody, workspaceRole } from "./workspace";
+import { nextIdCursor, workspacePageSize } from "./workspacePage";
+import { workspaceBody } from "./workspaceResponse";
 
-const pageSize = 50;
-export const invitationEmail = z
-	.string()
-	.trim()
-	.max(254)
-	.pipe(z.email({ pattern: z.regexes.html5Email }))
-	.refine((email) => {
-		const local = email.slice(0, email.indexOf("@"));
-		return (
-			local.length <= 64 &&
-			!local.startsWith(".") &&
-			!local.endsWith(".") &&
-			!local.includes("..")
-		);
-	}, "Use an unquoted email address without empty parts.")
-	.transform((email) => email.toLowerCase());
 const invitationId = z.object({ id: z.uuid() });
 const invitationsPage = z
 	.array(
@@ -27,7 +14,7 @@ const invitationsPage = z
 			.extend({
 				email: z.string().min(1).max(254),
 				role: workspaceRole,
-				status: z.enum(["pending", "accepted", "revoked", "expired"]),
+				status: invitationStatus,
 				expires_at: z.iso.datetime({ offset: true }),
 			})
 			.transform(({ expires_at, ...row }) => ({
@@ -35,19 +22,7 @@ const invitationsPage = z
 				expiresAt: expires_at,
 			})),
 	)
-	.max(pageSize);
-
-export function invitationRoles(role: WorkspaceRole): WorkspaceRole[] {
-	switch (role) {
-		case "owner":
-			return workspaceRole.options;
-		case "admin":
-			return ["admin", "member", "viewer"];
-		case "member":
-		case "viewer":
-			return [];
-	}
-}
+	.max(workspacePageSize);
 
 export function invitationList(client: BackendClient, organizationId: string) {
 	return infiniteQueryOptions({
@@ -67,12 +42,9 @@ export function invitationList(client: BackendClient, organizationId: string) {
 					}),
 				),
 			),
-		getNextPageParam: (page) =>
-			page.length === pageSize ? page.at(-1)?.id : undefined,
+		getNextPageParam: (page) => nextIdCursor(page),
 	});
 }
-
-export type InvitationDraft = { email: string; role: WorkspaceRole };
 
 export async function createInvitation(
 	client: BackendClient,

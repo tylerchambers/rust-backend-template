@@ -5,7 +5,8 @@ import { AuthenticationError } from "./authentication";
 import { type WriteHeaders, writeHeaders } from "./browser";
 
 const sessionPage = z.array(z.uuid()).max(50);
-export const sessionChangeKey = ["workspace", "sessions", "change"] as const;
+export const sessionListKey = ["workspace", "sessions"] as const;
+export const sessionChangeKey = [...sessionListKey, "change"] as const;
 
 function requireStatus(response: Response, expected: number): void {
 	if (response.status === expected) return;
@@ -31,7 +32,7 @@ function requireStatus(response: Response, expected: number): void {
 
 export function sessionList(client: BackendClient) {
 	return infiniteQueryOptions({
-		queryKey: ["workspace", "sessions"] as const,
+		queryKey: sessionListKey,
 		initialPageParam: "",
 		queryFn: async ({ pageParam, signal }) => {
 			const { response, data } = await client.GET("/v1/auth/sessions", {

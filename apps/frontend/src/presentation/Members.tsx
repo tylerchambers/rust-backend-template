@@ -9,29 +9,28 @@ import {
 	Text,
 	Title,
 } from "@mantine/core";
-import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { useBackend } from "../bootstrap/context";
+import { useBackend } from "../application/backend";
 import {
-	changeMemberRole,
+	type MemberChange,
+	useChangeMember,
+} from "../application/teamManagement";
+import {
+	grantableRoles,
+	hasMultipleOwners,
 	type Member,
-	memberList,
-	removeMember,
-} from "../infrastructure/members";
+	memberAccess,
+} from "../domain/team";
+import type { WorkspaceRole } from "../domain/workspace";
+import { memberList } from "../infrastructure/members";
 import {
 	isWorkspaceUnavailableToUser,
-	organizationList,
-	type WorkspaceRole,
 	workspaceError,
-	workspaceRole,
-} from "../infrastructure/workspace";
+} from "../infrastructure/workspaceResponse";
 import { ProofAction } from "./ProofAction";
-import { useAccountSession } from "./SessionGate";
 
 type Props = { organizationId: string; role: WorkspaceRole };
-type Draft =
-	| { action: "change_role"; role: WorkspaceRole }
-	| { action: "remove_member" };
 
 function MemberActions({
 	organizationId,
@@ -42,14 +41,10 @@ function MemberActions({
 	member: Member;
 	onSuccess: (notice: string) => void;
 }): React.JSX.Element {
-	const client = useBackend();
-	const cache = useQueryClient();
-	const { account, recheck } = useAccountSession();
-	const [draft, setDraft] = useState<Draft | null>(null);
+	const changeMember = useChangeMember(organizationId, member.userId);
+	const [draft, setDraft] = useState<MemberChange | null>(null);
 	const label = member.email ?? member.userId;
-	const roles = workspaceRole.options.filter(
-		(next) => next !== member.role && (next !== "owner" || role === "owner"),
-	);
+	const roles = grantableRoles(role, member.role);
 	if (!draft) {
 		return (
 			<Group align="end" gap="sm">
@@ -96,36 +91,7 @@ function MemberActions({
 					? `Change ${label} from ${member.role} to ${draft.role}? This signs them out of all sessions.`
 					: `Remove ${label} from this organization? They will lose access to its projects.`
 			}
-			submit={async (proof) => {
-				if (change)
-					await changeMemberRole(
-						client,
-						organizationId,
-						member.userId,
-						draft.role,
-						proof,
-					);
-				else await removeMember(client, organizationId, member.userId, proof);
-				await Promise.all([
-					cache.invalidateQueries({
-						queryKey: ["workspace", "members", organizationId],
-					}),
-					cache.invalidateQueries({
-						queryKey: ["workspace", "audit", organizationId],
-					}),
-					cache.invalidateQueries({
-						queryKey: organizationList(client).queryKey,
-					}),
-					...(change && member.userId === account.id
-						? [
-								cache.invalidateQueries({
-									queryKey: ["workspace", "sessions"],
-								}),
-								recheck(),
-							]
-						: []),
-				]);
-			}}
+			submit={(proof) => changeMember(draft, proof)}
 			onSuccess={() => {
 				onSuccess(
 					change
@@ -147,9 +113,7 @@ function OrganizationMembers({
 	const members = useInfiniteQuery(memberList(client, organizationId, role));
 	const [notice, setNotice] = useState("");
 	const rows = members.data?.pages.flat();
-	const manager = role === "owner" || role === "admin";
-	const anotherOwner =
-		(rows?.filter((member) => member.role === "owner").length ?? 0) > 1;
+	const multipleOwners = rows !== undefined && hasMultipleOwners(rows);
 	return (
 		<Stack
 			component="section"
@@ -195,33 +159,32 @@ function OrganizationMembers({
 							gap="xs"
 							style={{ listStyle: "none" }}
 						>
-							{rows.map((member) => (
-								<Paper
-									key={`${member.userId}:${member.role}`}
-									component="li"
-									withBorder
-									p="md"
-								>
-									<Stack gap="xs">
-										<Group>
-											<Text fw={600} style={{ overflowWrap: "anywhere" }}>
-												{member.email ?? member.userId}
-											</Text>
-											<Badge variant="light">{member.role}</Badge>
-										</Group>
-										{member.email && (
-											<Text
-												size="sm"
-												c="dimmed"
-												style={{ overflowWrap: "anywhere" }}
-											>
-												{member.userId}
-											</Text>
-										)}
-										{members.isSuccess &&
-											manager &&
-											(member.role !== "owner" ||
-												(role === "owner" && anotherOwner)) && (
+							{rows.map((member) => {
+								const access = memberAccess(role, member.role, multipleOwners);
+								return (
+									<Paper
+										key={`${member.userId}:${member.role}`}
+										component="li"
+										withBorder
+										p="md"
+									>
+										<Stack gap="xs">
+											<Group>
+												<Text fw={600} style={{ overflowWrap: "anywhere" }}>
+													{member.email ?? member.userId}
+												</Text>
+												<Badge variant="light">{member.role}</Badge>
+											</Group>
+											{member.email && (
+												<Text
+													size="sm"
+													c="dimmed"
+													style={{ overflowWrap: "anywhere" }}
+												>
+													{member.userId}
+												</Text>
+											)}
+											{members.isSuccess && access === "editable" && (
 												<MemberActions
 													organizationId={organizationId}
 													role={role}
@@ -229,18 +192,17 @@ function OrganizationMembers({
 													onSuccess={setNotice}
 												/>
 											)}
-										{role === "owner" &&
-											member.role === "owner" &&
-											!anotherOwner && (
+											{access === "last-owner" && (
 												<Text size="sm" c="dimmed">
 													{members.hasNextPage
 														? "Load more members to check for another owner."
 														: "The organization must keep at least one owner."}
 												</Text>
 											)}
-									</Stack>
-								</Paper>
-							))}
+										</Stack>
+									</Paper>
+								);
+							})}
 						</Stack>
 					)}
 					{members.hasNextPage && !members.isFetchNextPageError && (

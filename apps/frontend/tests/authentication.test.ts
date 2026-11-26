@@ -3,6 +3,7 @@ import { createBackendClient } from "rust-backend-template-sdk";
 import {
 	Authentication,
 	AuthenticationError,
+	authenticationMessage,
 } from "../src/infrastructure/authentication";
 
 const origin = "https://workspace.example";
@@ -24,6 +25,18 @@ function adapter(
 		"x-csrf-token": csrf(),
 	}));
 }
+
+test("only deliberate authentication errors are displayed to users", () => {
+	expect(authenticationMessage(new AuthenticationError("Sign in again."))).toBe(
+		"Sign in again.",
+	);
+	expect(authenticationMessage(new Error("private detail"))).toBe(
+		"The service could not be reached. Check your connection and try again.",
+	);
+	expect(authenticationMessage("private detail", "Session unavailable.")).toBe(
+		"Session unavailable.",
+	);
+});
 
 test("an authenticated account comes from the current session, not a saved identity", async () => {
 	const auth = adapter((request) => {
@@ -112,6 +125,23 @@ test("a restored session also bootstraps a missing CSRF cookie before mounting w
 		email: account.email,
 	});
 	expect(paths).toEqual(["/v1/me", "/v1/auth/confirmation"]);
+});
+
+test("cancelling identity lookup during CSRF preparation aborts the confirmation request", async () => {
+	const controller = new AbortController();
+	const auth = adapter(
+		(request) => {
+			if (request.url === `${origin}/v1/me`) return Response.json(account);
+			expect(request.url).toBe(`${origin}/v1/auth/confirmation`);
+			controller.abort();
+			request.signal.throwIfAborted();
+			return new Response(null);
+		},
+		() => "",
+	);
+	await expect(auth.currentAccount(controller.signal)).rejects.toMatchObject({
+		name: "AbortError",
+	});
 });
 
 test("rate limits do not look like a successful link request", async () => {

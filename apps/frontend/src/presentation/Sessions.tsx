@@ -1,18 +1,7 @@
 import { Alert, Button, Group, Paper, Stack, Text, Title } from "@mantine/core";
-import {
-	useInfiniteQuery,
-	useMutation,
-	useQueryClient,
-} from "@tanstack/react-query";
-import { useState } from "react";
-import { useBackend } from "../bootstrap/context";
-import { AuthenticationError } from "../infrastructure/authentication";
-import {
-	changeSession,
-	type SessionChange,
-	sessionChangeKey,
-	sessionList,
-} from "../infrastructure/sessions";
+import { useSessionManagement } from "../application/sessionManagement";
+import { authenticationMessage } from "../infrastructure/authentication";
+import type { SessionChange } from "../infrastructure/sessions";
 
 function details(change: SessionChange): string {
 	switch (change.kind) {
@@ -25,42 +14,11 @@ function details(change: SessionChange): string {
 	}
 }
 
-function errorMessage(error: unknown): string {
-	return error instanceof AuthenticationError
-		? error.message
-		: "Check your connection and try again.";
-}
+const connectionError = "Check your connection and try again.";
 
-export function Sessions({
-	recheck,
-}: {
-	recheck: () => Promise<void>;
-}): React.JSX.Element {
-	const client = useBackend();
-	const cache = useQueryClient();
-	const options = sessionList(client);
-	const sessions = useInfiniteQuery(options);
-	const [draft, setDraft] = useState<SessionChange | null>(null);
-	const update = useMutation({
-		mutationKey: sessionChangeKey,
-		mutationFn: (change: SessionChange) => changeSession(client, change),
-		retry: false,
-		networkMode: "always",
-		onSettled: async () => {
-			// Even a lost response may have rotated or revoked this browser’s session.
-			setDraft(null);
-			await recheck();
-			await cache.invalidateQueries({
-				queryKey: options.queryKey,
-				exact: true,
-			});
-		},
-	});
-	function select(change: SessionChange): void {
-		update.reset();
-		setDraft(change);
-	}
-	const locked = draft !== null || update.isPending;
+export function Sessions(): React.JSX.Element {
+	const { sessions, draft, update, locked, select, confirm, cancel, retry } =
+		useSessionManagement();
 	const rows = sessions.data?.pages.flat();
 	return (
 		<Paper
@@ -105,14 +63,14 @@ export function Sessions({
 								<Button
 									color={draft.kind === "rotate" ? "teal" : "red"}
 									loading={update.isPending}
-									onClick={() => update.mutate(draft)}
+									onClick={confirm}
 								>
 									Confirm {draft.kind === "rotate" ? "rotation" : "revocation"}
 								</Button>
 								<Button
 									variant="default"
 									disabled={update.isPending}
-									onClick={() => setDraft(null)}
+									onClick={cancel}
 								>
 									Cancel
 								</Button>
@@ -122,7 +80,7 @@ export function Sessions({
 				)}
 				{update.isError && (
 					<Alert title="Session change not confirmed" color="red">
-						{errorMessage(update.error)}
+						{authenticationMessage(update.error, connectionError)}
 					</Alert>
 				)}
 				{update.isSuccess && (
@@ -137,17 +95,15 @@ export function Sessions({
 				{sessions.isPending && <Text role="status">Loading sessions…</Text>}
 				{sessions.isError ? (
 					<Alert title="Could not load sessions" color="red">
-						<Text size="sm">{errorMessage(sessions.error)}</Text>
+						<Text size="sm">
+							{authenticationMessage(sessions.error, connectionError)}
+						</Text>
 						<Button
 							mt="sm"
 							size="xs"
 							variant="light"
 							loading={sessions.isFetching}
-							onClick={() => {
-								if (sessions.isFetchNextPageError)
-									void sessions.fetchNextPage();
-								else void sessions.refetch();
-							}}
+							onClick={retry}
 						>
 							Retry
 						</Button>

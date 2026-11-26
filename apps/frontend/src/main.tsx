@@ -6,9 +6,12 @@ import { RouterProvider } from "@tanstack/react-router";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { createBackendClient } from "rust-backend-template-sdk";
-import { BackendContext } from "./bootstrap/context";
+import { BackendContext } from "./application/backend";
 import { router } from "./bootstrap/router";
-import { identityQueryKey } from "./infrastructure/authentication";
+import {
+	Authentication,
+	identityQueryKey,
+} from "./infrastructure/authentication";
 import { csrfToken } from "./infrastructure/browser";
 
 const root = document.getElementById("root");
@@ -28,13 +31,17 @@ backend.use({
 		}
 	},
 });
+const services = {
+	client: backend,
+	authentication: new Authentication(backend),
+};
 
 const theme = createTheme({ primaryColor: "teal", defaultRadius: "md" });
 createRoot(root).render(
 	<StrictMode>
 		<MantineProvider theme={theme}>
 			<QueryClientProvider client={queries}>
-				<BackendContext.Provider value={backend}>
+				<BackendContext.Provider value={services}>
 					<RouterProvider router={router} />
 				</BackendContext.Provider>
 			</QueryClientProvider>

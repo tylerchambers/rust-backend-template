@@ -10,14 +10,14 @@ import {
 } from "@mantine/core";
 import { useMutation } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
-import { useBackend } from "../bootstrap/context";
-import { writeHeaders } from "../infrastructure/browser";
-import { workspaceBody, workspaceError } from "../infrastructure/workspace";
+import { useBackend } from "../application/backend";
+import {
+	requestTeamProof,
+	type TeamProofRequest,
+} from "../infrastructure/teamProof";
+import { workspaceError } from "../infrastructure/workspaceResponse";
 
-type Props = {
-	organizationId: string;
-	action: "invite" | "revoke_invitation" | "change_role" | "remove_member";
-	target: string;
+type Props = TeamProofRequest & {
 	label: string;
 	description: string;
 	submit: (proof: string) => Promise<void>;
@@ -41,16 +41,8 @@ export function ProofAction({
 	const request = useMutation({
 		networkMode: "always",
 		retry: false,
-		mutationFn: async () => {
-			workspaceBody(
-				await client.POST("/v1/auth/reauth/request", {
-					params: { header: writeHeaders() },
-					body: { organization_id: organizationId, action, target },
-					parseAs: "text",
-					redirect: "error",
-				}),
-			);
-		},
+		mutationFn: () =>
+			requestTeamProof(client, { organizationId, action, target }),
 	});
 	// Keep the bearer proof out of React Query's mutation cache and the URL.
 	async function confirm(event: FormEvent<HTMLFormElement>): Promise<void> {

@@ -2,8 +2,13 @@ import { expect, test } from "bun:test";
 import { QueryClient } from "@tanstack/react-query";
 import { createBackendClient } from "rust-backend-template-sdk";
 import { z } from "zod";
+import {
+	grantableRoles,
+	hasMultipleOwners,
+	memberAccess,
+} from "../src/domain/team";
 import { memberList } from "../src/infrastructure/members";
-import { isWorkspaceUnavailableToUser } from "../src/infrastructure/workspace";
+import { isWorkspaceUnavailableToUser } from "../src/infrastructure/workspaceResponse";
 
 const organizationId = "b340a05b-bcaf-4bcb-bfe2-e2300ccf32af";
 const userId = "019d2fa2-99f8-7d09-87ba-12df307e99ed";
@@ -18,6 +23,46 @@ function serve(response: (url: URL) => Response) {
 	client.use({ onRequest: ({ request }) => response(new URL(request.url)) });
 	return client;
 }
+
+test("owner actions require a second owner in the loaded roster", () => {
+	const owner = { userId, role: "owner" } as const;
+	const admin = { userId: "admin", role: "admin" } as const;
+	const firstPage = [owner, admin];
+	expect(hasMultipleOwners(firstPage)).toBe(false);
+	expect(memberAccess("owner", "owner", hasMultipleOwners(firstPage))).toBe(
+		"last-owner",
+	);
+	const complete = [...firstPage, { ...owner, userId: "other-owner" }];
+	expect(hasMultipleOwners(complete)).toBe(true);
+	expect(memberAccess("owner", "owner", hasMultipleOwners(complete))).toBe(
+		"editable",
+	);
+});
+
+test("admins manage only nonowners; nonmanagers cannot manage any member", () => {
+	for (const actor of ["owner", "admin", "member", "viewer"] as const) {
+		for (const target of ["owner", "admin", "member", "viewer"] as const) {
+			for (const multipleOwners of [false, true]) {
+				if (actor === "owner" && target === "owner") continue;
+				const editable =
+					actor === "owner" || (actor === "admin" && target !== "owner");
+				expect(memberAccess(actor, target, multipleOwners)).toBe(
+					editable ? "editable" : "read-only",
+				);
+			}
+		}
+	}
+});
+
+test("member role changes exclude the current role and admin ownership grants", () => {
+	expect(grantableRoles("owner", "admin")).toEqual([
+		"owner",
+		"member",
+		"viewer",
+	]);
+	expect(grantableRoles("admin", "member")).toEqual(["admin", "viewer"]);
+	expect(grantableRoles("viewer", "admin")).toEqual([]);
+});
 
 test("changing to a nonmanager role never reuses directory emails or requests the directory", async () => {
 	const paths: string[] = [];

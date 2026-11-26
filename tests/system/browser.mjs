@@ -131,7 +131,34 @@ try {
 	await page
 		.getByRole("button", { name: "Continue with this version" })
 		.click();
+	// Hold the write until the editor unmounts and its replacement list has refetched.
+	const projectsUrl = `${origin}/v1/organizations/${org}/projects`;
+	const pendingRename = Promise.withResolvers();
+	await page.route(
+		`${projectsUrl}/*`,
+		(route) => pendingRename.resolve(route),
+		{
+			times: 1,
+		},
+	);
 	await page.getByRole("button", { name: "Save name" }).click();
+	const timeout = setTimeout(() => {
+		pendingRename.reject(new Error("Timed out waiting for the project PATCH"));
+	}, 5000);
+	const renameRoute = await pendingRename.promise.finally(() =>
+		clearTimeout(timeout),
+	);
+	assert.equal(renameRoute.request().method(), "PATCH");
+	await page.getByRole("tab", { name: "Members" }).click();
+	const listRefetched = page.waitForResponse(projectsUrl);
+	await page.getByRole("tab", { name: "Projects" }).click();
+	await (await listRefetched).finished();
+	await page
+		.getByRole("region", { name: "Organization projects" })
+		.and(page.locator('[aria-busy="false"]'))
+		.getByRole("heading", { name: "Another editor's project" })
+		.waitFor();
+	await renameRoute.continue();
 	await page.getByRole("heading", { name: "Renamed project" }).waitFor();
 	await page.reload();
 	await page.getByRole("heading", { name: "Renamed project" }).waitFor();
@@ -202,6 +229,14 @@ try {
 		baseURL: origin,
 		storageState: await context.storageState(),
 	});
+	const workspaceTab = await context.newPage();
+	await workspaceTab.goto("/");
+	const ownerOrganization = workspaceTab.getByRole("link", {
+		name: "Browser proof tenant",
+		exact: true,
+	});
+	await ownerOrganization.waitFor();
+	await workspaceTab.getByLabel("Organization name").fill("Owner's draft");
 	const invitationText = await mailText(invitee, "Organization invitation");
 	const invitationLink =
 		/https?:\/\/[^\s]+\/v1\/invitations\/confirmation#[^\s]+/.exec(
@@ -233,6 +268,15 @@ try {
 		.getByRole("button", { name: "Confirm sign in", exact: true })
 		.click();
 	await otherTab.getByText("Signed in", { exact: true }).waitFor();
+	// A still-open workspace must discard the previous account's data and forms on focus.
+	await workspaceTab.evaluate(() => window.dispatchEvent(new Event("focus")));
+	await workspaceTab.getByText(invitee, { exact: true }).waitFor();
+	assert.equal(
+		await workspaceTab.getByLabel("Organization name").inputValue(),
+		"",
+	);
+	assert.equal(await ownerOrganization.count(), 0);
+	await workspaceTab.close();
 	assert.equal(acceptRequests, 0);
 	const accepted = page.waitForResponse((response) =>
 		response.url().endsWith(`/invitations/${invitationId}/accept`),
