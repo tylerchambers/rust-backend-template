@@ -16,6 +16,7 @@ import {
 	Outlet,
 } from "@tanstack/react-router";
 import type { JSX } from "react";
+import { z } from "zod";
 import { Organizations } from "../presentation/Organizations";
 import { OrganizationWorkspace } from "../presentation/OrganizationWorkspace";
 import { SessionGate } from "../presentation/SessionGate";
@@ -66,15 +67,18 @@ const home = createRoute({
 	path: "/",
 	component: Organizations,
 });
+
+const organizationIdSchema = z.uuid();
 const organization = createRoute({
 	getParentRoute: () => rootRoute,
 	path: "/organizations/$organizationId",
 	component: function OrganizationRoute() {
 		const { organizationId } = organization.useParams();
+		const id = organizationIdSchema.safeParse(organizationId.toLowerCase());
 		return (
 			<OrganizationWorkspace
 				key={organizationId}
-				organizationId={organizationId}
+				organizationId={id.success ? id.data : null}
 			/>
 		);
 	},

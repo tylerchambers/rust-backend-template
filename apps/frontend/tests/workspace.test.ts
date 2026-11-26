@@ -5,11 +5,8 @@ import {
 	createBackendClient,
 } from "rust-backend-template-sdk";
 import { z } from "zod";
-import {
-	projectDetail,
-	projectList,
-	workspaceName,
-} from "../src/infrastructure/workspace";
+import { workspaceName } from "../src/domain/workspace";
+import { projectDetail, projectList } from "../src/infrastructure/projects";
 
 const organizationId = "019d2fa2-99f8-7d09-87ba-12df307e99ed";
 const projectId = "b340a05b-bcaf-4bcb-bfe2-e2300ccf32af";

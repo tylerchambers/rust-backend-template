@@ -1,7 +1,8 @@
 import { infiniteQueryOptions } from "@tanstack/react-query";
 import type { BackendClient } from "rust-backend-template-sdk";
 import { z } from "zod";
-import { workspaceBody } from "./workspace";
+import { nextIdCursor, workspacePageSize } from "./workspacePage";
+import { workspaceBody } from "./workspaceResponse";
 
 const events = z
 	.array(
@@ -19,11 +20,15 @@ const events = z
 				occurredAt: occurred_at,
 			})),
 	)
-	.max(50);
+	.max(workspacePageSize);
+
+export function auditEventsKey(organizationId: string) {
+	return ["workspace", "audit", organizationId] as const;
+}
 
 export function auditEvents(client: BackendClient, organizationId: string) {
 	return infiniteQueryOptions({
-		queryKey: ["workspace", "audit", organizationId] as const,
+		queryKey: auditEventsKey(organizationId),
 		initialPageParam: "",
 		gcTime: 0,
 		queryFn: async ({ pageParam, signal }) =>
@@ -39,7 +44,6 @@ export function auditEvents(client: BackendClient, organizationId: string) {
 					}),
 				),
 			),
-		getNextPageParam: (page) =>
-			page.length === 50 ? page.at(-1)?.id : undefined,
+		getNextPageParam: (page) => nextIdCursor(page),
 	});
 }

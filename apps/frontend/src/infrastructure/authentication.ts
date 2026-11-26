@@ -11,6 +11,13 @@ export type Account = { id: string; email: string };
 /** Only errors with deliberate, public-facing copy may be shown in the gate. */
 export class AuthenticationError extends Error {}
 
+export function authenticationMessage(
+	error: unknown,
+	fallback = "The service could not be reached. Check your connection and try again.",
+): string {
+	return error instanceof AuthenticationError ? error.message : fallback;
+}
+
 export class Authentication {
 	readonly #client: BackendClient;
 	readonly #headers: () => WriteHeaders;

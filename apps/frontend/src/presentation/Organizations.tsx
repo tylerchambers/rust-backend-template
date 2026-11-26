@@ -6,39 +6,20 @@ import {
 	Paper,
 	Stack,
 	Text,
-	TextInput,
 	Title,
 } from "@mantine/core";
-import {
-	useInfiniteQuery,
-	useMutation,
-	useQueryClient,
-} from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { useState } from "react";
-import { useBackend } from "../bootstrap/context";
+import { useBackend } from "../application/backend";
+import { organizationList } from "../infrastructure/organizations";
 import {
-	createOrganization,
 	isWorkspaceUnavailableToUser,
-	organizationList,
 	workspaceError,
-	workspaceName,
-} from "../infrastructure/workspace";
+} from "../infrastructure/workspaceResponse";
+import { CreateOrganization } from "./CreateOrganization";
 
 export function Organizations(): React.JSX.Element {
-	const client = useBackend();
-	const cache = useQueryClient();
-	const options = organizationList(client);
-	const organizations = useInfiniteQuery(options);
-	const [name, setName] = useState("");
-	const parsed = workspaceName.safeParse(name);
-	const create = useMutation({
-		mutationFn: (newName: string) => createOrganization(client, newName),
-		onSuccess: async () => {
-			setName("");
-			await cache.invalidateQueries({ queryKey: options.queryKey });
-		},
-	});
+	const organizations = useInfiniteQuery(organizationList(useBackend()));
 	const rows = organizations.data?.pages.flat();
 	return (
 		<Stack gap="xl">
@@ -131,59 +112,7 @@ export function Organizations(): React.JSX.Element {
 					</Stack>
 				)}
 			</section>
-			<Paper component="section" withBorder p="lg">
-				<form
-					onSubmit={(event) => {
-						event.preventDefault();
-						if (parsed.success && !create.isPending) create.mutate(parsed.data);
-					}}
-				>
-					<Stack align="stretch" gap="sm">
-						<Title order={2} size="h3">
-							Create an organization
-						</Title>
-						<TextInput
-							label="Organization name"
-							required
-							value={name}
-							disabled={create.isPending}
-							error={
-								name && !parsed.success
-									? parsed.error.issues[0]?.message
-									: undefined
-							}
-							onChange={(event) => {
-								setName(event.currentTarget.value);
-								create.reset();
-							}}
-						/>
-						{create.isError && (
-							<Alert color="red" title="Organization not created">
-								{workspaceError(create.error)}
-							</Alert>
-						)}
-						{create.isSuccess && (
-							<Text role="status" size="sm">
-								Organization created.{" "}
-								<Link
-									to="/organizations/$organizationId"
-									params={{ organizationId: create.data }}
-								>
-									Open {create.variables}
-								</Link>
-							</Text>
-						)}
-						<Button
-							type="submit"
-							loading={create.isPending}
-							disabled={!parsed.success}
-							style={{ alignSelf: "start" }}
-						>
-							Create organization
-						</Button>
-					</Stack>
-				</form>
-			</Paper>
+			<CreateOrganization />
 		</Stack>
 	);
 }

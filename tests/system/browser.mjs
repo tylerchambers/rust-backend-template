@@ -202,6 +202,14 @@ try {
 		baseURL: origin,
 		storageState: await context.storageState(),
 	});
+	const workspaceTab = await context.newPage();
+	await workspaceTab.goto("/");
+	const ownerOrganization = workspaceTab.getByRole("link", {
+		name: "Browser proof tenant",
+		exact: true,
+	});
+	await ownerOrganization.waitFor();
+	await workspaceTab.getByLabel("Organization name").fill("Owner's draft");
 	const invitationText = await mailText(invitee, "Organization invitation");
 	const invitationLink =
 		/https?:\/\/[^\s]+\/v1\/invitations\/confirmation#[^\s]+/.exec(
@@ -233,6 +241,15 @@ try {
 		.getByRole("button", { name: "Confirm sign in", exact: true })
 		.click();
 	await otherTab.getByText("Signed in", { exact: true }).waitFor();
+	// A still-open workspace must discard the previous account's data and forms on focus.
+	await workspaceTab.evaluate(() => window.dispatchEvent(new Event("focus")));
+	await workspaceTab.getByText(invitee, { exact: true }).waitFor();
+	assert.equal(
+		await workspaceTab.getByLabel("Organization name").inputValue(),
+		"",
+	);
+	assert.equal(await ownerOrganization.count(), 0);
+	await workspaceTab.close();
 	assert.equal(acceptRequests, 0);
 	const accepted = page.waitForResponse((response) =>
 		response.url().endsWith(`/invitations/${invitationId}/accept`),

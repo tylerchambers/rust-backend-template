@@ -10,23 +10,19 @@ import {
 	TextInput,
 	Title,
 } from "@mantine/core";
-import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { useBackend } from "../bootstrap/context";
+import { useInvitationManagement } from "../application/teamManagement";
 import {
-	createInvitation,
+	canRevokeInvitation,
+	grantableRoles,
 	type InvitationDraft,
-	invitationEmail,
-	invitationList,
-	invitationRoles,
-	revokeInvitation,
-} from "../infrastructure/invitations";
+	reviewInvitation,
+} from "../domain/team";
+import { canManageTeam, type WorkspaceRole } from "../domain/workspace";
 import {
 	isWorkspaceUnavailableToUser,
-	type WorkspaceRole,
 	workspaceError,
-	workspaceRole,
-} from "../infrastructure/workspace";
+} from "../infrastructure/workspaceResponse";
 import { ProofAction } from "./ProofAction";
 
 type Selection =
@@ -38,32 +34,23 @@ function ManageInvitations({
 	role,
 }: {
 	organizationId: string;
-	role: "owner" | "admin";
+	role: WorkspaceRole;
 }): React.JSX.Element {
-	const client = useBackend();
-	const cache = useQueryClient();
-	const options = invitationList(client, organizationId);
-	const history = useInfiniteQuery(options);
+	const { history, invite, revoke } = useInvitationManagement(organizationId);
 	const rows = history.data?.pages.flat();
 	const [email, setEmail] = useState("");
 	const [offeredRole, setOfferedRole] = useState<WorkspaceRole>("viewer");
 	const [selection, setSelection] = useState<Selection | null>(null);
 	const [notice, setNotice] = useState("");
-	const recipient = invitationEmail.safeParse(email);
-	const roles = invitationRoles(role);
+	const review = reviewInvitation(email, offeredRole, role);
+	const roles = grantableRoles(role);
 	const selected =
 		selection?.action === "revoke_invitation" &&
-		!rows?.some((row) => row.id === selection.id && row.status === "pending")
+		!rows?.some(
+			(row) => row.id === selection.id && canRevokeInvitation(row.status),
+		)
 			? null
 			: selection;
-
-	async function refreshAfter(write: Promise<void>): Promise<void> {
-		await write;
-		void cache.invalidateQueries({ queryKey: options.queryKey });
-		void cache.invalidateQueries({
-			queryKey: ["workspace", "audit", organizationId],
-		});
-	}
 
 	return (
 		<Stack gap="lg">
@@ -110,16 +97,7 @@ function ManageInvitations({
 								target={organizationId}
 								label="Send invitation"
 								description={`Invite ${selected.draft.email} as ${selected.draft.role}.`}
-								submit={(proof) =>
-									refreshAfter(
-										createInvitation(
-											client,
-											organizationId,
-											selected.draft,
-											proof,
-										),
-									)
-								}
+								submit={(proof) => invite(selected.draft, proof)}
 								onCancel={() => setSelection(null)}
 								onSuccess={() => {
 									setNotice(`Invitation queued for ${selected.draft.email}.`);
@@ -132,17 +110,9 @@ function ManageInvitations({
 							<form
 								onSubmit={(event) => {
 									event.preventDefault();
-									if (
-										selected ||
-										!recipient.success ||
-										!roles.includes(offeredRole)
-									)
-										return;
+									if (selected || review.status !== "ready") return;
 									setNotice("");
-									setSelection({
-										action: "invite",
-										draft: { email: recipient.data, role: offeredRole },
-									});
+									setSelection({ action: "invite", draft: review.draft });
 								}}
 							>
 								<Stack gap="sm">
@@ -155,7 +125,7 @@ function ManageInvitations({
 										spellCheck={false}
 										value={email}
 										error={
-											email && !recipient.success
+											email && review.status === "invalid-email"
 												? "Enter a valid email address."
 												: undefined
 										}
@@ -166,17 +136,18 @@ function ManageInvitations({
 										data={roles}
 										value={offeredRole}
 										onChange={(event) => {
-											const value = workspaceRole.safeParse(
-												event.currentTarget.value,
+											const next = roles.find(
+												(role) => role === event.currentTarget.value,
 											);
-											if (value.success && roles.includes(value.data))
-												setOfferedRole(value.data);
+											if (next) setOfferedRole(next);
 										}}
 									/>
 									<Button
 										type="submit"
 										style={{ alignSelf: "start" }}
-										disabled={selected !== null || !recipient.success}
+										disabled={
+											selected !== null || review.status === "invalid-email"
+										}
 									>
 										Review invitation
 									</Button>
@@ -207,7 +178,7 @@ function ManageInvitations({
 									</time>
 								</Text>
 								{history.isSuccess &&
-									row.status === "pending" &&
+									canRevokeInvitation(row.status) &&
 									(selected?.action === "revoke_invitation" &&
 									selected.id === row.id ? (
 										<ProofAction
@@ -216,16 +187,7 @@ function ManageInvitations({
 											target={row.id}
 											label="Revoke invitation"
 											description={`Revoke the pending ${row.role} invitation for ${row.email}.`}
-											submit={(proof) =>
-												refreshAfter(
-													revokeInvitation(
-														client,
-														organizationId,
-														row.id,
-														proof,
-													),
-												)
-											}
+											submit={(proof) => revoke(row.id, proof)}
 											onCancel={() => setSelection(null)}
 											onSuccess={() => {
 												setNotice(`Invitation for ${row.email} revoked.`);
@@ -277,7 +239,7 @@ export function Invitations({
 	organizationId: string;
 	role: WorkspaceRole;
 }): React.JSX.Element {
-	if (role !== "admin" && role !== "owner") {
+	if (!canManageTeam(role)) {
 		return <Text>Only owners and admins can manage invitations.</Text>;
 	}
 	return (

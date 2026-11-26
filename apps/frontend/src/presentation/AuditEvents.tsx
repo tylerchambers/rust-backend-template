@@ -1,8 +1,8 @@
 import { Alert, Button, Paper, Stack, Text, Title } from "@mantine/core";
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { useBackend } from "../bootstrap/context";
+import { useBackend } from "../application/backend";
 import { auditEvents } from "../infrastructure/audit";
-import { workspaceError } from "../infrastructure/workspace";
+import { workspaceError } from "../infrastructure/workspaceResponse";
 
 export function AuditEvents({
 	organizationId,

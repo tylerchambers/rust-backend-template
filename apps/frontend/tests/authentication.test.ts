@@ -3,6 +3,7 @@ import { createBackendClient } from "rust-backend-template-sdk";
 import {
 	Authentication,
 	AuthenticationError,
+	authenticationMessage,
 } from "../src/infrastructure/authentication";
 
 const origin = "https://workspace.example";
@@ -24,6 +25,18 @@ function adapter(
 		"x-csrf-token": csrf(),
 	}));
 }
+
+test("only deliberate authentication errors are displayed to users", () => {
+	expect(authenticationMessage(new AuthenticationError("Sign in again."))).toBe(
+		"Sign in again.",
+	);
+	expect(authenticationMessage(new Error("private detail"))).toBe(
+		"The service could not be reached. Check your connection and try again.",
+	);
+	expect(authenticationMessage("private detail", "Session unavailable.")).toBe(
+		"Session unavailable.",
+	);
+});
 
 test("an authenticated account comes from the current session, not a saved identity", async () => {
 	const auth = adapter((request) => {

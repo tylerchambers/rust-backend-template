@@ -1,29 +1,35 @@
 import { infiniteQueryOptions } from "@tanstack/react-query";
 import type { BackendClient } from "rust-backend-template-sdk";
 import { z } from "zod";
+import type { Member } from "../domain/team";
+import {
+	canManageTeam,
+	type WorkspaceRole,
+	workspaceRole,
+} from "../domain/workspace";
 import { writeHeaders } from "./browser";
-import { type WorkspaceRole, workspaceBody, workspaceRole } from "./workspace";
+import { workspacePageSize } from "./workspacePage";
+import { workspaceBody } from "./workspaceResponse";
 
-const pageSize = 50;
 const member = z.object({ user_id: z.uuid(), role: workspaceRole });
-const roster = z.array(member).max(pageSize);
+const roster = z.array(member).max(workspacePageSize);
 const directory = z
 	.array(member.extend({ email: z.string().min(1).max(254) }))
-	.max(pageSize);
+	.max(workspacePageSize);
 
-export type Member = { userId: string; role: WorkspaceRole; email?: string };
+export function memberListKey(organizationId: string) {
+	return ["workspace", "members", organizationId] as const;
+}
 
 export function memberList(
 	client: BackendClient,
 	organizationId: string,
 	role: WorkspaceRole,
 ) {
-	const manager = role === "owner" || role === "admin";
+	const manager = canManageTeam(role);
 	return infiniteQueryOptions({
 		queryKey: [
-			"workspace",
-			"members",
-			organizationId,
+			...memberListKey(organizationId),
 			manager ? "directory" : "roster",
 		] as const,
 		initialPageParam: "",
@@ -60,7 +66,7 @@ export function memberList(
 			}));
 		},
 		getNextPageParam: (page) =>
-			page.length === pageSize ? page.at(-1)?.userId : undefined,
+			page.length === workspacePageSize ? page.at(-1)?.userId : undefined,
 	});
 }
 
