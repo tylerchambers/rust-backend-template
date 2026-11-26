@@ -9,7 +9,7 @@ use application::authentication::LoginMailer;
 async fn smtp_adapter_delivers_to_external_capture() {
     let mail = infrastructure::smtp::SmtpMailer::local_capture(
         "127.0.0.1",
-        51029,
+        std::env::var("SMTP_PORT").unwrap().parse().unwrap(),
         "http://localhost:58039",
     )
     .unwrap();

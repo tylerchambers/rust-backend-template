@@ -1,26 +1,36 @@
-# Contributing and agent handoff
+# Contributing
 
-1. Read README, `docs/adr-001.md`, `docs/acceptance.md` and the governing specification snapshots. For scope changes, read the live Notion hub and affected links; do not edit Notion without explicit authorization. Magic-link/current-stable overrides supersede historical passkey/MSRV text.
-2. Work on a feature branch. Record ticket IDs, file ownership and migration ownership before parallel work. Only one writer owns shared generated contracts and the combined-tree verification snapshot. Reviewers remain read-only until that snapshot is announced.
-3. Keep business policy in domain/application. Domain knows no HTTP, SQLx, Redis or River. HTTP binds transport UUIDs into typed IDs and calls application operations. Infrastructure unwraps IDs into SQL; it owns authoritative locks, RLS and publication safeguards. Bootstrap constructs dependencies explicitly.
-4. Write a failing behavioral regression before changing production behavior. Preserve existing assertions. Fakes belong at owned ports; use real PostgreSQL for SQL/transaction/RLS claims, real SMTP peers for transport claims and native Chromium for browser-cookie/confirmation claims.
-5. Never rewrite applied migrations, hand-edit SDK/schema outputs, add a fake login route, log credentials or run against personal/production dependencies. No host installs: tooling goes in `.local/tools`; dependencies are disposable exact-ID-owned containers. The preflight prevents implicit rustup installation.
-6. Run `python3 scripts/lint.py fmt` for safe fixes and `python3 scripts/lint.py check` for the warning-as-error policy. Every new crate must inherit `[lints] workspace = true`; do not disable lint groups. Document any function-scoped exception with a reason and preserve generated ownership. See `docs/lint-policy.md`. Run `python3 scripts/verify.py` (or `just check`) on the stable combined tree. This includes generation drift, security/advisory checks and current migration/security integration. Do not run a second suite against its fixed ports. An earlier green snapshot is not proof of later changes.
-7. Review the complete diff, status and retained evidence before committing. Commit/push the authorized feature branch, verify the remote SHA and private repository metadata, and update the existing WIP PR. Do not merge or deploy without authorization.
-8. Keep documentation minimal: maintained guides and governing specs only. Put a concise reviewed revision, change summary, actual verification results and unresolved limitations in the MR. Keep generated logs, detailed review reports and handoffs local and ignored; do not commit evidence snapshots. A WIP PR or finished worker is not release approval.
+Use the [README](README.md#quick-start) to set up the toolchain. Run recipes
+from the checkout.
 
-## Evidence entry
+| Command | When to use it |
+| --- | --- |
+| `just fmt` | Apply formatting before review. |
+| `just check` | Check formatting, Clippy, crate boundaries, TypeScript, unit tests and generated-contract drift. Does not need Docker or modify the tracked contracts. |
+| `just openapi` | After changing a Rust API definition, regenerate `openapi.json` and the SDK declarations. Review and commit both outputs with the change. |
+| `just integration` | Test migrations, database permissions and concurrent transactions against disposable services. Smoke-test the packaged server on `/ready` and run the native API, worker, SDK and browser journeys once. |
+| `just audit` | Check Rust advisories, licenses and sources with cargo-deny, and workspace dependencies with Bun audit. The recipe installs its pinned cargo-deny in the checkout. |
 
-```text
-Ticket(s):
-Contract/invariant:
-Implementation boundary:
-RED evidence:
-GREEN and integration evidence:
-Concurrency/security cases:
-Migration/compatibility effect:
-Remaining limitations and owner:
-Commit/PR:
+Integration uses a separate Compose project and database from `just dev`.
+It needs Docker Compose 2.24.4 or later, OpenSSL 1.1.1 or later, curl and
+the system libraries for Playwright Chromium. The recipe installs the pinned
+headless browser under `.local/playwright`. On a minimal Ubuntu runner, install its system libraries first:
+
+```sh
+bun install --frozen-lockfile
+bun sdk/node_modules/playwright/cli.js install-deps chromium
 ```
 
-The parent owns independent review and fresh-checkout reproduction. Do not mark those gates complete from the implementation agent's own run. Keep licensing undecided until the owner chooses it.
+GitHub Actions runs `just check` and `just integration` on pull requests.
+The separate audit workflow runs on dependency changes and weekly.
+
+## Changes to the backend
+
+- Keep business rules in domain and application. HTTP translates requests;
+  infrastructure owns SQL, locks and RLS. See the [architecture](docs/adr-001.md).
+- In every Rust crate, set `[lints] workspace = true`. Keep lint exceptions
+  narrow and explain them with `#[expect(..., reason = "...")]`.
+- Add a regression test for changed behavior. Use a real database for
+  transaction and RLS claims and a browser for cookie and confirmation flows.
+- Never rewrite an applied migration or hand-edit a generated contract.
+  Keep credentials, raw tokens and personal databases out of tests and logs.

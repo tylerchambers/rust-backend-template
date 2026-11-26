@@ -1,16 +1,43 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
+import { checkTenantAccess } from "./tenant.mjs";
 
 // The SDK owns the pinned browser-test dependency; this is an application journey.
 const require = createRequire(
 	new URL("../../sdk/package.json", import.meta.url),
 );
 const { chromium } = require("playwright");
+const origin = process.env.PUBLIC_ORIGIN ?? "http://localhost:58039";
+const mail = process.env.MAILPIT_URL ?? "http://127.0.0.1:58029";
+const readMessages = new Set();
+
+async function mailText(email, subject) {
+	const deadline = Date.now() + 15000;
+	while (Date.now() < deadline) {
+		const response = await fetch(`${mail}/api/v1/messages`);
+		assert.equal(response.status, 200);
+		const { messages } = await response.json();
+		const message = messages.find(
+			(item) =>
+				!readMessages.has(item.ID) &&
+				item.Subject === subject &&
+				item.To.some((to) => to.Address === email),
+		);
+		if (message) {
+			readMessages.add(message.ID);
+			const content = await fetch(`${mail}/api/v1/message/${message.ID}`);
+			assert.equal(content.status, 200);
+			return (await content.json()).Text;
+		}
+		await Bun.sleep(100);
+	}
+	throw new Error(`Missing captured email: ${subject}`);
+}
 
 const browser = await chromium.launch({ headless: true });
 try {
-	const context = await browser.newContext();
+	const context = await browser.newContext({ baseURL: origin });
 	const page = await context.newPage();
 	const openReplacement = async (tab, fragment) => {
 		await tab.evaluate((value) => {
@@ -18,47 +45,23 @@ try {
 		}, fragment);
 		await tab.waitForFunction(() => location.hash === "");
 	};
-	await page.goto("http://localhost:58039/v1/auth/confirmation");
+	await page.goto("/");
 	const email = `${randomUUID()}@example.test`;
-	const requested = await page.evaluate(async (email) => {
-		const csrf = document.cookie
-			.split("; ")
-			.find((part) => part.startsWith("csrf="))
-			?.slice(5);
-		const response = await fetch("/v1/auth/request", {
-			method: "POST",
-			headers: {
-				"content-type": "application/json",
-				"x-csrf-token": csrf ?? "",
-			},
-			body: JSON.stringify({ email }),
-		});
-		return response.status;
-	}, email);
-	assert.equal(requested, 202);
-	const listing = await (
-		await page.request.get("http://127.0.0.1:58029/api/v1/messages")
-	).json();
-	const message = listing.messages.find((message) =>
-		message.To.some((to) => to.Address === email),
+	await page.getByLabel("Email address").fill(email);
+	const requested = page.waitForResponse((response) =>
+		response.url().endsWith("/v1/auth/request"),
 	);
-	assert.ok(message);
-	const content = await (
-		await page.request.get(
-			`http://127.0.0.1:58029/api/v1/message/${message.ID}`,
-		)
-	).json();
-	const token = /confirmation#([a-f0-9]{64})/.exec(content.Text)?.[1];
+	await page.getByRole("button", { name: "Send sign-in link" }).click();
+	assert.equal((await requested).status(), 202);
+	await page.getByRole("heading", { name: "Check your inbox" }).waitFor();
+	const token = /confirmation#([a-f0-9]{64})/.exec(
+		await mailText(email, "Confirm sign in"),
+	)?.[1];
 	assert.ok(token);
-	await page.goto(`http://localhost:58039/v1/auth/confirmation#${token}`);
-	assert.equal(
-		(
-			await page.request.get("http://localhost:58039/v1/auth/sessions")
-		).status(),
-		401,
-	);
+	await page.goto(`/v1/auth/confirmation#${token}`);
+	assert.equal((await page.request.get("/v1/auth/sessions")).status(), 401);
 	const otherTab = await page.context().newPage();
-	await otherTab.goto("http://localhost:58039/v1/auth/confirmation");
+	await otherTab.goto("/v1/auth/confirmation");
 	const confirmationResponse = page.waitForResponse((response) =>
 		response.url().endsWith("/v1/auth/confirm"),
 	);
@@ -70,12 +73,7 @@ try {
 	await page.getByText("Signed in", { exact: true }).waitFor();
 	await openReplacement(page, "another-login-link");
 	assert.equal(await page.locator("#result").textContent(), "");
-	assert.equal(
-		(
-			await page.request.get("http://localhost:58039/v1/auth/sessions")
-		).status(),
-		200,
-	);
+	assert.equal((await page.request.get("/v1/auth/sessions")).status(), 200);
 	const cookies = await page.context().cookies();
 	const session = cookies.find((cookie) => cookie.name === "__Host-session");
 	assert.ok(session?.httpOnly && session.secure && session.sameSite === "Lax");
@@ -97,11 +95,46 @@ try {
 			},
 			{ path, body, includeCsrf },
 		);
-	const organization = await post("/v1/organizations", {
-		name: "Browser proof tenant",
-	});
-	assert.equal(organization.status, 201);
-	const org = JSON.parse(organization.text).id;
+	await page.getByRole("link", { name: "Open Project desk" }).click();
+	await page.getByLabel("Organization name").fill("Browser proof tenant");
+	const organization = page.waitForResponse(
+		(response) =>
+			response.request().method() === "POST" &&
+			response.url().endsWith("/v1/organizations"),
+	);
+	await page.getByRole("button", { name: "Create organization" }).click();
+	const created = await organization;
+	assert.equal(created.status(), 201);
+	const { id: org } = await created.json();
+	await page
+		.getByRole("link", { name: "Browser proof tenant", exact: true })
+		.click();
+	await page.getByLabel("Project name").fill("First project");
+	await page.getByRole("button", { name: "Create project" }).click();
+	await page.getByRole("button", { name: "Rename First project" }).click();
+	await otherTab.goto(page.url());
+	await otherTab.getByRole("button", { name: "Rename First project" }).click();
+	await otherTab
+		.getByLabel("New project name")
+		.fill("Another editor's project");
+	await otherTab.getByRole("button", { name: "Save name" }).click();
+	await otherTab
+		.getByRole("heading", { name: "Another editor's project" })
+		.waitFor();
+	await page.getByLabel("New project name").fill("Renamed project");
+	await page.getByRole("button", { name: "Save name" }).click();
+	await page.getByText("This project changed while you were editing").waitFor();
+	assert.equal(
+		await page.getByLabel("New project name").inputValue(),
+		"Renamed project",
+	);
+	await page
+		.getByRole("button", { name: "Continue with this version" })
+		.click();
+	await page.getByRole("button", { name: "Save name" }).click();
+	await page.getByRole("heading", { name: "Renamed project" }).waitFor();
+	await page.reload();
+	await page.getByRole("heading", { name: "Renamed project" }).waitFor();
 	const invitePath = `/v1/organizations/${org}/invitations`;
 	const invitee = `${randomUUID()}@example.test`;
 	assert.equal(
@@ -119,23 +152,11 @@ try {
 		).status,
 		202,
 	);
-	const proofMessages = await (
-		await page.request.get("http://127.0.0.1:58029/api/v1/messages")
-	).json();
-	const proofMessage = proofMessages.messages.find(
-		(message) =>
-			message.Subject === "Confirm privileged operation" &&
-			message.To.some((to) => to.Address === email),
-	);
-	assert.ok(proofMessage);
-	const proofContent = await (
-		await page.request.get(
-			`http://127.0.0.1:58029/api/v1/message/${proofMessage.ID}`,
-		)
-	).json();
-	const proof = /confirmation#([a-f0-9]{64})/.exec(proofContent.Text)?.[1];
+	const proof = /confirmation#([a-f0-9]{64})/.exec(
+		await mailText(email, "Confirm privileged operation"),
+	)?.[1];
 	assert.ok(proof);
-	await page.goto("http://localhost:58039/v1/auth/reauth/confirmation#first");
+	await page.goto("/v1/auth/reauth/confirmation#first");
 	await page.waitForFunction(() => location.hash === "");
 	await openReplacement(page, proof);
 	assert.equal(await page.locator("#proof").textContent(), "");
@@ -161,35 +182,24 @@ try {
 		(await post(invitePath, { email: invitee, role: "viewer", proof })).status,
 		403,
 	);
-	const mailText = async (subject) => {
-		const deadline = Date.now() + 15000;
-		while (Date.now() < deadline) {
-			const listing = await (
-				await page.request.get("http://127.0.0.1:58029/api/v1/messages")
-			).json();
-			const message = listing.messages.find(
-				(message) =>
-					message.Subject === subject &&
-					message.To.some((to) => to.Address === invitee),
-			);
-			if (message)
-				return (
-					await (
-						await page.request.get(
-							`http://127.0.0.1:58029/api/v1/message/${message.ID}`,
-						)
-					).json()
-				).Text;
-		}
-		throw new Error(`Missing captured email: ${subject}`);
-	};
-	const invitationText = await mailText("Organization invitation");
+	assert.equal((await post("/v1/auth/confirm", { token })).status, 401);
+	assert.equal(
+		(await post("/v1/auth/request", { email, redirect: "https://evil.test" }))
+			.status,
+		422,
+	);
+	const owner = await browser.newContext({
+		baseURL: origin,
+		storageState: await context.storageState(),
+	});
+	const invitationText = await mailText(invitee, "Organization invitation");
 	const invitationLink =
-		/http:\/\/localhost:58039\/v1\/invitations\/confirmation#[^\s]+/.exec(
+		/https?:\/\/[^\s]+\/v1\/invitations\/confirmation#[^\s]+/.exec(
 			invitationText,
 		)?.[0];
 	assert.ok(invitationLink);
 	const inviteUrl = new URL(invitationLink);
+	assert.equal(inviteUrl.origin, origin);
 	let acceptRequests = 0;
 	page.on("request", (request) => {
 		if (request.method() === "POST" && request.url().endsWith("/accept"))
@@ -199,18 +209,16 @@ try {
 	await page.waitForFunction(() => location.hash === "");
 	await openReplacement(page, inviteUrl.hash);
 	assert.equal(await page.locator("#result").textContent(), "");
-	await otherTab.goto("http://localhost:58039/v1/auth/confirmation");
+	await otherTab.goto("/v1/auth/confirmation");
 	assert.equal(
 		(await post("/v1/auth/request", { email: invitee })).status,
 		202,
 	);
 	const inviteeLogin = /confirmation#([a-f0-9]{64})/.exec(
-		await mailText("Confirm sign in"),
+		await mailText(invitee, "Confirm sign in"),
 	)?.[1];
 	assert.ok(inviteeLogin);
-	await otherTab.goto(
-		`http://localhost:58039/v1/auth/confirmation#${inviteeLogin}`,
-	);
+	await otherTab.goto(`/v1/auth/confirmation#${inviteeLogin}`);
 	await otherTab
 		.getByRole("button", { name: "Confirm sign in", exact: true })
 		.click();
@@ -228,15 +236,40 @@ try {
 	await openReplacement(page, "another:invitation:link");
 	assert.equal(await page.locator("#result").textContent(), "");
 	const memberships = await (
-		await page.request.get("http://localhost:58039/v1/organizations")
+		await page.request.get("/v1/organizations")
 	).json();
 	assert.ok(
 		memberships.some(
 			(membership) => membership.id === org && membership.role === "viewer",
 		),
 	);
+	await page.goto(`/#/organizations/${org}`);
+	await page.getByRole("heading", { name: "Renamed project" }).waitFor();
+	await page
+		.getByText("You have view-only access to this organization.")
+		.waitFor();
+	assert.equal(
+		await page.getByRole("button", { name: "Rename Renamed project" }).count(),
+		0,
+	);
+	await checkTenantAccess({
+		owner,
+		viewer: context,
+		origin,
+		org,
+		invitee,
+		invitationId,
+		invitationToken: inviteUrl.hash.split(":").at(-1),
+		mailText: (subject) => mailText(email, subject),
+	});
+	const ownerPage = await owner.newPage();
+	await ownerPage.goto(`/#/organizations/${org}`);
+	await ownerPage.getByRole("heading", { name: "Renamed project" }).waitFor();
+	await ownerPage.getByRole("button", { name: "Sign out" }).click();
+	await ownerPage.getByLabel("Email address").waitFor();
+	assert.equal(await ownerPage.getByText("Renamed project").count(), 0);
 	console.log(
-		"PASS: native Chromium scanner GET, explicit confirmation POST, Secure HttpOnly session, action-bound email proof and CSRF/replay rejection",
+		"PASS: workspace sign-in, organization and project creation, persisted rename, sign-out, native cookie and confirmation flows",
 	);
 } finally {
 	await browser.close();

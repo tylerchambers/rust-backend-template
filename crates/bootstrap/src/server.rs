@@ -4,6 +4,7 @@ use crate::{
     services::{ServerServices, enforce_runtime_role},
     telemetry::{logging, monitored_router, shutdown},
 };
+use tower_http::services::{ServeDir, ServeFile};
 
 /// Compose and serve the HTTP application until shutdown.
 /// # Errors
@@ -24,7 +25,9 @@ pub async fn server() -> Result<(), Failure> {
         .await
         .map_err(|_| Failure::ListenerBind)?;
     tracing::info!(operation = "server.ready");
-    let router = monitored_router(services.state, services.db, services.redis);
+    let router = monitored_router(services.state, services.db, services.redis)
+        .route_service("/", ServeFile::new("apps/frontend/dist/index.html"))
+        .nest_service("/assets", ServeDir::new("apps/frontend/dist"));
     axum::serve(
         listener,
         router.into_make_service_with_connect_info::<std::net::SocketAddr>(),

@@ -1,0 +1,14 @@
+{
+	"name": "rust-backend-template",
+	"private": true,
+	"type": "module",
+	"packageManager": "bun@1.4.4",
+	"workspaces": [
+		"sdk",
+		"apps/frontend"
+	],
+	"scripts": {
+		"dev:server": "exec target/debug/server",
+		"dev:worker": "exec target/debug/worker"
+	}
+}

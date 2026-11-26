@@ -2,11 +2,8 @@
   "name": "rust-backend-template-sdk",
   "private": true,
   "type": "module",
-  "packageManager": "bun@1.4.4",
   "scripts": {
-    "generate": "bun generate.ts",
-    "check": "bun node_modules/typescript/bin/tsc --noEmit",
-    "test": "bun test"
+    "check": "bun node_modules/typescript/bin/tsc --noEmit"
   },
   "exports": {
     ".": "./src/index.ts"

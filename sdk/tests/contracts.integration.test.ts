@@ -2,13 +2,14 @@ import { expect, test } from "bun:test";
 import { createBackendClient } from "../src/index";
 
 test("typed errors and HTML pages follow the published contract", async () => {
-	const client = createBackendClient("http://localhost:58039", () => "");
+	const origin = process.env.PUBLIC_ORIGIN ?? "http://localhost:58039";
+	const client = createBackendClient(origin, () => "");
 	const sessions = await client.GET("/v1/auth/sessions");
 	expect(sessions.response.status).toBe(401);
 	expect(sessions.error?.code).toBe("unauthenticated");
 	const organization = await client.POST("/v1/organizations", {
 		params: {
-			header: { Origin: "http://localhost:58039", "x-csrf-token": "" },
+			header: { Origin: origin, "x-csrf-token": "" },
 		},
 		body: { name: "Forbidden" },
 	});

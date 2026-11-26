@@ -35,7 +35,7 @@ async fn river_worker_updates_projection_and_runs_scheduled_cleanup() {
         std::sync::Arc::new(
             infrastructure::smtp::SmtpMailer::local_capture(
                 "127.0.0.1",
-                51029,
+                std::env::var("SMTP_PORT").unwrap().parse().unwrap(),
                 "http://localhost:58039",
             )
             .unwrap(),
@@ -93,7 +93,7 @@ async fn crash_worker_process() {
         std::sync::Arc::new(
             infrastructure::smtp::SmtpMailer::local_capture(
                 "127.0.0.1",
-                51029,
+                std::env::var("SMTP_PORT").unwrap().parse().unwrap(),
                 "http://localhost:58039",
             )
             .unwrap(),

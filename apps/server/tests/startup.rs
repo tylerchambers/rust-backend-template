@@ -5,12 +5,10 @@ use std::process::Command;
 fn runtime_role_and_listener_failures_are_distinct() {
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let admin = std::env::var("TEST_DATABASE_URL").unwrap();
+    let runtime = std::env::var("DATABASE_URL").unwrap();
     for (database, category) in [
         (admin.as_str(), "runtime_role"),
-        (
-            "postgres://template_app:local-app-test@127.0.0.1:55439/template",
-            "listener_bind",
-        ),
+        (runtime.as_str(), "listener_bind"),
     ] {
         let output = Command::new(env!("CARGO_BIN_EXE_server"))
             .env_clear()
@@ -18,7 +16,6 @@ fn runtime_role_and_listener_failures_are_distinct() {
             .env("PUBLIC_ORIGIN", "http://localhost:58039")
             .env("ENVIRONMENT", "development")
             .env("MAIL_MODE", "capture")
-            .env("SMTP_PORT", "51029")
             .env("BIND_ADDRESS", listener.local_addr().unwrap().to_string())
             .output()
             .unwrap();

@@ -1,0 +1,28 @@
+# Overlay for just integration. Docker assigns host ports inside this project's lifetime.
+services:
+  postgres:
+    ports: !override ["127.0.0.1::5432"]
+  mailpit:
+    ports: !override ["127.0.0.1::1025", "127.0.0.1::8025"]
+    volumes: ["${TEST_TLS_DIR:?integration certificate directory required}:/tls:ro"]
+    environment:
+      MP_SMTP_TLS_CERT: /tls/cert.pem
+      MP_SMTP_TLS_KEY: /tls/key.pem
+      MP_SMTP_AUTH_ACCEPT_ANY: "true"
+  redis:
+    ports: !override ["127.0.0.1::6379"]
+  smoke:
+    build: .
+    ports: ["127.0.0.1::8080"]
+    environment:
+      DATABASE_URL: postgres://template_app:local-app-test@postgres/template
+      PUBLIC_ORIGIN: https://smoke.example.test
+      ENVIRONMENT: production
+      MAIL_MODE: smtp
+      SMTP_HOST: mailpit
+      SMTP_USERNAME: capture
+      SMTP_PASSWORD: capture
+      SMTP_FROM: login@example.test
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]

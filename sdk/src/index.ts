@@ -1,10 +1,15 @@
-import createClient from "openapi-fetch";
+import createClient, { type Client } from "openapi-fetch";
 import type { paths } from "./schema";
+
+export type BackendClient = Client<paths>;
 
 /** Fetch-based typed SDK. Supply Origin/CSRF parameters and cookies for non-browser clients.
  * Confirmation pages are HTML: use GET(path, { parseAs: "text" }).
  */
-export function createBackendClient(baseUrl: string, csrfToken: () => string) {
+export function createBackendClient(
+	baseUrl: string,
+	csrfToken: () => string,
+): BackendClient {
 	const client = createClient<paths>({ baseUrl, credentials: "include" });
 	client.use({
 		onRequest({ request }) {

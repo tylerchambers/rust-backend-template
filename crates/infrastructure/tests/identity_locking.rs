@@ -110,10 +110,9 @@ impl Fixture {
         infrastructure::postgres::migrations::migrate(&admin)
             .await
             .unwrap();
-        let runtime =
-            PgPool::connect("postgres://template_app:local-app-test@127.0.0.1:55439/template")
-                .await
-                .unwrap();
+        let runtime = PgPool::connect(&std::env::var("DATABASE_URL").unwrap())
+            .await
+            .unwrap();
         let db = Arc::new(Database::new(runtime).unwrap());
         let mut actors = Vec::new();
         for _ in 0..2 {

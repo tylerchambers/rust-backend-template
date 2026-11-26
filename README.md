@@ -1,8 +1,7 @@
 # Rust SaaS backend template
 
 A Rust backend starter for applications where users belong to organizations and
-share projects. It provides a JSON API and a background worker; you bring the
-frontend and your application's business logic.
+share projects. It includes a JSON API, a background worker and a React workspace.
 
 The example application supports:
 
@@ -19,66 +18,44 @@ infrastructure and HTTP handlers.
 
 ## Quick start
 
-Install Rust **1.99.1**, Bun **1.4.4**, Python **3.14+**, uv, rootless Podman
-(with slirp4netns) and OpenSSL before starting. The scripts do not install Rust
-for you. The first run needs network access to download crates and container images.
-
-From the repository root:
-
-```sh
-python3 scripts/dev.py
-```
-
-This starts local PostgreSQL, Redis and an email capture service, applies migrations,
-builds the app, and runs the API and worker. Keep it running. Ctrl-C stops the app
-and removes dependencies it started, including their development data.
-
-In another terminal:
+Install [just](https://just.systems/), rustup, the exact Bun version in
+[`.bun-version`](.bun-version), and Docker with Compose v2. From the checkout,
+`rustup toolchain install` installs the compiler, rustfmt and Clippy specified in
+[`rust-toolchain.toml`](rust-toolchain.toml). Start Docker, then run:
 
 ```sh
-python3 scripts/seed.py
-curl --fail http://localhost:58039/health
+just dev
 ```
 
-The seed creates two sample organizations and projects owned by
-`owner@example.test`. The health check returns HTTP 200 with an empty body.
-There is no application dashboard; the API contract is at
-<http://localhost:58039/openapi.json>.
+This starts PostgreSQL and Mailpit, runs migrations, builds the frontend and
+starts the API and worker. Open [Project desk](http://localhost:58039/) and
+enter your email. A new account starts with no organizations.
 
-### Try signing in
+For the sample organizations, run `just seed` before first signing in as
+`owner@example.test`. The seed is optional; startup never overwrites project edits.
+Ctrl-C stops the API and worker. `just down` stops PostgreSQL and Mailpit
+without deleting the database.
 
-1. Open <http://localhost:58039/v1/auth/confirmation> in your browser.
-2. Run this in that page's developer console to request a sign-in email:
+Find the email at <http://localhost:58029>, open the link in the same browser,
+and click **Confirm sign in**. Return to Project desk to open an organization,
+create a project or rename one. Development email stays in the capture service.
 
-   ```js
-   await fetch('/v1/auth/request', {
-     method: 'POST',
-     headers: {
-       'content-type': 'application/json',
-       'x-csrf-token': document.cookie.split('; ').find(v => v.startsWith('csrf=')).slice(5)
-     },
-     body: JSON.stringify({email: 'owner@example.test'})
-   });
-   ```
-
-3. Find the email at <http://localhost:58029>, open its link in the same browser,
-   and click **Confirm sign in**. Development email stays in the capture service.
-4. Visit <http://localhost:58039/v1/organizations> to see your sample organizations.
-
-Use `localhost` consistently so the origin and session cookies match. Sign-in
-requires mailbox access; the template has no separate MFA or account-recovery flow.
+Use `localhost` consistently: the frontend and API share the origin and session
+cookies. Sign-in requires mailbox access. The [API contract](http://localhost:58039/openapi.json)
+also covers features without a frontend, including invitations and member administration.
 
 ## Development
 
-Run the full verification suite with `python3 scripts/verify.py`. It covers Rust
-and SDK checks, database integration, browser journeys and containerized execution.
-Run only one development instance or verification suite at a time; they share fixed
-local ports. Optional `just` shortcuts are listed in the [justfile](justfile).
+With `just dev` running, use `just frontend` in a second terminal to rebuild the
+browser assets on save. Refresh the page to see changes.
 
-See [Contributing](CONTRIBUTING.md) for development rules,
-[architecture](docs/adr-001.md) for module boundaries,
-[operations](docs/operations.md) for configuration and deployment, and
-[verification](docs/acceptance.md) for test details.
+Run `just check` for the container-free checks. Run `just integration` for the
+database, worker and browser tests with disposable services. `just --list`
+shows all recipes.
+
+See [Contributing](CONTRIBUTING.md) for testing and contract changes,
+[architecture](docs/adr-001.md) for module boundaries and
+[operations](docs/operations.md) for deployment.
 
 ## License
 

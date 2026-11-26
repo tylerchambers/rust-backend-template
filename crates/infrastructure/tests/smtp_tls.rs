@@ -8,14 +8,11 @@ use application::authentication::LoginMailer;
 use infrastructure::smtp::SmtpMailer;
 #[tokio::test]
 async fn production_smtp_requires_verified_starttls_and_delivers_to_capture() {
-    let ca = std::fs::read(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../.local/smtp/cert.pem"
-    ))
-    .unwrap();
+    let ca = std::fs::read(std::env::var("TEST_SMTP_CERT").unwrap()).unwrap();
+    let port = std::env::var("SMTP_PORT").unwrap().parse().unwrap();
     let mail = SmtpMailer::production_endpoint(
         "localhost",
-        51029,
+        port,
         "capture".into(),
         "capture".into(),
         "login@example.test",
@@ -31,7 +28,7 @@ async fn production_smtp_requires_verified_starttls_and_delivers_to_capture() {
     .unwrap();
     let untrusted = SmtpMailer::production_endpoint(
         "localhost",
-        51029,
+        port,
         "capture".into(),
         "capture".into(),
         "login@example.test",

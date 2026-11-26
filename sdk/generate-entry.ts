@@ -1,6 +1,4 @@
 import openapiTS, { astToString } from "openapi-typescript";
 
-const schema = await openapiTS(
-	new URL("../openapi.json", import.meta.env.SOURCE_URL),
-);
-await Bun.write("src/schema.d.ts", astToString(schema));
+const schema = await openapiTS(Bun.pathToFileURL(Bun.argv[2]));
+await Bun.write(Bun.argv[3], astToString(schema));

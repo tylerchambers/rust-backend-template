@@ -3,7 +3,7 @@ import { z } from "zod";
 import { createBackendClient } from "../src/index";
 
 async function mailboxToken(email: string, subject: string): Promise<string> {
-	const mail = "http://127.0.0.1:58029/api/v1";
+	const mail = process.env.MAILPIT_URL ?? "http://127.0.0.1:58029";
 	const listing = z
 		.object({
 			messages: z.array(
@@ -14,7 +14,7 @@ async function mailboxToken(email: string, subject: string): Promise<string> {
 				}),
 			),
 		})
-		.parse(await (await fetch(`${mail}/messages`)).json());
+		.parse(await (await fetch(`${mail}/api/v1/messages`)).json());
 	const message = listing.messages.find(
 		(item) =>
 			item.Subject === subject && item.To.some((to) => to.Address === email),
@@ -22,14 +22,14 @@ async function mailboxToken(email: string, subject: string): Promise<string> {
 	if (!message) throw new Error(`Missing message: ${subject}`);
 	const content = z
 		.object({ Text: z.string() })
-		.parse(await (await fetch(`${mail}/message/${message.ID}`)).json());
+		.parse(await (await fetch(`${mail}/api/v1/message/${message.ID}`)).json());
 	const token = /confirmation#([a-f0-9]{64})/.exec(content.Text)?.[1];
 	if (!token) throw new Error(`Missing token: ${subject}`);
 	return token;
 }
 
 test("generated client reads its account, project, and tenant administration data", async () => {
-	const origin = "http://localhost:58039";
+	const origin = process.env.PUBLIC_ORIGIN ?? "http://localhost:58039";
 	const cookies = new Map<string, string>();
 	const captureCookies = (response: Response): void => {
 		for (const header of response.headers.getSetCookie()) {
@@ -57,23 +57,24 @@ test("generated client reads its account, project, and tenant administration dat
 	});
 	const headers = { Origin: origin, "x-csrf-token": cookies.get("csrf") ?? "" };
 	const email = `${crypto.randomUUID()}@example.test`;
-	expect(
-		(
-			await client.POST("/v1/auth/request", {
-				params: { header: headers },
-				body: { email },
-			})
-		).response.status,
-	).toBe(202);
-	const login = await client.POST("/v1/auth/confirm", {
-		params: { header: headers },
-		body: { token: await mailboxToken(email, "Confirm sign in") },
-	});
-	expect(login.response.status).toBe(200);
-	if (!login.data) throw new Error("Login returned no account");
-	const account = { user_id: login.data.user_id, email };
+	const signIn = async () => {
+		const requested = await client.POST("/v1/auth/request", {
+			params: { header: headers },
+			body: { email },
+		});
+		expect(requested.response.status).toBe(202);
+		const login = await client.POST("/v1/auth/confirm", {
+			params: { header: headers },
+			body: { token: await mailboxToken(email, "Confirm sign in") },
+		});
+		expect(login.response.status).toBe(200);
+		if (!login.data) throw new Error("Login returned no account");
+		return { user_id: login.data.user_id, email };
+	};
+	const account = await signIn();
 	const me = await client.GET("/v1/me");
 	expect(me.data).toEqual(account);
+	expect(me.response.headers.get("cache-control")).toBe("no-store");
 	const organization = await client.POST("/v1/organizations", {
 		params: { header: headers },
 		body: { name: "SDK tenant" },
@@ -150,4 +151,19 @@ test("generated client reads its account, project, and tenant administration dat
 		(await client.POST("/v1/auth/logout", { params: { header: headers } }))
 			.response.status,
 	).toBe(204);
-});
+	expect(await signIn()).toEqual(account);
+	const sessions = await client.GET("/v1/auth/sessions");
+	expect(sessions.data).toHaveLength(1);
+	const session = sessions.data?.[0];
+	if (!session) throw new Error("Returning client has no active session");
+	for (const [id, status] of [
+		[crypto.randomUUID(), 404],
+		[session, 204],
+	] as const) {
+		const revoked = await client.POST("/v1/auth/sessions/{session}/revoke", {
+			params: { header: headers, path: { session: id } },
+		});
+		expect(revoked.response.status).toBe(status);
+	}
+	expect((await client.GET("/v1/me")).error?.code).toBe("unauthenticated");
+}, 15000);

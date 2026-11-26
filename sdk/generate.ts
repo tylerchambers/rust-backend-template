@@ -1,14 +1,9 @@
-import { resolve } from "node:path";
+import { dirname, join } from "node:path";
 
 const result = await Bun.build({
 	entrypoints: ["generate-entry.ts"],
-	outdir: "../.local/generator",
+	outdir: dirname(Bun.argv[3]),
 	target: "bun",
-	define: {
-		"import.meta.env.SOURCE_URL": JSON.stringify(
-			new URL("./generate-entry.ts", import.meta.url).href,
-		),
-	},
 	plugins: [
 		{
 			name: "typescript-compiler-api",
@@ -21,4 +16,5 @@ const result = await Bun.build({
 	],
 });
 if (!result.success) throw new Error("OpenAPI generator bundle failed");
-await import(resolve("../.local/generator/generate-entry.js"));
+// The compiler-API alias exists only in this freshly built bundle.
+await import(join(dirname(Bun.argv[3]), "generate-entry.js"));

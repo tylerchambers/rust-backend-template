@@ -14,21 +14,27 @@ pub async fn cli() -> Result<(), Failure> {
             println!("{}", api::openapi());
             Ok(())
         }
-        Some("migrate") => {
-            let pool = PgPoolOptions::new()
-                .max_connections(1)
-                .acquire_timeout(Duration::from_secs(5))
-                .connect(&std::env::var("DATABASE_URL").map_err(|_| Failure::Configuration)?)
-                .await
-                .map_err(|_| Failure::DatabaseConnect)?;
-            infrastructure::postgres::migrations::migrate(&pool)
-                .await
-                .map_err(|_| Failure::Migration)?;
-            pool.close().await;
-            Ok(())
-        }
+        Some("migrate") => migrate().await,
         _ => Err(Failure::InvalidCommand),
     }
+}
+
+/// Apply the River and application migrations with the deployment credential.
+///
+/// # Errors
+/// Returns a safe category for missing configuration, connection or migration failure.
+pub async fn migrate() -> Result<(), Failure> {
+    let pool = PgPoolOptions::new()
+        .max_connections(1)
+        .acquire_timeout(Duration::from_secs(5))
+        .connect(&std::env::var("DATABASE_URL").map_err(|_| Failure::Configuration)?)
+        .await
+        .map_err(|_| Failure::DatabaseConnect)?;
+    infrastructure::postgres::migrations::migrate(&pool)
+        .await
+        .map_err(|_| Failure::Migration)?;
+    pool.close().await;
+    Ok(())
 }
 
 /// Closed executable-boundary diagnostics; never retains dependency messages.

@@ -11,9 +11,8 @@ use infrastructure::redis::RedisAdapters;
 use uuid::Uuid;
 #[tokio::test]
 async fn cache_is_tenant_scoped_and_security_limiter_fails_closed() {
-    let redis = RedisAdapters::connect("redis://127.0.0.1:56379", "integration")
-        .await
-        .unwrap();
+    let url = std::env::var("TEST_REDIS_URL").unwrap();
+    let redis = RedisAdapters::connect(&url, "integration").await.unwrap();
     let a = domain::OrganizationId::from(Uuid::now_v7());
     let b = domain::OrganizationId::from(Uuid::now_v7());
     let p = Project::new(Uuid::now_v7().into(), a, "cached".into()).unwrap();
@@ -28,7 +27,7 @@ async fn cache_is_tenant_scoped_and_security_limiter_fails_closed() {
     }
     assert!(redis.admit(&key).await.is_err());
     let broken = format!("broken-{key}");
-    let raw = redis::Client::open("redis://127.0.0.1:56379").unwrap();
+    let raw = redis::Client::open(url).unwrap();
     let mut connection = raw.get_multiplexed_async_connection().await.unwrap();
     let redis_key = format!(
         "rust-backend-template:integration:auth:{}",

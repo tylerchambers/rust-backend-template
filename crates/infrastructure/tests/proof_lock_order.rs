@@ -22,10 +22,9 @@ async fn proof_issuance_and_session_retirement_do_not_deadlock() {
     infrastructure::postgres::migrations::migrate(&admin)
         .await
         .unwrap();
-    let runtime =
-        sqlx::PgPool::connect("postgres://template_app:local-app-test@127.0.0.1:55439/template")
-            .await
-            .unwrap();
+    let runtime = sqlx::PgPool::connect(&std::env::var("DATABASE_URL").unwrap())
+        .await
+        .unwrap();
     let db = Arc::new(Database::new(runtime).unwrap());
     let mut actors = Vec::new();
     for _ in 0..2 {

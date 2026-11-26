@@ -1,0 +1,31 @@
+body {
+	background: #f6f8f6;
+	color: #162e2a;
+}
+
+.masthead {
+	background: #123c35;
+	border-bottom: 3px solid #71c9a8;
+}
+
+.wordmark {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.75rem;
+	color: white;
+	font-weight: 700;
+	font-size: 1.15rem;
+	text-decoration: none;
+}
+
+.brand-mark {
+	display: grid;
+	place-items: center;
+	width: 2rem;
+	height: 2rem;
+	background: #c4f0da;
+	color: #123c35;
+	border-radius: 0.5rem 0.5rem 0.5rem 0;
+	font-family: Georgia, serif;
+	font-style: italic;
+}

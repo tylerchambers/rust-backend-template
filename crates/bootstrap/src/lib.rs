@@ -6,7 +6,7 @@ mod services;
 mod telemetry;
 mod worker;
 
-pub use cli::{Failure, cli};
+pub use cli::{Failure, cli, migrate};
 pub use config::Config;
 pub use server::server;
 pub use worker::worker;

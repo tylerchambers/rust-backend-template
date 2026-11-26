@@ -1,0 +1,10 @@
+{$PUBLIC_ORIGIN} {
+	encode zstd gzip
+
+	@metrics path /metrics /metrics/*
+	respond @metrics 404
+
+	# Caddy is the public edge: no trusted upstream proxies. Source admission
+	# in the API uses Caddy's socket address, not a forwarded header.
+	reverse_proxy api:8080
+}
