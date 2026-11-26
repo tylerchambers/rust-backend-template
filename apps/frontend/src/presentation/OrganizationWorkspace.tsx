@@ -1,12 +1,4 @@
-import {
-	Alert,
-	Button,
-	Group,
-	Stack,
-	Tabs,
-	Text,
-	Title,
-} from "@mantine/core";
+import { Alert, Button, Group, Stack, Tabs, Text, Title } from "@mantine/core";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useBackend } from "../application/backend";

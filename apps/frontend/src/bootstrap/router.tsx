@@ -1,4 +1,4 @@
-import { Stack, Text, Title } from "@mantine/core";
+import { Stack, Title } from "@mantine/core";
 import {
 	createHashHistory,
 	createRootRoute,
@@ -18,7 +18,6 @@ function NotFound(): JSX.Element {
 	return (
 		<Stack align="flex-start">
 			<Title order={1}>Page not found</Title>
-			<Text>This workspace link does not match a page.</Text>
 			<Link to="/">Back to organizations</Link>
 		</Stack>
 	);

@@ -25,52 +25,52 @@ export function CreateOrganization(): React.JSX.Element {
 	return (
 		<form
 			className="entry-form"
-				onSubmit={(event) => {
-					event.preventDefault();
-					if (parsed.success && !create.isPending) create.mutate(parsed.data);
-				}}
-			>
-				<Stack>
-					<TextInput
-						label="Organization name"
-						required
-						value={name}
-						disabled={create.isPending}
-						error={
-							name && !parsed.success
-								? parsed.error.issues[0]?.message
-								: undefined
-						}
-						onChange={(event) => {
-							setName(event.currentTarget.value);
-							create.reset();
-						}}
-					/>
-					{create.isError && (
-						<Alert color="red" title="Organization not created">
-							{workspaceError(create.error)}
-						</Alert>
-					)}
-					{create.isSuccess && (
-						<Text role="status" size="sm">
-							Organization created.{" "}
-							<Link
-								to="/organizations/$organizationId"
-								params={{ organizationId: create.data }}
-							>
-								Open {create.variables}
-							</Link>
-						</Text>
-					)}
-					<Button
-						type="submit"
-						loading={create.isPending}
-						disabled={!parsed.success}
-						className="fit-action"
-					>
-						Create organization
-					</Button>
-				</Stack>
-			</form>
+			onSubmit={(event) => {
+				event.preventDefault();
+				if (parsed.success && !create.isPending) create.mutate(parsed.data);
+			}}
+		>
+			<Stack>
+				<TextInput
+					label="Organization name"
+					required
+					value={name}
+					disabled={create.isPending}
+					error={
+						name && !parsed.success
+							? parsed.error.issues[0]?.message
+							: undefined
+					}
+					onChange={(event) => {
+						setName(event.currentTarget.value);
+						create.reset();
+					}}
+				/>
+				{create.isError && (
+					<Alert color="red" title="Organization not created">
+						{workspaceError(create.error)}
+					</Alert>
+				)}
+				{create.isSuccess && (
+					<Text role="status" size="sm">
+						Organization created.{" "}
+						<Link
+							to="/organizations/$organizationId"
+							params={{ organizationId: create.data }}
+						>
+							Open {create.variables}
+						</Link>
+					</Text>
+				)}
+				<Button
+					type="submit"
+					loading={create.isPending}
+					disabled={!parsed.success}
+					className="fit-action"
+				>
+					Create organization
+				</Button>
+			</Stack>
+		</form>
 	);
 }

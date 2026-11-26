@@ -10,22 +10,32 @@ export function ProjectDesk({
 }): JSX.Element {
 	return (
 		<>
+			<button
+				type="button"
+				className="skip-link"
+				onClick={() => document.getElementById("workspace")?.focus()}
+			>
+				Skip to content
+			</button>
 			<Box component="header" className="masthead">
 				<Container size="md">
-					<Group justify="space-between" py="md">
+					<Group justify="space-between" py="sm">
 						<a href={homeHref} className="wordmark">
-							<span className="brand-mark" aria-hidden="true">
-								P
-							</span>
 							Project desk
 						</a>
-						<Anchor href="/openapi.json" c="gray.2" size="sm">
+						<Anchor href="/openapi.json" size="sm">
 							API contract
 						</Anchor>
 					</Group>
 				</Container>
 			</Box>
-			<Container component="main" size="md" py="xl">
+			<Container
+				component="main"
+				size="md"
+				py="lg"
+				id="workspace"
+				tabIndex={-1}
+			>
 				{children}
 			</Container>
 		</>

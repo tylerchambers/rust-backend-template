@@ -109,9 +109,9 @@ export function ProofAction({
 					<form onSubmit={confirm}>
 						<Stack gap="sm">
 							<Text size="sm" role="status">
-								Open the email in this browser. Check the action and target, then
-								choose "Confirm and reveal proof". Paste the proof within five
-								minutes.
+								Open the email in this browser. Check the action and target,
+								then choose "Confirm and reveal proof". Paste the proof within
+								five minutes.
 							</Text>
 							<TextInput
 								name="proof"

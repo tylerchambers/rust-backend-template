@@ -5,6 +5,7 @@
 		"includes": [
 			"sdk/**/*.{js,jsx,ts,tsx,cjs,mjs,cts,mts}",
 			"apps/frontend/{src,tests}/**/*.{ts,tsx,css}",
+			"apps/frontend/*.css",
 			"apps/frontend/*.json",
 			"package.json",
 			"tests/**/*.mjs",

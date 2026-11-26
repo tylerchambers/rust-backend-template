@@ -47,6 +47,15 @@ async function emailedSignInUrl(email) {
 	return url;
 }
 
+async function assertFitsViewport(page) {
+	assert.ok(
+		await page.evaluate(
+			() => document.documentElement.scrollWidth <= window.innerWidth,
+		),
+		"Page should not require horizontal scrolling",
+	);
+}
+
 const browser = await chromium.launch({ headless: true });
 try {
 	const context = await browser.newContext({ baseURL: origin });
@@ -79,6 +88,15 @@ try {
 		exact: true,
 	});
 	await scannerConfirm.waitFor();
+	await scannerTab.setViewportSize({ width: 320, height: 720 });
+	await assertFitsViewport(scannerTab);
+	await scannerTab.keyboard.press("Tab");
+	await scannerTab.keyboard.press("Enter");
+	assert.ok(
+		await scannerTab
+			.getByRole("main")
+			.evaluate((el) => el === document.activeElement),
+	);
 	assert.ok(await scannerConfirm.isEnabled());
 	await openReplacement(scannerTab, "0".repeat(64));
 	const rejected = scannerTab.waitForResponse(`${origin}/v1/auth/confirm`);
@@ -88,7 +106,7 @@ try {
 		.getByRole("alert")
 		.getByText(/invalid or has expired/i)
 		.waitFor();
-	await scannerTab.locator('main a[href="/"]').click();
+	await scannerTab.getByRole("link", { name: "Back to Project desk" }).click();
 	await scannerTab.getByLabel("Email address").waitFor();
 	await scannerTab.close();
 	assert.equal((await page.request.get("/v1/auth/sessions")).status(), 401);
@@ -152,7 +170,7 @@ try {
 		.waitFor();
 	await page.getByLabel("New project name").fill("Renamed project");
 	await page.getByRole("button", { name: "Save name" }).click();
-	await page.getByText("This project changed while you were editing").waitFor();
+	await page.getByRole("alert").getByText("Another editor's project").waitFor();
 	assert.equal(
 		await page.getByLabel("New project name").inputValue(),
 		"Renamed project",
@@ -240,7 +258,7 @@ try {
 	assert.equal(invitation.status(), 201);
 	const { id: invitationId } = await invitation.json();
 	await page
-		.getByRole("article")
+		.getByRole("listitem")
 		.filter({ hasText: invitee })
 		.getByText("pending")
 		.waitFor();
@@ -259,6 +277,7 @@ try {
 	);
 	const owner = await browser.newContext({
 		baseURL: origin,
+		viewport: { width: 320, height: 720 },
 		storageState: await context.storageState(),
 	});
 	const workspaceTab = await context.newPage();
@@ -333,9 +352,10 @@ try {
 	);
 	await page.goto(`/#/organizations/${org}`);
 	await page.getByRole("heading", { name: "Renamed project" }).waitFor();
-	await page
-		.getByText("You have view-only access to this organization.")
-		.waitFor();
+	assert.equal(
+		await page.getByRole("form", { name: "Create project" }).count(),
+		0,
+	);
 	assert.equal(
 		await page.getByRole("button", { name: "Rename Renamed project" }).count(),
 		0,
@@ -368,12 +388,14 @@ try {
 	await ownerPage
 		.getByText("membership.role_changed", { exact: true })
 		.waitFor();
+	await assertFitsViewport(ownerPage);
 	await ownerPage.getByRole("tab", { name: "Invitations" }).click();
 	await ownerPage
-		.getByRole("article")
+		.getByRole("listitem")
 		.filter({ hasText: invitee })
 		.getByText("accepted")
 		.waitFor();
+	await assertFitsViewport(ownerPage);
 	await ownerPage.getByRole("button", { name: "Manage sessions" }).click();
 	await ownerPage.getByRole("button", { name: /^Revoke session / }).waitFor();
 	await ownerPage

@@ -42,11 +42,11 @@ The Projects tab lets you create or rename projects; the Members tab shows
 member IDs and roles. Owners and admins can also see member emails, manage
 roles and invitations, and read the organization’s audit events.
 
-To invite someone, revoke an invitation, change a role or remove a member,
-review the action and request a proof. Open the confirmation email, check the
-action and target, and reveal the proof. Paste it into the original tab to
-confirm. Each proof is single-use and expires in five minutes. Recipients sign
-in with the invited email address and accept from their invitation link.
+For an invitation or membership change, review the action in the confirmation
+dialog and request an email proof. Check the action and target in the email,
+reveal the proof, and paste it into the dialog. Each proof is single-use and
+expires in five minutes. Recipients sign in with the invited email address
+and accept from their invitation link.
 
 Open the session controls next to your signed-in email to list or revoke
 sessions, rotate the current credential, or sign out everywhere. Use

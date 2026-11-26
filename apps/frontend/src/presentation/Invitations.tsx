@@ -175,7 +175,10 @@ function ManageInvitations({
 												aria-label={`Revoke invitation for ${row.email}`}
 												onClick={() => {
 													setNotice("");
-													setSelection({ action: "revoke_invitation", id: row.id });
+													setSelection({
+														action: "revoke_invitation",
+														id: row.id,
+													});
 												}}
 											>
 												Revoke

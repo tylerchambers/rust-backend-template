@@ -1,4 +1,5 @@
 import "@mantine/core/styles.css";
+import "../desk.css";
 import "./styles.css";
 import { createTheme, MantineProvider } from "@mantine/core";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -38,7 +39,27 @@ const services = {
 	authentication: new Authentication(backend),
 };
 
-const theme = createTheme({ primaryColor: "teal", defaultRadius: "md" });
+const theme = createTheme({
+	primaryColor: "teal",
+	primaryShade: 8,
+	defaultRadius: "sm",
+	fontFamily: "var(--desk-font)",
+	headings: {
+		fontFamily: "var(--desk-font)",
+		fontWeight: "600",
+		sizes: {
+			h1: { fontSize: "var(--desk-title)", lineHeight: "1.25" },
+			h2: { fontSize: "1.125rem", lineHeight: "1.4" },
+			h3: { fontSize: "1rem", lineHeight: "1.4" },
+		},
+	},
+	components: {
+		Group: { defaultProps: { gap: "sm" } },
+		Stack: { defaultProps: { gap: "sm" } },
+		Text: { defaultProps: { size: "sm" } },
+	},
+});
+
 // On /sign-in the fragment is a credential, never a workspace route.
 const confirming = window.location.pathname === "/sign-in";
 const page = confirming ? (

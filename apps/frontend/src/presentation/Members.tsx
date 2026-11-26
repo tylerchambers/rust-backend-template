@@ -1,11 +1,4 @@
-import {
-	Alert,
-	Button,
-	Group,
-	NativeSelect,
-	Stack,
-	Text,
-} from "@mantine/core";
+import { Alert, Button, Group, NativeSelect, Stack, Text } from "@mantine/core";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { useBackend } from "../application/backend";
@@ -79,7 +72,9 @@ function MemberActions({
 					organizationId={organizationId}
 					action={draft.action}
 					target={member.userId}
-					label={draft.action === "change_role" ? "Change role" : "Remove member"}
+					label={
+						draft.action === "change_role" ? "Change role" : "Remove member"
+					}
 					description={
 						draft.action === "change_role"
 							? `Change ${label} from ${member.role} to ${draft.role}? This signs them out of all sessions.`

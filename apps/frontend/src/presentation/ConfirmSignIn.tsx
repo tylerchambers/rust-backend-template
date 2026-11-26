@@ -1,12 +1,4 @@
-import {
-	Alert,
-	Anchor,
-	Button,
-	Paper,
-	Stack,
-	Text,
-	Title,
-} from "@mantine/core";
+import { Alert, Anchor, Button, Stack, Text, Title } from "@mantine/core";
 import { type JSX, useLayoutEffect, useRef, useState } from "react";
 import { useAuthentication } from "../application/backend";
 import { authenticationMessage } from "../infrastructure/authentication";
@@ -61,51 +53,25 @@ export function ConfirmSignIn(): JSX.Element {
 	}
 
 	return (
-		<Paper
-			withBorder
-			shadow="xs"
-			radius="lg"
-			maw={480}
-			mx="auto"
-			my="xl"
-			p="xl"
-		>
-			<Stack gap="lg">
-				<Stack gap={6}>
-					<Text c="teal" size="xs" fw={700} tt="uppercase" lts="0.08em">
-						Account access
-					</Text>
-					<Title order={1} size="h2">
-						Confirm sign in
-					</Title>
-					{state.status === "missing" ? (
-						<Text c="dimmed">
-							Open the full link from your email, or return to Project desk to
-							request a new one.
-						</Text>
-					) : (
-						<Text c="dimmed">
-							If you requested this sign-in link, confirm to open your workspace
-							in this tab.
-						</Text>
+		<Stack className="entry-form" align="flex-start">
+			<Title order={1}>Sign in</Title>
+			{state.status === "missing" ? (
+				<Text>Open the full sign-in link from your email.</Text>
+			) : (
+				<>
+					{state.status === "error" && (
+						<Alert color="red" title="Sign-in not confirmed">
+							{state.message}
+						</Alert>
 					)}
-				</Stack>
-				{state.status === "error" && (
-					<Alert color="red" title="Sign-in not confirmed">
-						{state.message}
-					</Alert>
-				)}
-				<Button
-					onClick={confirm}
-					disabled={state.status === "missing"}
-					loading={state.status === "pending"}
-				>
-					Confirm sign in
-				</Button>
-				<Anchor href="/" size="sm" ta="center">
-					Back to Project desk
-				</Anchor>
-			</Stack>
-		</Paper>
+					<Button onClick={confirm} loading={state.status === "pending"}>
+						Confirm sign in
+					</Button>
+				</>
+			)}
+			<Anchor href="/" size="sm">
+				Back to Project desk
+			</Anchor>
+		</Stack>
 	);
 }

@@ -41,7 +41,9 @@ export function CreateProject({
 					disabled={create.isPending}
 					value={name}
 					error={
-						name && !parsed.success ? parsed.error.issues[0]?.message : undefined
+						name && !parsed.success
+							? parsed.error.issues[0]?.message
+							: undefined
 					}
 					onChange={(event) => {
 						setName(event.currentTarget.value);

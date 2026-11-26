@@ -24,9 +24,7 @@ function ProjectRow({
 			<Stack gap="sm">
 				<div className="record-row">
 					<div>
-						<Title order={2}>
-							{project.name}
-						</Title>
+						<Title order={2}>{project.name}</Title>
 						<Text size="sm" c="dimmed">
 							{project.archived ? "Archived" : "Active"} · Version{" "}
 							{project.version}
