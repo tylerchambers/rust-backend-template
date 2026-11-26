@@ -190,31 +190,3 @@ async fn confirmation_pages_render_assets_without_issuing_a_session() {
         assert_eq!(std::str::from_utf8(&body).unwrap(), expected, "{path}");
     }
 }
-
-#[tokio::test]
-async fn login_confirmation_posts_to_the_actual_route() {
-    let response = crate::router(test_state())
-        .oneshot(
-            Request::builder()
-                .uri("/v1/auth/confirmation")
-                .body(axum::body::Body::empty())
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-    assert_eq!(response.status(), StatusCode::OK);
-    assert!(
-        response.headers()[header::SET_COOKIE]
-            .to_str()
-            .unwrap()
-            .starts_with("csrf=")
-    );
-    let body = axum::body::to_bytes(response.into_body(), 4096)
-        .await
-        .unwrap();
-    let html = std::str::from_utf8(&body).unwrap();
-    assert!(html.contains("fetch('/v1/auth/confirm',"));
-    assert!(html.contains("getElementById('confirm')"));
-    assert!(html.contains("history.replaceState(null,'',location.pathname)"));
-    assert!(html.contains("document.cookie.split('; ')"));
-}

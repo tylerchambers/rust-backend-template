@@ -119,6 +119,6 @@ impl application::reauthentication::ReauthenticationMailer for SmtpMailer {
 #[async_trait]
 impl LoginMailer for SmtpMailer {
     async fn send_login(&self, email: &str, token: &str) -> Result<(), Error> {
-        self.send_message(email, "Confirm sign in", format!("Open this link, then explicitly confirm sign in. It expires in 10 minutes.\n{}/v1/auth/confirmation#{}\nIgnore this email if you did not request it.", self.origin, token)).await
+        self.send_message(email, "Confirm sign in", format!("Open Project desk and choose Confirm sign in. This link expires in 10 minutes.\n{}/sign-in#{}\nIgnore this email if you did not request it.", self.origin, token)).await
     }
 }

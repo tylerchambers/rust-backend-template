@@ -25,8 +25,10 @@ pub async fn server() -> Result<(), Failure> {
         .await
         .map_err(|_| Failure::ListenerBind)?;
     tracing::info!(operation = "server.ready");
+    let workspace = ServeFile::new("apps/frontend/dist/index.html");
     let router = monitored_router(services.state, services.db, services.redis)
-        .route_service("/", ServeFile::new("apps/frontend/dist/index.html"))
+        .route_service("/", workspace.clone())
+        .route_service("/sign-in", workspace)
         .nest_service("/assets", ServeDir::new("apps/frontend/dist"));
     axum::serve(
         listener,

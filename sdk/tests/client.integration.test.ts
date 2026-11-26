@@ -23,7 +23,7 @@ async function mailboxToken(email: string, subject: string): Promise<string> {
 	const content = z
 		.object({ Text: z.string() })
 		.parse(await (await fetch(`${mail}/api/v1/message/${message.ID}`)).json());
-	const token = /confirmation#([a-f0-9]{64})/.exec(content.Text)?.[1];
+	const token = /#([a-f0-9]{64})\s*$/m.exec(content.Text)?.[1];
 	if (!token) throw new Error(`Missing token: ${subject}`);
 	return token;
 }

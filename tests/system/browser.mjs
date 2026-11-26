@@ -35,6 +35,18 @@ async function mailText(email, subject) {
 	throw new Error(`Missing captured email: ${subject}`);
 }
 
+async function emailedSignInUrl(email) {
+	const text = await mailText(email, "Confirm sign in");
+	const link = /^https?:\/\/\S+/m.exec(text)?.[0];
+	assert.ok(link, "The sign-in email must include a link");
+	const url = new URL(link);
+	assert.equal(url.origin, origin);
+	assert.equal(url.pathname, "/sign-in");
+	assert.equal(url.search, "");
+	assert.ok(/^#[a-f0-9]{64}$/.test(url.hash));
+	return url;
+}
+
 const browser = await chromium.launch({ headless: true });
 try {
 	const context = await browser.newContext({ baseURL: origin });
@@ -54,14 +66,32 @@ try {
 	await page.getByRole("button", { name: "Send sign-in link" }).click();
 	assert.equal((await requested).status(), 202);
 	await page.getByRole("heading", { name: "Check your inbox" }).waitFor();
-	const token = /confirmation#([a-f0-9]{64})/.exec(
-		await mailText(email, "Confirm sign in"),
-	)?.[1];
-	assert.ok(token);
-	await page.goto(`/v1/auth/confirmation#${token}`);
+	const login = await emailedSignInUrl(email);
+	await page.goto(login.href);
+	await page.waitForURL(`${origin}/sign-in`);
 	assert.equal((await page.request.get("/v1/auth/sessions")).status(), 401);
-	const otherTab = await page.context().newPage();
-	await otherTab.goto("/v1/auth/confirmation");
+	const scannerTab = await context.newPage();
+	// An older email still opens the confirmation view and rotates the shared CSRF cookie.
+	await scannerTab.goto(`/v1/auth/confirmation${login.hash}`);
+	await scannerTab.waitForURL(`${origin}/sign-in`);
+	const scannerConfirm = scannerTab.getByRole("button", {
+		name: "Confirm sign in",
+		exact: true,
+	});
+	await scannerConfirm.waitFor();
+	assert.ok(await scannerConfirm.isEnabled());
+	await openReplacement(scannerTab, "0".repeat(64));
+	const rejected = scannerTab.waitForResponse(`${origin}/v1/auth/confirm`);
+	await scannerConfirm.click();
+	assert.equal((await rejected).status(), 401);
+	await scannerTab
+		.getByRole("alert")
+		.getByText(/invalid or has expired/i)
+		.waitFor();
+	await scannerTab.locator('main a[href="/"]').click();
+	await scannerTab.getByLabel("Email address").waitFor();
+	await scannerTab.close();
+	assert.equal((await page.request.get("/v1/auth/sessions")).status(), 401);
 	const confirmationResponse = page.waitForResponse((response) =>
 		response.url().endsWith("/v1/auth/confirm"),
 	);
@@ -70,9 +100,8 @@ try {
 		.click();
 	const response = await confirmationResponse;
 	assert.equal(response.status(), 200);
-	await page.getByText("Signed in", { exact: true }).waitFor();
-	await openReplacement(page, "another-login-link");
-	assert.equal(await page.locator("#result").textContent(), "");
+	await page.getByText(email, { exact: true }).waitFor();
+	assert.equal(new URL(page.url()).pathname, "/");
 	assert.equal((await page.request.get("/v1/auth/sessions")).status(), 200);
 	const cookies = await page.context().cookies();
 	const session = cookies.find((cookie) => cookie.name === "__Host-session");
@@ -95,7 +124,6 @@ try {
 			},
 			{ path, body, includeCsrf },
 		);
-	await page.getByRole("link", { name: "Open Project desk" }).click();
 	await page.getByLabel("Organization name").fill("Browser proof tenant");
 	const organization = page.waitForResponse(
 		(response) =>
@@ -112,6 +140,7 @@ try {
 	await page.getByLabel("Project name").fill("First project");
 	await page.getByRole("button", { name: "Create project" }).click();
 	await page.getByRole("button", { name: "Rename First project" }).click();
+	const otherTab = await context.newPage();
 	await otherTab.goto(page.url());
 	await otherTab.getByRole("button", { name: "Rename First project" }).click();
 	await otherTab
@@ -219,7 +248,10 @@ try {
 		(await post(invitePath, { email: invitee, role: "viewer", proof })).status,
 		403,
 	);
-	assert.equal((await post("/v1/auth/confirm", { token })).status, 401);
+	assert.equal(
+		(await post("/v1/auth/confirm", { token: login.hash.slice(1) })).status,
+		401,
+	);
 	assert.equal(
 		(await post("/v1/auth/request", { email, redirect: "https://evil.test" }))
 			.status,
@@ -259,15 +291,17 @@ try {
 		(await post("/v1/auth/request", { email: invitee })).status,
 		202,
 	);
-	const inviteeLogin = /confirmation#([a-f0-9]{64})/.exec(
-		await mailText(invitee, "Confirm sign in"),
-	)?.[1];
-	assert.ok(inviteeLogin);
-	await otherTab.goto(`/v1/auth/confirmation#${inviteeLogin}`);
+	const inviteeLogin = await emailedSignInUrl(invitee);
+	await otherTab.goto(inviteeLogin.href);
+	await otherTab.waitForURL(`${origin}/sign-in`);
+	const beforeSwitch = await otherTab.request.get("/v1/me");
+	assert.equal(beforeSwitch.status(), 200);
+	assert.equal((await beforeSwitch.json()).email, email);
 	await otherTab
 		.getByRole("button", { name: "Confirm sign in", exact: true })
 		.click();
-	await otherTab.getByText("Signed in", { exact: true }).waitFor();
+	await otherTab.getByText(invitee, { exact: true }).waitFor();
+	assert.equal(new URL(otherTab.url()).pathname, "/");
 	// A still-open workspace must discard the previous account's data and forms on focus.
 	await workspaceTab.evaluate(() => window.dispatchEvent(new Event("focus")));
 	await workspaceTab.getByText(invitee, { exact: true }).waitFor();
