@@ -142,7 +142,12 @@ try {
 		},
 	);
 	await page.getByRole("button", { name: "Save name" }).click();
-	const renameRoute = await pendingRename.promise;
+	const timeout = setTimeout(() => {
+		pendingRename.reject(new Error("Timed out waiting for the project PATCH"));
+	}, 5000);
+	const renameRoute = await pendingRename.promise.finally(() =>
+		clearTimeout(timeout),
+	);
 	assert.equal(renameRoute.request().method(), "PATCH");
 	await page.getByRole("tab", { name: "Members" }).click();
 	const listRefetched = page.waitForResponse(projectsUrl);
