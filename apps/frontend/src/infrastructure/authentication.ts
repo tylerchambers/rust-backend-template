@@ -78,6 +78,26 @@ export class Authentication {
 		}
 	}
 
+	async confirmLink(token: string): Promise<void> {
+		const header = await this.#prepareWrite();
+		const { response } = await this.#client.POST("/v1/auth/confirm", {
+			params: { header },
+			body: { token },
+			parseAs: "text",
+			redirect: "error",
+		});
+		if (response.status === 401) {
+			throw new AuthenticationError(
+				"This sign-in link is invalid or has expired. Request a new link.",
+			);
+		}
+		if (response.status !== 200) {
+			throw new AuthenticationError(
+				"Sign-in could not be confirmed. Please try again.",
+			);
+		}
+	}
+
 	async signOut(): Promise<void> {
 		const header = await this.#prepareWrite();
 		const { response } = await this.#client.POST("/v1/auth/logout", {

@@ -7,12 +7,14 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { createBackendClient } from "rust-backend-template-sdk";
 import { BackendContext } from "./application/backend";
-import { router } from "./bootstrap/router";
+import { createWorkspaceRouter } from "./bootstrap/router";
 import {
 	Authentication,
 	identityQueryKey,
 } from "./infrastructure/authentication";
 import { csrfToken } from "./infrastructure/browser";
+import { ConfirmSignIn } from "./presentation/ConfirmSignIn";
+import { ProjectDesk } from "./presentation/ProjectDesk";
 
 const root = document.getElementById("root");
 if (!root) throw new Error("Missing application root");
@@ -37,12 +39,19 @@ const services = {
 };
 
 const theme = createTheme({ primaryColor: "teal", defaultRadius: "md" });
+// On /sign-in the fragment is a credential, never a workspace route.
+const confirming = window.location.pathname === "/sign-in";
+const page = confirming ? (
+	<ConfirmSignIn />
+) : (
+	<RouterProvider router={createWorkspaceRouter()} />
+);
 createRoot(root).render(
 	<StrictMode>
 		<MantineProvider theme={theme}>
 			<QueryClientProvider client={queries}>
 				<BackendContext.Provider value={services}>
-					<RouterProvider router={router} />
+					<ProjectDesk homeHref={confirming ? "/" : "#/"}>{page}</ProjectDesk>
 				</BackendContext.Provider>
 			</QueryClientProvider>
 		</MantineProvider>

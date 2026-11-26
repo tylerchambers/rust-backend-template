@@ -63,9 +63,9 @@ function SignIn({ checking, recheck }: SessionCheck): React.JSX.Element {
 					</Title>
 					{request.isSuccess ? (
 						<Text c="dimmed" role="status" style={{ overflowWrap: "anywhere" }}>
-							Open the link sent to <strong>{request.variables}</strong> in this
-							browser and choose <strong>Confirm sign in</strong>. Then return
-							here to continue.
+							Open the link sent to <strong>{request.variables}</strong> and
+							choose <strong>Confirm sign in</strong>. Your workspace will open
+							in the same tab as the link.
 						</Text>
 					) : (
 						<Text c="dimmed">

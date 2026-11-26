@@ -36,8 +36,8 @@ For the sample organizations, run `just seed` before first signing in as
 Ctrl-C stops the API and worker. `just down` stops PostgreSQL and Mailpit
 without deleting the database.
 
-Find the email at <http://localhost:58029>, open the link in the same browser,
-and click **Confirm sign in**. Return to Project desk to open an organization.
+Find the email at <http://localhost:58029> and open its link. Choose
+**Confirm sign in** in Project desk. Your workspace opens in the same tab.
 The Projects tab lets you create or rename projects; the Members tab shows
 member IDs and roles. Owners and admins can also see member emails, manage
 roles and invitations, and read the organization’s audit events.
