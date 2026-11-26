@@ -142,42 +142,52 @@ try {
 			.status,
 		403,
 	);
-	assert.equal(
-		(
-			await post("/v1/auth/reauth/request", {
-				action: "invite",
-				target: org,
-				organization_id: org,
-			})
-		).status,
-		202,
+	await page.getByRole("tab", { name: "Invitations" }).click();
+	await page.getByLabel("Recipient email").fill(invitee);
+	await page.getByLabel("Invitation role").selectOption("viewer");
+	await page.getByRole("button", { name: "Review invitation" }).click();
+	const proofRequest = page.waitForResponse((response) =>
+		response.url().endsWith("/v1/auth/reauth/request"),
 	);
+	await page.getByRole("button", { name: "Email me a proof" }).click();
+	assert.equal((await proofRequest).status(), 202);
 	const proof = /confirmation#([a-f0-9]{64})/.exec(
 		await mailText(email, "Confirm privileged operation"),
 	)?.[1];
 	assert.ok(proof);
-	await page.goto("/v1/auth/reauth/confirmation#first");
-	await page.waitForFunction(() => location.hash === "");
-	await openReplacement(page, proof);
-	assert.equal(await page.locator("#proof").textContent(), "");
+	await otherTab.goto("/v1/auth/reauth/confirmation#first");
+	await otherTab.waitForFunction(() => location.hash === "");
+	await openReplacement(otherTab, proof);
+	assert.equal(await otherTab.locator("#proof").textContent(), "");
 	assert.equal(
 		(await post(invitePath, { email: invitee, role: "viewer", proof }, false))
 			.status,
 		403,
 	);
-	await page
+	await otherTab
 		.getByRole("button", { name: "Confirm and reveal proof", exact: true })
 		.click();
-	assert.equal(await page.locator("#proof").textContent(), proof);
-	await openReplacement(page, "another-proof");
-	assert.equal(await page.locator("#proof").textContent(), "");
-	const invitation = await post(invitePath, {
-		email: invitee,
-		role: "viewer",
-		proof,
-	});
-	assert.equal(invitation.status, 201);
-	const invitationId = JSON.parse(invitation.text).id;
+	const revealed = await otherTab.locator("#proof").textContent();
+	assert.equal(revealed, proof);
+	await openReplacement(otherTab, "another-proof");
+	assert.equal(await otherTab.locator("#proof").textContent(), "");
+	const sent = page.waitForResponse(
+		(response) =>
+			response.request().method() === "POST" &&
+			response.url().endsWith(invitePath),
+	);
+	await page.getByLabel("Email proof").fill(revealed);
+	await page
+		.getByRole("button", { name: "Send invitation", exact: true })
+		.click();
+	const invitation = await sent;
+	assert.equal(invitation.status(), 201);
+	const { id: invitationId } = await invitation.json();
+	await page
+		.getByRole("article")
+		.filter({ hasText: invitee })
+		.getByText("pending")
+		.waitFor();
 	assert.equal(
 		(await post(invitePath, { email: invitee, role: "viewer", proof })).status,
 		403,
@@ -252,6 +262,16 @@ try {
 		await page.getByRole("button", { name: "Rename Renamed project" }).count(),
 		0,
 	);
+	await page.getByRole("tab", { name: "Members" }).click();
+	const me = await (await page.request.get("/v1/me")).json();
+	const roster = page.getByRole("region", { name: "Organization members" });
+	await roster.getByText(me.user_id).waitFor();
+	assert.equal(await roster.getByText(email, { exact: true }).count(), 0);
+	assert.equal(await page.getByRole("tab", { name: "Invitations" }).count(), 0);
+	assert.equal(
+		await page.getByRole("tab", { name: "Audit events" }).count(),
+		0,
+	);
 	await checkTenantAccess({
 		owner,
 		viewer: context,
@@ -265,11 +285,31 @@ try {
 	const ownerPage = await owner.newPage();
 	await ownerPage.goto(`/#/organizations/${org}`);
 	await ownerPage.getByRole("heading", { name: "Renamed project" }).waitFor();
+	await ownerPage.getByRole("tab", { name: "Audit events" }).click();
+	await ownerPage.getByRole("button", { name: "Load more events" }).click();
+	await ownerPage
+		.getByText("membership.role_changed", { exact: true })
+		.waitFor();
+	await ownerPage.getByRole("tab", { name: "Invitations" }).click();
+	await ownerPage
+		.getByRole("article")
+		.filter({ hasText: invitee })
+		.getByText("accepted")
+		.waitFor();
+	await ownerPage.getByRole("button", { name: "Manage sessions" }).click();
+	await ownerPage.getByRole("button", { name: /^Revoke session / }).waitFor();
+	await ownerPage
+		.getByRole("button", { name: "Rotate current session" })
+		.click();
+	await ownerPage.getByRole("button", { name: "Confirm rotation" }).click();
+	await ownerPage.getByText("Current session rotated.").waitFor();
+	await ownerPage.getByRole("tab", { name: "Projects" }).click();
+	await ownerPage.getByRole("heading", { name: "Renamed project" }).waitFor();
 	await ownerPage.getByRole("button", { name: "Sign out" }).click();
 	await ownerPage.getByLabel("Email address").waitFor();
 	assert.equal(await ownerPage.getByText("Renamed project").count(), 0);
 	console.log(
-		"PASS: workspace sign-in, organization and project creation, persisted rename, sign-out, native cookie and confirmation flows",
+		"PASS: workspace projects, session rotation, role-aware roster, audit history, email proof and invitation lifecycle",
 	);
 } finally {
 	await browser.close();

@@ -17,7 +17,7 @@ import {
 } from "@tanstack/react-router";
 import type { JSX } from "react";
 import { Organizations } from "../presentation/Organizations";
-import { Projects } from "../presentation/Projects";
+import { OrganizationWorkspace } from "../presentation/OrganizationWorkspace";
 import { SessionGate } from "../presentation/SessionGate";
 
 function Layout(): JSX.Element {
@@ -71,7 +71,12 @@ const organization = createRoute({
 	path: "/organizations/$organizationId",
 	component: function OrganizationRoute() {
 		const { organizationId } = organization.useParams();
-		return <Projects key={organizationId} organizationId={organizationId} />;
+		return (
+			<OrganizationWorkspace
+				key={organizationId}
+				organizationId={organizationId}
+			/>
+		);
 	},
 });
 

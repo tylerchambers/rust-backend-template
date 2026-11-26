@@ -44,7 +44,9 @@ export function Organizations(): React.JSX.Element {
 		<Stack gap="xl">
 			<header>
 				<Title order={1}>Organizations</Title>
-				<Text c="dimmed">Choose an organization to see its projects.</Text>
+				<Text c="dimmed">
+					Choose an organization to see its projects and members.
+				</Text>
 			</header>
 			<section
 				aria-label="Your organizations"

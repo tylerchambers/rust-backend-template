@@ -13,10 +13,12 @@ export const workspaceName = z
 			!/\p{Cc}/u.test(value),
 		"Use 1–120 characters, including a non-space character, with no control characters.",
 	);
+export const workspaceRole = z.enum(["owner", "admin", "member", "viewer"]);
+export type WorkspaceRole = z.infer<typeof workspaceRole>;
 const organizationSchema = z.object({
 	id: z.uuid(),
 	name: workspaceName,
-	role: z.enum(["owner", "admin", "member", "viewer"]),
+	role: workspaceRole,
 });
 const organizationsPage = z.array(organizationSchema).max(pageSize);
 const createdOrganization = organizationSchema.pick({ id: true });
@@ -48,7 +50,10 @@ class WorkspaceHttpError extends Error {
 	}
 }
 
-function body(result: { response: Response; data?: unknown }): unknown {
+export function workspaceBody(result: {
+	response: Response;
+	data?: unknown;
+}): unknown {
 	if (!result.response.ok) throw new WorkspaceHttpError(result.response.status);
 	return result.data;
 }
@@ -68,13 +73,16 @@ export function workspaceError(error: unknown): string {
 	if (error instanceof WorkspaceHttpError) {
 		switch (error.status) {
 			case 400:
-				return "The server could not accept this request. Check the name and try again.";
+			case 422:
+				return "The server could not accept this request. Check the details and try again.";
 			case 401:
 				return "Your session has expired. Sign in again to continue.";
 			case 403:
 				return "You don’t have permission to do that in this organization.";
 			case 404:
 				return "This item no longer exists or is not available to you.";
+			case 409:
+				return "This request conflicts with the current state. Refresh and review the details.";
 			case 429:
 				return "Too many requests. Wait a moment before trying again.";
 		}
@@ -94,7 +102,7 @@ export function organizationList(client: BackendClient) {
 		initialPageParam: "",
 		queryFn: async ({ pageParam, signal }) =>
 			organizationsPage.parse(
-				body(
+				workspaceBody(
 					await client.GET("/v1/organizations", {
 						params: { query: pageParam ? { after: pageParam } : {} },
 						signal,
@@ -113,7 +121,7 @@ export async function createOrganization(
 		params: { header: writeHeaders() },
 		body: { name },
 	});
-	return createdOrganization.parse(body(result)).id;
+	return createdOrganization.parse(workspaceBody(result)).id;
 }
 
 export function projectList(client: BackendClient, organizationId: string) {
@@ -123,7 +131,7 @@ export function projectList(client: BackendClient, organizationId: string) {
 		initialPageParam: "",
 		queryFn: async ({ pageParam, signal }) =>
 			pageSchema.parse(
-				body(
+				workspaceBody(
 					await client.GET("/v1/organizations/{organization}/projects", {
 						params: {
 							path: { organization: organizationId },
@@ -146,7 +154,7 @@ export function projectDetail(
 		queryKey: ["workspace", "project", organizationId, projectId] as const,
 		queryFn: async ({ signal }) =>
 			scopedProject(organizationId, projectId).parse(
-				body(
+				workspaceBody(
 					await client.GET(
 						"/v1/organizations/{organization}/projects/{project}",
 						{
@@ -176,7 +184,7 @@ export async function createProject(
 			body: { name },
 		},
 	);
-	return scopedProject(organizationId).parse(body(result));
+	return scopedProject(organizationId).parse(workspaceBody(result));
 }
 
 export async function renameProject(
@@ -194,5 +202,7 @@ export async function renameProject(
 			body: { name, version: project.version },
 		},
 	);
-	return scopedProject(project.organizationId, project.id).parse(body(result));
+	return scopedProject(project.organizationId, project.id).parse(
+		workspaceBody(result),
+	);
 }
