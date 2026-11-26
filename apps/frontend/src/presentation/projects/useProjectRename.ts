@@ -44,6 +44,7 @@ export function useProjectRename(
 	const parsed = workspaceName.safeParse(name);
 	const rename = useMutation({
 		mutationFn: (newName: string) => renameProject(client, base, newName),
+		onSuccess: updateList,
 	});
 	const hasConflict = isVersionConflict(rename.error);
 	const latest = useQuery({
@@ -108,10 +109,7 @@ export function useProjectRename(
 		save: () => {
 			if (canSave && !rename.isPending) {
 				rename.mutate(parsed.data, {
-					onSuccess: (updated) => {
-						updateList(updated);
-						onSaved(updated.name);
-					},
+					onSuccess: (updated) => onSaved(updated.name),
 				});
 			}
 		},

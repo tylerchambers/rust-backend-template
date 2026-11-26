@@ -127,6 +127,23 @@ test("a restored session also bootstraps a missing CSRF cookie before mounting w
 	expect(paths).toEqual(["/v1/me", "/v1/auth/confirmation"]);
 });
 
+test("cancelling identity lookup during CSRF preparation aborts the confirmation request", async () => {
+	const controller = new AbortController();
+	const auth = adapter(
+		(request) => {
+			if (request.url === `${origin}/v1/me`) return Response.json(account);
+			expect(request.url).toBe(`${origin}/v1/auth/confirmation`);
+			controller.abort();
+			request.signal.throwIfAborted();
+			return new Response(null);
+		},
+		() => "",
+	);
+	await expect(auth.currentAccount(controller.signal)).rejects.toMatchObject({
+		name: "AbortError",
+	});
+});
+
 test("rate limits do not look like a successful link request", async () => {
 	const auth = adapter(() =>
 		Response.json({ code: "rate_limited" }, { status: 429 }),

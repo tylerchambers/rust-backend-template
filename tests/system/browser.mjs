@@ -131,7 +131,29 @@ try {
 	await page
 		.getByRole("button", { name: "Continue with this version" })
 		.click();
+	// Hold the write until the editor unmounts and its replacement list has refetched.
+	const projectsUrl = `${origin}/v1/organizations/${org}/projects`;
+	const pendingRename = Promise.withResolvers();
+	await page.route(
+		`${projectsUrl}/*`,
+		(route) => pendingRename.resolve(route),
+		{
+			times: 1,
+		},
+	);
 	await page.getByRole("button", { name: "Save name" }).click();
+	const renameRoute = await pendingRename.promise;
+	assert.equal(renameRoute.request().method(), "PATCH");
+	await page.getByRole("tab", { name: "Members" }).click();
+	const listRefetched = page.waitForResponse(projectsUrl);
+	await page.getByRole("tab", { name: "Projects" }).click();
+	await (await listRefetched).finished();
+	await page
+		.getByRole("region", { name: "Organization projects" })
+		.and(page.locator('[aria-busy="false"]'))
+		.getByRole("heading", { name: "Another editor's project" })
+		.waitFor();
+	await renameRoute.continue();
 	await page.getByRole("heading", { name: "Renamed project" }).waitFor();
 	await page.reload();
 	await page.getByRole("heading", { name: "Renamed project" }).waitFor();
