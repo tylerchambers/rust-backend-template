@@ -45,10 +45,8 @@ pub(super) async fn security(
     let start = std::time::Instant::now();
     let admission = if !csrf_denied
         && request.method() == axum::http::Method::POST
-        && matches!(
-            route.as_str(),
-            "/v1/auth/request" | "/v1/auth/confirm" | "/v1/auth/reauth/request"
-        ) {
+        && matches!(route.as_str(), "/v1/auth/request" | "/v1/auth/confirm")
+    {
         match request
             .extensions()
             .get::<axum::extract::ConnectInfo<std::net::SocketAddr>>()

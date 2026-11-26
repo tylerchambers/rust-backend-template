@@ -1,16 +1,16 @@
 use crate::{Actor, authority::TenantAuthority, transaction::TenantTransaction};
 use async_trait::async_trait;
-use domain::{Error, OrganizationId, Role, UserId, validate_name};
+use domain::{Error, OrganizationId, UserId, validate_name};
 use std::sync::Arc;
 
 pub struct OrganizationSummary {
     pub id: OrganizationId,
     pub name: String,
-    pub role: Role,
+    pub is_admin: bool,
 }
 pub struct MemberSummary {
     pub user_id: UserId,
-    pub role: Role,
+    pub is_admin: bool,
 }
 
 #[async_trait]
@@ -23,7 +23,7 @@ pub trait OrganizationRepository: Send {
     async fn list_members(&mut self, after: Option<UserId>) -> Result<Vec<MemberSummary>, Error>;
     async fn validate_actor(&mut self, actor: &Actor) -> Result<(), Error>;
     async fn insert_organization(&mut self, id: OrganizationId, name: &str) -> Result<(), Error>;
-    async fn insert_owner(
+    async fn insert_admin(
         &mut self,
         organization: OrganizationId,
         user: UserId,
@@ -86,7 +86,7 @@ impl Organizations {
         after: Option<UserId>,
     ) -> Result<Vec<MemberSummary>, Error> {
         let mut tx = self.uow.begin_organization(org).await?;
-        tx.current_role(actor, org).await?;
+        tx.is_admin(actor, org).await?;
         let rows = tx.list_members(after).await?;
         tx.commit().await?;
         Ok(rows)
@@ -94,7 +94,7 @@ impl Organizations {
     pub fn new(uow: Arc<dyn OrganizationUnitOfWork>, ids: Arc<dyn crate::IdGenerator>) -> Self {
         Self { uow, ids }
     }
-    /// Create an organization, owner membership and audit record atomically.
+    /// Create an organization, admin membership and audit record atomically.
     ///
     /// # Errors
     /// Rejects invalid names or sessions; propagates transaction errors.
@@ -104,7 +104,7 @@ impl Organizations {
         let mut tx = self.uow.begin_organization(id).await?;
         tx.validate_actor(actor).await?;
         tx.insert_organization(id, &name).await?;
-        tx.insert_owner(id, actor.user_id).await?;
+        tx.insert_admin(id, actor.user_id).await?;
         tx.audit(actor, "organization.created", id.into_uuid())
             .await?;
         tx.commit().await?;

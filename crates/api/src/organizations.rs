@@ -1,7 +1,6 @@
 use crate::{
     authentication::actor,
     error::{ApiError, ErrorBody},
-    openapi::role_schema,
     pagination::UuidCursor,
     state::State,
 };
@@ -23,8 +22,7 @@ pub struct OrganizationResponse {
 pub struct OrganizationSummaryResponse {
     id: Uuid,
     name: String,
-    #[schema(schema_with = role_schema)]
-    role: domain::Role,
+    is_admin: bool,
 }
 
 #[utoipa::path(
@@ -81,7 +79,7 @@ pub(crate) async fn list_organizations(
             .map(|row| OrganizationSummaryResponse {
                 id: row.id.into_uuid(),
                 name: row.name,
-                role: row.role,
+                is_admin: row.is_admin,
             })
             .collect(),
     ))

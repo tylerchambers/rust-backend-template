@@ -21,12 +21,7 @@ export function Sessions(): React.JSX.Element {
 		useSessionManagement();
 	const rows = sessions.data?.pages.flat();
 	return (
-		<Stack
-			component="section"
-			id="account-sessions"
-			aria-labelledby="sessions-title"
-			gap="sm"
-		>
+		<Stack component="section" aria-labelledby="sessions-title" gap="sm">
 			<Title order={2} id="sessions-title">
 				Sessions
 			</Title>
@@ -44,7 +39,7 @@ export function Sessions(): React.JSX.Element {
 					disabled={locked}
 					onClick={() => select({ kind: "revokeAll" })}
 				>
-					Revoke all sessions
+					Sign out everywhere
 				</Button>
 			</Group>
 			{draft && (

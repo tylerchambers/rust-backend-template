@@ -10,7 +10,6 @@ mod metrics;
 pub mod migrations;
 mod organizations;
 mod projects;
-mod reauthentication;
 mod sessions;
 mod transaction;
 

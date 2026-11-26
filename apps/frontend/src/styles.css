@@ -14,12 +14,81 @@
 	text-decoration: none;
 }
 
+.profile-button {
+	display: flex;
+	align-items: center;
+	gap: var(--mantine-spacing-xs);
+	max-width: 100%;
+	min-width: 0;
+}
+
 main {
 	overflow-wrap: anywhere;
 }
 
 main a {
 	color: var(--mantine-color-anchor);
+}
+
+.workspace-trail ol {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.25rem;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	font-size: var(--mantine-font-size-sm);
+}
+
+.workspace-trail li {
+	display: flex;
+	align-items: center;
+	max-width: 100%;
+	min-width: 0;
+}
+
+.workspace-trail li + li::before {
+	content: "";
+	flex: none;
+	width: 0.38rem;
+	height: 0.38rem;
+	margin-inline: 0.2rem 0.45rem;
+	border-block-start: 1.5px solid var(--mantine-color-gray-5);
+	border-inline-end: 1.5px solid var(--mantine-color-gray-5);
+	transform: rotate(45deg);
+}
+
+.workspace-trail a,
+.workspace-trail [aria-current="page"] {
+	padding: 0.25rem 0.5rem;
+	border-radius: var(--mantine-radius-sm);
+}
+
+.workspace-trail a {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.4rem;
+	color: var(--mantine-color-dimmed);
+	text-decoration: none;
+}
+
+.workspace-trail svg {
+	flex: none;
+	color: var(--mantine-color-anchor);
+}
+
+.workspace-trail a:is(:hover, :focus-visible) {
+	background: var(--mantine-color-default-hover);
+	color: var(--mantine-color-anchor);
+	text-decoration: underline;
+	text-underline-offset: 0.2em;
+}
+
+.workspace-trail [aria-current="page"] {
+	background: var(--mantine-primary-color-light);
+	color: var(--mantine-color-anchor);
+	font-weight: 600;
 }
 
 .skip-link {
@@ -68,14 +137,6 @@ main a {
 .record-row > * {
 	min-width: 0;
 	max-width: 100%;
-}
-
-.mantine-Tabs-tab {
-	padding-inline: var(--mantine-spacing-sm);
-}
-
-.mantine-Tabs-tab[data-active] {
-	font-weight: 600;
 }
 
 .mantine-Input-input:where(:not(:focus, [data-error], :disabled)) {

@@ -70,7 +70,7 @@ test("revocation requires a confirmed 204 and keeps the response body out of err
 	for (const [status, message] of [
 		[200, "The service did not confirm the session request."],
 		[401, "Your session has expired. Sign in again."],
-		[403, "The security check failed. Check your session and try again."],
+		[403, "The security check failed."],
 		[404, "This session is no longer available."],
 		[503, "The service did not confirm the session request."],
 	] as const) {

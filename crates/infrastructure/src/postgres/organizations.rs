@@ -20,9 +20,9 @@ impl OrganizationRepository for TenantWork {
             .execute(&mut *self.tx)
             .await
             .map_err(storage)?;
-        let rows: Vec<(Uuid, String, String)> = sqlx::query_as(
+        let rows: Vec<(Uuid, String, bool)> = sqlx::query_as(
             r"
-            SELECT o.id,o.name,m.role
+            SELECT o.id,o.name,m.is_admin
             FROM organizations o
             JOIN memberships m ON m.organization_id=o.id
             WHERE m.user_id=$1
@@ -36,23 +36,24 @@ impl OrganizationRepository for TenantWork {
         .fetch_all(&mut *self.tx)
         .await
         .map_err(storage)?;
-        rows.into_iter()
-            .map(|(id, name, value)| {
-                Ok(application::organizations::OrganizationSummary {
+        Ok(rows
+            .into_iter()
+            .map(
+                |(id, name, is_admin)| application::organizations::OrganizationSummary {
                     id: id.into(),
                     name,
-                    role: super::memberships::role(&value)?,
-                })
-            })
-            .collect()
+                    is_admin,
+                },
+            )
+            .collect())
     }
     async fn list_members(
         &mut self,
         after: Option<UserId>,
     ) -> Result<Vec<application::organizations::MemberSummary>, Error> {
-        let rows: Vec<(Uuid, String)> = sqlx::query_as(
+        let rows: Vec<(Uuid, bool)> = sqlx::query_as(
             r"
-            SELECT user_id,role
+            SELECT user_id,is_admin
             FROM memberships
             WHERE organization_id=$1
             AND ($2::uuid IS NULL OR user_id>$2)
@@ -65,14 +66,15 @@ impl OrganizationRepository for TenantWork {
         .fetch_all(&mut *self.tx)
         .await
         .map_err(storage)?;
-        rows.into_iter()
-            .map(|(id, value)| {
-                Ok(application::organizations::MemberSummary {
-                    user_id: id.into(),
-                    role: super::memberships::role(&value)?,
-                })
-            })
-            .collect()
+        Ok(rows
+            .into_iter()
+            .map(
+                |(user_id, is_admin)| application::organizations::MemberSummary {
+                    user_id: user_id.into(),
+                    is_admin,
+                },
+            )
+            .collect())
     }
     async fn validate_actor(&mut self, actor: &Actor) -> Result<(), Error> {
         super::authority::lock_actor(&mut self.tx, actor).await?;
@@ -92,19 +94,17 @@ impl OrganizationRepository for TenantWork {
         .map_err(storage)?;
         Ok(())
     }
-    async fn insert_owner(
+    async fn insert_admin(
         &mut self,
         organization: OrganizationId,
         user: UserId,
     ) -> Result<(), Error> {
-        sqlx::query!(
-            "INSERT INTO memberships(organization_id,user_id,role) VALUES($1,$2,'owner')",
-            organization.into_uuid(),
-            user.into_uuid()
-        )
-        .execute(&mut *self.tx)
-        .await
-        .map_err(storage)?;
+        sqlx::query("INSERT INTO memberships(organization_id,user_id,is_admin) VALUES($1,$2,true)")
+            .bind(organization.into_uuid())
+            .bind(user.into_uuid())
+            .execute(&mut *self.tx)
+            .await
+            .map_err(storage)?;
         Ok(())
     }
 }

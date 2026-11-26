@@ -1,7 +1,6 @@
 use crate::{
     authentication::actor,
     error::{ApiError, ErrorBody},
-    openapi::role_schema,
     pagination::UuidCursor,
     state::State,
 };
@@ -10,7 +9,6 @@ use axum::{
     extract::{Path, Query, State as Extract},
     http::{HeaderMap, StatusCode},
 };
-use domain::Error;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
@@ -18,15 +16,9 @@ use uuid::Uuid;
 #[derive(Serialize, ToSchema)]
 pub struct MemberSummaryResponse {
     user_id: Uuid,
-    #[schema(schema_with = role_schema)]
-    role: domain::Role,
+    is_admin: bool,
 }
 
-#[derive(Deserialize, ToSchema)]
-#[serde(deny_unknown_fields)]
-pub struct RemoveMemberRequest {
-    proof: String,
-}
 #[utoipa::path(
     post,
     path="/v1/organizations/{organization}/members/{user}/remove",
@@ -36,7 +28,6 @@ pub struct RemoveMemberRequest {
         ("organization"=Uuid,Path),
         ("user"=Uuid,Path),
     ),
-    request_body=RemoveMemberRequest,
     security(("session"=[])),
     responses(
         (status="default",description="Stable JSON error envelope, including transport, authentication, authorization and availability failures",body=ErrorBody),
@@ -47,30 +38,18 @@ pub(crate) async fn remove_member(
     Extract(state): Extract<State>,
     Path((org, user)): Path<(Uuid, Uuid)>,
     headers: HeaderMap,
-    Json(input): Json<RemoveMemberRequest>,
 ) -> Result<StatusCode, ApiError> {
     let actor = actor(&state, &headers).await?;
     state
         .memberships
-        .remove(&actor, org.into(), user.into(), &input.proof)
+        .remove(&actor, org.into(), user.into())
         .await?;
     Ok(StatusCode::NO_CONTENT)
 }
 #[derive(Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ChangeMemberRoleRequest {
-    #[schema(schema_with = role_schema)]
-    role: String,
-    proof: String,
-}
-pub(super) fn role(value: &str) -> Result<domain::Role, Error> {
-    match value {
-        "owner" => Ok(domain::Role::Owner),
-        "admin" => Ok(domain::Role::Admin),
-        "member" => Ok(domain::Role::Member),
-        "viewer" => Ok(domain::Role::Viewer),
-        _ => Err(Error::Invalid),
-    }
+    is_admin: bool,
 }
 #[utoipa::path(
     post,
@@ -97,13 +76,7 @@ pub(crate) async fn change_role(
     let actor = actor(&state, &headers).await?;
     state
         .memberships
-        .change_role(
-            &actor,
-            org.into(),
-            user.into(),
-            role(&input.role)?,
-            &input.proof,
-        )
+        .change_role(&actor, org.into(), user.into(), input.is_admin)
         .await?;
     Ok(StatusCode::NO_CONTENT)
 }
@@ -136,7 +109,7 @@ pub(crate) async fn list_members(
             .into_iter()
             .map(|row| MemberSummaryResponse {
                 user_id: row.user_id.into_uuid(),
-                role: row.role,
+                is_admin: row.is_admin,
             })
             .collect(),
     ))
@@ -146,8 +119,7 @@ pub(crate) async fn list_members(
 pub struct DirectoryMemberResponse {
     user_id: Uuid,
     email: String,
-    #[schema(schema_with = role_schema)]
-    role: domain::Role,
+    is_admin: bool,
 }
 
 #[utoipa::path(
@@ -179,7 +151,7 @@ pub(crate) async fn list_member_directory(
             .map(|row| DirectoryMemberResponse {
                 user_id: row.user_id.into_uuid(),
                 email: row.email,
-                role: row.role,
+                is_admin: row.is_admin,
             })
             .collect(),
     ))

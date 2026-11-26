@@ -63,7 +63,9 @@ const theme = createTheme({
 // On /sign-in the fragment is a credential, never a workspace route.
 const confirming = window.location.pathname === "/sign-in";
 const page = confirming ? (
-	<ConfirmSignIn />
+	<ProjectDesk homeHref="/">
+		<ConfirmSignIn />
+	</ProjectDesk>
 ) : (
 	<RouterProvider router={createWorkspaceRouter()} />
 );
@@ -72,7 +74,7 @@ createRoot(root).render(
 		<MantineProvider theme={theme}>
 			<QueryClientProvider client={queries}>
 				<BackendContext.Provider value={services}>
-					<ProjectDesk homeHref={confirming ? "/" : "#/"}>{page}</ProjectDesk>
+					{page}
 				</BackendContext.Provider>
 			</QueryClientProvider>
 		</MantineProvider>

@@ -1,6 +1,6 @@
 use crate::{
     audit_events, authentication, invitations, memberships, metrics, middleware, openapi::openapi,
-    organizations, projects, reauthentication, sessions, state::State,
+    organizations, projects, sessions, state::State,
 };
 use axum::{
     Router,
@@ -25,14 +25,6 @@ pub(crate) fn routes() -> Router<State> {
         .route("/v1/auth/confirm", post(authentication::confirm))
         .route("/v1/auth/confirmation", get(authentication::confirmation))
         .route("/v1/auth/logout", post(authentication::logout))
-        .route(
-            "/v1/auth/reauth/request",
-            post(reauthentication::request_proof),
-        )
-        .route(
-            "/v1/auth/reauth/confirmation",
-            get(reauthentication::proof_confirmation),
-        )
         .route(
             "/v1/invitations/confirmation",
             get(invitations::invitation_confirmation),

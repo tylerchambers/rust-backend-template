@@ -10,7 +10,6 @@ mod openapi;
 mod organizations;
 mod pagination;
 mod projects;
-mod reauthentication;
 mod router;
 mod sessions;
 mod state;

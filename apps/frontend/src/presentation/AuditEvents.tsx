@@ -52,7 +52,7 @@ export function AuditEvents({
 					) : (
 						<>
 							<Text size="sm" c="dimmed">
-								Ordered by event ID
+								Newest first
 							</Text>
 							<ol className="record-list" aria-label="Events">
 								{rows.map((event) => (

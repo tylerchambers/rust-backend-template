@@ -15,7 +15,7 @@ function requireStatus(response: Response, expected: number): void {
 			throw new AuthenticationError("Your session has expired. Sign in again.");
 		case 403:
 			throw new AuthenticationError(
-				"The security check failed. Check your session and try again.",
+				"The security check failed. Refresh the page and try again.",
 			);
 		case 404:
 			throw new AuthenticationError("This session is no longer available.");

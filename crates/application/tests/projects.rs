@@ -9,7 +9,7 @@ use application::{
     transaction::TenantTransaction,
 };
 use async_trait::async_trait;
-use domain::{Error, InvitationId, OrganizationId, Project, ProjectId, Role, UserId};
+use domain::{Error, InvitationId, OrganizationId, Project, ProjectId, UserId};
 use std::{
     collections::BTreeMap,
     sync::{Arc, Mutex},
@@ -26,14 +26,14 @@ struct State {
 }
 struct Memory {
     state: Arc<Mutex<State>>,
-    owner: UserId,
+    member: UserId,
     org: OrganizationId,
     fail_audit: bool,
 }
 struct Work {
     state: State,
     published: Arc<Mutex<State>>,
-    owner: UserId,
+    member: UserId,
     org: OrganizationId,
     requested: OrganizationId,
     fail_audit: bool,
@@ -59,7 +59,7 @@ impl ProjectUnitOfWork for Memory {
         Ok(Box::new(Work {
             state: self.state.lock().unwrap().clone(),
             published: self.state.clone(),
-            owner: self.owner,
+            member: self.member,
             org: self.org,
             requested,
             fail_audit: self.fail_audit,
@@ -68,9 +68,9 @@ impl ProjectUnitOfWork for Memory {
 }
 #[async_trait]
 impl TenantAuthority for Work {
-    async fn current_role(&mut self, actor: &Actor, org: OrganizationId) -> Result<Role, Error> {
-        if actor.user_id == self.owner && org == self.org && org == self.requested {
-            Ok(Role::Owner)
+    async fn is_admin(&mut self, actor: &Actor, org: OrganizationId) -> Result<bool, Error> {
+        if actor.user_id == self.member && org == self.org && org == self.requested {
+            Ok(false)
         } else {
             Err(Error::Forbidden)
         }
@@ -139,17 +139,17 @@ fn actor() -> Actor {
 }
 #[tokio::test]
 async fn memory_obeys_shared_project_contract() {
-    let owner = actor();
+    let member = actor();
     let org = Uuid::now_v7().into();
     let memory = Arc::new(Memory {
         state: Arc::default(),
-        owner: owner.user_id,
+        member: member.user_id,
         org,
         fail_audit: false,
     });
     contract::project_contract(
         &Projects::new(memory.clone(), Arc::new(Ids)),
-        &owner,
+        &member,
         &actor(),
         org,
     )
@@ -160,17 +160,17 @@ async fn memory_obeys_shared_project_contract() {
 }
 #[tokio::test]
 async fn audit_failure_publishes_neither_project_nor_job() {
-    let owner = actor();
+    let member = actor();
     let org = Uuid::now_v7().into();
     let memory = Arc::new(Memory {
         state: Arc::default(),
-        owner: owner.user_id,
+        member: member.user_id,
         org,
         fail_audit: true,
     });
     let service = Projects::new(memory.clone(), Arc::new(Ids));
     assert!(matches!(
-        service.create(&owner, org, "Rollback".into()).await,
+        service.create(&member, org, "Rollback".into()).await,
         Err(Error::Unavailable)
     ));
     let state = memory.state.lock().unwrap();

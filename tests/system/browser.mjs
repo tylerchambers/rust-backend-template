@@ -142,7 +142,11 @@ try {
 			},
 			{ path, body, includeCsrf },
 		);
-	await page.getByLabel("Organization name").fill("Browser proof tenant");
+	const table = page.getByRole("table", { name: "Active organizations" });
+	await table.getByText("No organizations yet.").waitFor();
+	await page.getByRole("link", { name: "New organization" }).click();
+	await page.waitForURL(`${origin}/#/organizations/new`);
+	await page.getByLabel("Organization name").fill("Browser tenant");
 	const organization = page.waitForResponse(
 		(response) =>
 			response.request().method() === "POST" &&
@@ -152,21 +156,43 @@ try {
 	const created = await organization;
 	assert.equal(created.status(), 201);
 	const { id: org } = await created.json();
-	await page
-		.getByRole("link", { name: "Browser proof tenant", exact: true })
+	const organizationCrumb = (tab) =>
+		tab.getByRole("navigation", { name: "Breadcrumb" })
+			.locator(`a[href$="/organizations/${org}"]`);
+	await page.waitForURL(`${origin}/#/`);
+	await table.getByRole("row", { name: /Browser tenant Admin/i }).waitFor();
+	await table
+		.getByRole("link", { name: "Browser tenant", exact: true })
 		.click();
+	const projectsTable = page.getByRole("table", { name: "Projects" });
+	await projectsTable.getByText("No projects yet.").waitFor();
+	await page.getByRole("link", { name: "New project" }).click();
+	await page.waitForURL(`${origin}/#/organizations/${org}/projects/new`);
+	await page.getByRole("link", { name: "Cancel" }).click();
+	await projectsTable.waitFor();
+	await page.getByRole("link", { name: "New project" }).click();
 	await page.getByLabel("Project name").fill("First project");
+	const projectsUrl = `${origin}/v1/organizations/${org}/projects`;
+	const firstProject = page.waitForResponse(
+		(response) =>
+			response.url() === projectsUrl && response.request().method() === "POST",
+	);
 	await page.getByRole("button", { name: "Create project" }).click();
-	await page.getByRole("button", { name: "Rename First project" }).click();
+	const projectResponse = await firstProject;
+	assert.equal(projectResponse.status(), 201);
+	const { id: projectId } = await projectResponse.json();
+	await page.waitForURL(`${origin}/#/organizations/${org}`);
+	await projectsTable.getByRole("link", { name: "First project" }).click();
+	await page.getByRole("button", { name: "Rename project" }).click();
 	const otherTab = await context.newPage();
 	await otherTab.goto(page.url());
-	await otherTab.getByRole("button", { name: "Rename First project" }).click();
+	await otherTab.getByRole("button", { name: "Rename project" }).click();
 	await otherTab
 		.getByLabel("New project name")
 		.fill("Another editor's project");
 	await otherTab.getByRole("button", { name: "Save name" }).click();
 	await otherTab
-		.getByRole("heading", { name: "Another editor's project" })
+		.getByRole("heading", { name: "Another editor's project", exact: true })
 		.waitFor();
 	await page.getByLabel("New project name").fill("Renamed project");
 	await page.getByRole("button", { name: "Save name" }).click();
@@ -179,7 +205,6 @@ try {
 		.getByRole("button", { name: "Continue with this version" })
 		.click();
 	// Hold the write until the editor unmounts and its replacement list has refetched.
-	const projectsUrl = `${origin}/v1/organizations/${org}/projects`;
 	const pendingRename = Promise.withResolvers();
 	await page.route(
 		`${projectsUrl}/*`,
@@ -196,76 +221,69 @@ try {
 		clearTimeout(timeout),
 	);
 	assert.equal(renameRoute.request().method(), "PATCH");
-	await page.getByRole("tab", { name: "Members" }).click();
 	const listRefetched = page.waitForResponse(projectsUrl);
-	await page.getByRole("tab", { name: "Projects" }).click();
+	await organizationCrumb(page).click();
 	await (await listRefetched).finished();
 	await page
 		.getByRole("region", { name: "Organization projects" })
 		.and(page.locator('[aria-busy="false"]'))
-		.getByRole("heading", { name: "Another editor's project" })
+		.getByRole("cell", { name: "Another editor's project", exact: true })
 		.waitFor();
 	await renameRoute.continue();
-	await page.getByRole("heading", { name: "Renamed project" }).waitFor();
+	const renamed = { name: "Renamed project", exact: true };
+	await projectsTable.getByRole("link", renamed).click();
+	await page.waitForURL(
+		`${origin}/#/organizations/${org}/projects/${projectId}`,
+	);
 	await page.reload();
-	await page.getByRole("heading", { name: "Renamed project" }).waitFor();
+	await page.getByRole("heading", renamed).waitFor();
+	await organizationCrumb(page).click();
+	await projectsTable.getByRole("link", renamed).waitFor();
 	const invitePath = `/v1/organizations/${org}/invitations`;
 	const invitee = `${randomUUID()}@example.test`;
 	assert.equal(
-		(await post(invitePath, { email: invitee, role: "viewer", proof: "" }))
-			.status,
+		(await post(invitePath, { email: invitee, is_admin: false }, false)).status,
 		403,
 	);
-	await page.getByRole("tab", { name: "Invitations" }).click();
+	const settingsLink = { name: "Organization settings", exact: true };
+	await page.getByRole("link", settingsLink).click();
+	await page.waitForURL(`${origin}/#/organizations/${org}/settings`);
+	await page.reload();
+	const inviteMember = page.getByRole("link", { name: "Invite member" });
+	await inviteMember.click();
+	await page.waitForURL(`${origin}/#/organizations/${org}/invitations/new`);
+	await page.getByRole("link", { name: "Cancel" }).click();
+	await page.getByRole("table", { name: "Members", exact: true }).waitFor();
+	await inviteMember.click();
 	await page.getByLabel("Recipient email").fill(invitee);
-	await page.getByLabel("Invitation role").selectOption("viewer");
 	await page.getByRole("button", { name: "Review invitation" }).click();
-	const proofRequest = page.waitForResponse((response) =>
-		response.url().endsWith("/v1/auth/reauth/request"),
-	);
-	await page.getByRole("button", { name: "Email me a proof" }).click();
-	assert.equal((await proofRequest).status(), 202);
-	const proof = /confirmation#([a-f0-9]{64})/.exec(
-		await mailText(email, "Confirm privileged operation"),
-	)?.[1];
-	assert.ok(proof);
-	await otherTab.goto("/v1/auth/reauth/confirmation#first");
-	await otherTab.waitForFunction(() => location.hash === "");
-	await openReplacement(otherTab, proof);
-	assert.equal(await otherTab.locator("#proof").textContent(), "");
-	assert.equal(
-		(await post(invitePath, { email: invitee, role: "viewer", proof }, false))
-			.status,
-		403,
-	);
-	await otherTab
-		.getByRole("button", { name: "Confirm and reveal proof", exact: true })
-		.click();
-	const revealed = await otherTab.locator("#proof").textContent();
-	assert.equal(revealed, proof);
-	await openReplacement(otherTab, "another-proof");
-	assert.equal(await otherTab.locator("#proof").textContent(), "");
 	const sent = page.waitForResponse(
 		(response) =>
 			response.request().method() === "POST" &&
 			response.url().endsWith(invitePath),
 	);
-	await page.getByLabel("Email proof").fill(revealed);
 	await page
+		.getByRole("dialog", { name: "Send invitation" })
 		.getByRole("button", { name: "Send invitation", exact: true })
 		.click();
 	const invitation = await sent;
 	assert.equal(invitation.status(), 201);
+	assert.deepEqual(invitation.request().postDataJSON(), {
+		email: invitee,
+		is_admin: false,
+	});
 	const { id: invitationId } = await invitation.json();
+	const pendingInvite = page
+		.getByRole("table", { name: "Invitations" })
+		.getByRole("row")
+		.filter({ hasText: invitee });
+	await pendingInvite.getByText("pending").waitFor();
+	await pendingInvite.getByRole("button", { name: /Revoke/ }).click();
 	await page
-		.getByRole("listitem")
-		.filter({ hasText: invitee })
-		.getByText("pending")
-		.waitFor();
-	assert.equal(
-		(await post(invitePath, { email: invitee, role: "viewer", proof })).status,
-		403,
-	);
+		.getByRole("dialog", { name: "Revoke invitation" })
+		.getByRole("button", { name: "Cancel" })
+		.click();
+	await pendingInvite.getByText("pending").waitFor();
 	assert.equal(
 		(await post("/v1/auth/confirm", { token: login.hash.slice(1) })).status,
 		401,
@@ -275,19 +293,20 @@ try {
 			.status,
 		422,
 	);
-	const owner = await browser.newContext({
+	const adminContext = await browser.newContext({
 		baseURL: origin,
 		viewport: { width: 320, height: 720 },
 		storageState: await context.storageState(),
 	});
 	const workspaceTab = await context.newPage();
 	await workspaceTab.goto("/");
-	const ownerOrganization = workspaceTab.getByRole("link", {
-		name: "Browser proof tenant",
+	const adminOrganization = workspaceTab.getByRole("link", {
+		name: "Browser tenant",
 		exact: true,
 	});
-	await ownerOrganization.waitFor();
-	await workspaceTab.getByLabel("Organization name").fill("Owner's draft");
+	await adminOrganization.waitFor();
+	await workspaceTab.getByRole("link", { name: "New organization" }).click();
+	await workspaceTab.getByLabel("Organization name").fill("Admin's draft");
 	const invitationText = await mailText(invitee, "Organization invitation");
 	const invitationLink =
 		/https?:\/\/[^\s]+\/v1\/invitations\/confirmation#[^\s]+/.exec(
@@ -296,6 +315,15 @@ try {
 	assert.ok(invitationLink);
 	const inviteUrl = new URL(invitationLink);
 	assert.equal(inviteUrl.origin, origin);
+	const invitationToken = inviteUrl.hash.split(":").at(-1);
+	assert.equal(
+		(
+			await post(`${invitePath}/${invitationId}/accept`, {
+				token: invitationToken,
+			})
+		).status,
+		403,
+	);
 	let acceptRequests = 0;
 	page.on("request", (request) => {
 		if (request.method() === "POST" && request.url().endsWith("/accept"))
@@ -328,7 +356,11 @@ try {
 		await workspaceTab.getByLabel("Organization name").inputValue(),
 		"",
 	);
-	assert.equal(await ownerOrganization.count(), 0);
+	await workspaceTab.getByRole("link", { name: "Cancel" }).click();
+	await workspaceTab
+		.getByRole("table", { name: "Active organizations" })
+		.waitFor();
+	assert.equal(await adminOrganization.count(), 0);
 	await workspaceTab.close();
 	assert.equal(acceptRequests, 0);
 	const accepted = page.waitForResponse((response) =>
@@ -347,69 +379,123 @@ try {
 	).json();
 	assert.ok(
 		memberships.some(
-			(membership) => membership.id === org && membership.role === "viewer",
+			(membership) => membership.id === org && membership.is_admin === false,
 		),
 	);
 	await page.goto(`/#/organizations/${org}`);
-	await page.getByRole("heading", { name: "Renamed project" }).waitFor();
-	assert.equal(
-		await page.getByRole("form", { name: "Create project" }).count(),
-		0,
+	await projectsTable.getByRole("link", renamed).click();
+	await page.waitForURL(
+		`${origin}/#/organizations/${org}/projects/${projectId}`,
 	);
-	assert.equal(
-		await page.getByRole("button", { name: "Rename Renamed project" }).count(),
-		0,
-	);
-	await page.getByRole("tab", { name: "Members" }).click();
+	await page.getByRole("heading", renamed).waitFor();
+	await organizationCrumb(page).click();
+	await page.getByRole("link", { name: "New project" }).click();
+	await page.getByLabel("Project name").fill("Member project");
+	await page.getByRole("button", { name: "Create project" }).click();
+	await projectsTable.getByRole("link", { name: "Member project" }).click();
+	await page.getByRole("button", { name: "Rename project" }).click();
+	await page.getByLabel("New project name").fill("Member's update");
+	await page.getByRole("button", { name: "Save name" }).click();
+	await page.getByRole("heading", { name: "Member's update" }).waitFor();
+	await organizationCrumb(page).click();
+	await projectsTable.getByRole("link", { name: "Member's update" }).waitFor();
+	await page.getByRole("link", settingsLink).click();
 	const me = await (await page.request.get("/v1/me")).json();
 	const roster = page.getByRole("region", { name: "Organization members" });
 	await roster.getByText(me.user_id).waitFor();
 	assert.equal(await roster.getByText(email, { exact: true }).count(), 0);
-	assert.equal(await page.getByRole("tab", { name: "Invitations" }).count(), 0);
+	assert.equal(await inviteMember.count(), 0);
+	assert.equal(
+		await page.getByRole("table", { name: "Invitations" }).count(),
+		0,
+	);
 	assert.equal(
 		await page.getByRole("tab", { name: "Audit events" }).count(),
 		0,
 	);
+	await page.goto(`/#/organizations/${org}/invitations/new`);
+	await page.getByRole("navigation", { name: "Breadcrumb" })
+		.getByRole("link", { name: "Settings" }).waitFor();
+	assert.equal(await page.getByLabel("Recipient email").count(), 0);
 	await checkTenantAccess({
-		owner,
-		viewer: context,
+		adminContext,
+		memberContext: context,
 		origin,
 		org,
 		invitee,
 		invitationId,
-		invitationToken: inviteUrl.hash.split(":").at(-1),
-		mailText: (subject) => mailText(email, subject),
+		invitationToken,
+		projectId,
 	});
-	const ownerPage = await owner.newPage();
-	await ownerPage.goto(`/#/organizations/${org}`);
-	await ownerPage.getByRole("heading", { name: "Renamed project" }).waitFor();
-	await ownerPage.getByRole("tab", { name: "Audit events" }).click();
-	await ownerPage.getByRole("button", { name: "Load more events" }).click();
-	await ownerPage
+	const adminPage = await adminContext.newPage();
+	await adminPage.goto(`/#/organizations/${org}`);
+	const projectLinks = adminPage
+		.getByRole("table", { name: "Projects" })
+		.getByRole("link");
+	await projectLinks.first().waitFor();
+	await assertFitsViewport(adminPage);
+	await adminPage.getByRole("link", settingsLink).click();
+	await adminPage.getByRole("tab", { name: "Audit events" }).click();
+	await adminPage.reload();
+	const eventList = adminPage.getByRole("list", { name: "Events" });
+	await eventList
+		.getByRole("listitem")
+		.first()
 		.getByText("membership.role_changed", { exact: true })
 		.waitFor();
-	await assertFitsViewport(ownerPage);
-	await ownerPage.getByRole("tab", { name: "Invitations" }).click();
-	await ownerPage
+	await adminPage.getByRole("button", { name: "Load more events" }).click();
+	await eventList
 		.getByRole("listitem")
+		.last()
+		.getByText("organization.created", { exact: true })
+		.waitFor();
+	await assertFitsViewport(adminPage);
+	await adminPage.getByRole("tab", { name: "Members" }).click();
+	await adminPage
+		.getByRole("table", { name: "Invitations" })
+		.getByRole("row")
 		.filter({ hasText: invitee })
 		.getByText("accepted")
 		.waitFor();
-	await assertFitsViewport(ownerPage);
-	await ownerPage.getByRole("button", { name: "Manage sessions" }).click();
-	await ownerPage.getByRole("button", { name: /^Revoke session / }).waitFor();
-	await ownerPage
+	await assertFitsViewport(adminPage);
+	const header = adminPage.getByRole("banner");
+	const profile = header.getByRole("button", { name: `Profile: ${email}` });
+	const menu = adminPage.getByRole("menu");
+	const sessions = adminPage.getByRole("region", {
+		name: "Sessions",
+		exact: true,
+	});
+	assert.equal(await sessions.count(), 0);
+	await profile.click();
+	await menu.getByRole("menuitem", { name: "Account settings" }).click();
+	await adminPage.waitForURL(`${origin}/#/account/settings`);
+	await adminPage.reload();
+	await adminPage
+		.getByRole("heading", { level: 1, name: "Account settings" })
+		.waitFor();
+	assert.equal(
+		await adminPage
+			.getByRole("region", { name: "Organization members" })
+			.count(),
+		0,
+	);
+	await sessions.getByRole("button", { name: /^Revoke session / }).waitFor();
+	await sessions
 		.getByRole("button", { name: "Rotate current session" })
 		.click();
-	await ownerPage.getByRole("button", { name: "Confirm rotation" }).click();
-	await ownerPage.getByText("Current session rotated.").waitFor();
-	await ownerPage.getByRole("tab", { name: "Projects" }).click();
-	await ownerPage.getByRole("heading", { name: "Renamed project" }).waitFor();
-	await ownerPage.getByRole("button", { name: "Sign out" }).click();
-	await ownerPage.getByLabel("Email address").waitFor();
-	assert.equal(await ownerPage.getByText("Renamed project").count(), 0);
+	await sessions.getByRole("button", { name: "Confirm rotation" }).click();
+	await sessions.getByText("Current session rotated.").waitFor();
+	await assertFitsViewport(adminPage);
+	await adminPage.goBack();
+	await organizationCrumb(adminPage).click();
+	await projectLinks.first().waitFor();
+	await profile.click();
+	await menu.getByRole("menuitem", { name: "Log out" }).click();
+	await adminPage.getByLabel("Email address").waitFor();
+	assert.equal(await profile.count(), 0);
+	assert.equal(await adminPage.getByText("Renamed project").count(), 0);
 	console.log(
-		"PASS: workspace projects, session rotation, role-aware roster, audit history, email proof and invitation lifecycle",
+		"PASS: admin and member project editing, session rotation, roster permissions, audit history and emailed invitation acceptance",
 	);
 } finally {
 	await browser.close();

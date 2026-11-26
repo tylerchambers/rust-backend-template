@@ -1,18 +1,16 @@
 import { infiniteQueryOptions } from "@tanstack/react-query";
 import type { BackendClient } from "rust-backend-template-sdk";
 import { z } from "zod";
-import { workspaceName, workspaceRole } from "../domain/workspace";
+import { workspaceName } from "../domain/workspace";
 import { writeHeaders } from "./browser";
 import { nextIdCursor, workspacePageSize } from "./workspacePage";
 import { workspaceBody } from "./workspaceResponse";
 
-const organizationSchema = z.object({
-	id: z.uuid(),
-	name: workspaceName,
-	role: workspaceRole,
-});
+const createdOrganization = z.object({ id: z.uuid() });
+const organizationSchema = createdOrganization
+	.extend({ name: workspaceName, is_admin: z.boolean() })
+	.transform(({ id, name, is_admin }) => ({ id, name, isAdmin: is_admin }));
 const organizationsPage = z.array(organizationSchema).max(workspacePageSize);
-const createdOrganization = organizationSchema.pick({ id: true });
 export type Organization = z.output<typeof organizationSchema>;
 
 export const organizationListKey = ["workspace", "organizations"] as const;

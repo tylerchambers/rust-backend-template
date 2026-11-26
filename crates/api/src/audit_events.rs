@@ -28,7 +28,7 @@ pub struct AuditEventResponse {
     path="/v1/organizations/{organization}/audit-events",
     params(
         ("organization"=Uuid,Path),
-        ("after"=Option<Uuid>,Query,description="Exclusive event ID cursor. Up to 50 rows in ascending ID order, not commit order; continue with the last ID until empty."),
+        ("after"=Option<Uuid>,Query,description="Last event ID from the previous page. Returns up to 50 older events ordered by occurred_at DESC, then id DESC. An unknown or out-of-organization cursor returns an empty page."),
     ),
     security(("session"=[])),
     responses(

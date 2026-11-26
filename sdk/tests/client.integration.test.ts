@@ -104,7 +104,7 @@ test("generated client reads its account, project, and tenant administration dat
 		"/v1/organizations/{organization}/member-directory",
 		{ params: { path: params.path } },
 	);
-	expect(directory.data).toEqual([{ ...account, role: "owner" }]);
+	expect(directory.data).toEqual([{ ...account, is_admin: true }]);
 	const events = await client.GET(
 		"/v1/organizations/{organization}/audit-events",
 		{ params: { path: params.path } },
@@ -116,22 +116,9 @@ test("generated client reads its account, project, and tenant administration dat
 	expect(created?.subject).toBe(project.data.id);
 
 	const invitee = `${crypto.randomUUID()}@example.test`;
-	const org = organization.data.id;
-	const proofRequest = await client.POST("/v1/auth/reauth/request", {
-		params: { header: headers },
-		body: { action: "invite", target: org, organization_id: org },
-	});
-	expect(proofRequest.response.status).toBe(202);
 	const invitation = await client.POST(
 		"/v1/organizations/{organization}/invitations",
-		{
-			params,
-			body: {
-				email: invitee,
-				role: "viewer",
-				proof: await mailboxToken(email, "Confirm privileged operation"),
-			},
-		},
+		{ params, body: { email: invitee, is_admin: false } },
 	);
 	if (!invitation.data) throw new Error("Invitation creation returned no ID");
 	const invitations = await client.GET(
@@ -141,12 +128,23 @@ test("generated client reads its account, project, and tenant administration dat
 	const pending = invitations.data?.[0];
 	expect(pending?.id).toBe(invitation.data.id);
 	expect(pending?.email).toBe(invitee);
+	expect(pending?.is_admin).toBe(false);
 	expect(pending?.status).toBe("pending");
 	const rest = await client.GET(
 		"/v1/organizations/{organization}/invitations",
 		{ params: { path: params.path, query: { after: invitation.data.id } } },
 	);
 	expect(rest.data).toEqual([]);
+	const revocation = await client.POST(
+		"/v1/organizations/{organization}/invitations/{invitation}/revoke",
+		{
+			params: {
+				header: headers,
+				path: { ...params.path, invitation: invitation.data.id },
+			},
+		},
+	);
+	expect(revocation.response.status).toBe(204);
 	expect(
 		(await client.POST("/v1/auth/logout", { params: { header: headers } }))
 			.response.status,

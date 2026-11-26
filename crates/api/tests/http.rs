@@ -8,13 +8,12 @@ use application::Secrets;
 use application::{
     Authentication, Organizations, Projects,
     authentication::{IdentityRepository, LoginMailer},
-    reauthentication::{ProofPurpose, ReauthenticationMailer},
 };
 use async_trait::async_trait;
 use axum::{body::Body, http::Request};
-use domain::{Error, OrganizationId};
+use domain::Error;
 use infrastructure::postgres::Database;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use tower::ServiceExt;
 struct Mail;
 #[async_trait]
@@ -24,24 +23,7 @@ impl LoginMailer for Mail {
     }
 }
 
-#[derive(Default)]
-struct ProofMailbox(Mutex<Vec<(ProofPurpose, OrganizationId)>>);
-
-#[async_trait]
-impl ReauthenticationMailer for ProofMailbox {
-    async fn send_proof(
-        &self,
-        _: &str,
-        purpose: ProofPurpose,
-        organization: OrganizationId,
-        _: &str,
-    ) -> Result<(), Error> {
-        self.0.lock().unwrap().push((purpose, organization));
-        Ok(())
-    }
-}
-
-fn test_app(db: &Arc<Database>, proof_mail: Arc<ProofMailbox>) -> axum::Router {
+fn test_app(db: &Arc<Database>) -> axum::Router {
     let secrets = Arc::new(infrastructure::system::SystemSecrets);
     let state = api::State::new(
         Arc::new(Authentication::new(
@@ -57,18 +39,13 @@ fn test_app(db: &Arc<Database>, proof_mail: Arc<ProofMailbox>) -> axum::Router {
             db.clone(),
             std::sync::Arc::new(infrastructure::system::SystemIds),
         )),
-        secrets.clone(),
+        secrets,
         "http://localhost:58039".into(),
         Arc::new(application::memberships::Memberships::new(db.clone())),
         Arc::new(application::invitations::Invitations::new(
             db.clone(),
             std::sync::Arc::new(infrastructure::system::SystemIds),
             std::sync::Arc::new(infrastructure::system::SystemClock),
-        )),
-        Arc::new(application::reauthentication::Reauthentication::new(
-            db.clone(),
-            proof_mail,
-            secrets,
         )),
         Arc::new(application::administration::Administration::new(db.clone())),
     );
@@ -81,16 +58,15 @@ fn test_app(db: &Arc<Database>, proof_mail: Arc<ProofMailbox>) -> axum::Router {
 }
 
 #[tokio::test]
-async fn proof_requests_preserve_bindings_and_reject_a_mismatched_invite_before_issuance() {
+async fn membership_mutations_preserve_the_last_admin() {
     let pool = sqlx::PgPool::connect(&std::env::var("TEST_DATABASE_URL").unwrap())
         .await
         .unwrap();
     infrastructure::postgres::migrations::migrate(&pool)
         .await
         .unwrap();
-    let db = Arc::new(Database::new(pool.clone()).unwrap());
-    let mailbox = Arc::new(ProofMailbox::default());
-    let app = test_app(&db, mailbox.clone());
+    let db = Arc::new(Database::new(pool).unwrap());
+    let app = test_app(&db);
     let login = infrastructure::system::SystemSecrets.token();
     let session = infrastructure::system::SystemSecrets.token();
     db.issue_login(&format!("{}@example.test", uuid::Uuid::now_v7()), &login)
@@ -98,65 +74,32 @@ async fn proof_requests_preserve_bindings_and_reject_a_mismatched_invite_before_
         .unwrap();
     let actor = db.consume_login(&login, &session).await.unwrap();
     let org = Organizations::new(db, Arc::new(infrastructure::system::SystemIds))
-        .create(&actor, "Proof requests".into())
+        .create(&actor, "Membership mutations".into())
         .await
         .unwrap();
-    let other = uuid::Uuid::now_v7();
+    let member = format!("/v1/organizations/{org}/members/{}", actor.user_id);
     let csrf = "a".repeat(64);
-    for (action, target, expected) in [
-        ("invite", other, None),
-        ("unknown", other, None),
-        ("invite", org.into_uuid(), Some(ProofPurpose::Invite)),
-        (
-            "change_role",
-            other,
-            Some(ProofPurpose::ChangeRole(other.into())),
-        ),
-        (
-            "remove_member",
-            other,
-            Some(ProofPurpose::RemoveMember(other.into())),
-        ),
-        (
-            "revoke_invitation",
-            other,
-            Some(ProofPurpose::RevokeInvitation(other.into())),
-        ),
+    for (action, body, expected_status) in [
+        ("role", Some(r#"{"is_admin":true}"#), 204),
+        ("role", Some(r#"{"is_admin":false}"#), 409),
+        ("remove", None, 409),
     ] {
+        let mut request = Request::post(format!("{member}/{action}"))
+            .header("origin", "http://localhost:58039")
+            .header("cookie", format!("csrf={csrf}; __Host-session={session}"))
+            .header("x-csrf-token", &csrf);
+        let body = if let Some(json) = body {
+            request = request.header("content-type", "application/json");
+            Body::from(json)
+        } else {
+            Body::empty()
+        };
         let response = app
             .clone()
-            .oneshot(
-                Request::post("/v1/auth/reauth/request")
-                    .header("origin", "http://localhost:58039")
-                    .header("cookie", format!("csrf={csrf}; __Host-session={session}"))
-                    .header("x-csrf-token", &csrf)
-                    .header("content-type", "application/json")
-                    .body(Body::from(
-                        serde_json::json!({
-                            "action": action, "target": target, "organization_id": org,
-                        })
-                        .to_string(),
-                    ))
-                    .unwrap(),
-            )
+            .oneshot(request.body(body).unwrap())
             .await
             .unwrap();
-        if let Some(purpose) = expected {
-            assert_eq!(response.status(), 202);
-            let mut delivered = mailbox.0.lock().unwrap();
-            assert_eq!(*delivered, [(purpose, org)]);
-            delivered.clear();
-        } else {
-            assert_eq!(response.status(), 400);
-            assert!(mailbox.0.lock().unwrap().is_empty());
-            let issued: i64 =
-                sqlx::query_scalar("SELECT count(*) FROM reauthentication_proofs WHERE user_id=$1")
-                    .bind(actor.user_id.into_uuid())
-                    .fetch_one(&pool)
-                    .await
-                    .unwrap();
-            assert_eq!(issued, 0);
-        }
+        assert_eq!(response.status(), expected_status);
     }
 }
 
@@ -173,7 +116,7 @@ async fn scanner_get_does_not_authenticate_and_mutations_require_csrf() {
         .await
         .unwrap();
     let db = Arc::new(Database::new(pool.clone()).unwrap());
-    let app = test_app(&db, Arc::new(ProofMailbox::default()));
+    let app = test_app(&db);
     let contract: serde_json::Value = serde_json::from_str(&api::openapi()).unwrap();
     for (method, path, status, code) in [
         ("GET", "/v1/auth/sessions", 401, "unauthenticated"),
@@ -208,20 +151,20 @@ async fn scanner_get_does_not_authenticate_and_mutations_require_csrf() {
     db.issue_login(&format!("{}@example.test", uuid::Uuid::now_v7()), &login)
         .await
         .unwrap();
-    let owner = db.consume_login(&login, &session).await.unwrap();
+    let admin = db.consume_login(&login, &session).await.unwrap();
     let org = Organizations::new(db.clone(), Arc::new(infrastructure::system::SystemIds))
-        .create(&owner, "Discoverable".into())
+        .create(&admin, "Discoverable".into())
         .await
         .unwrap();
     // All sessions share a timestamp: pagination must use unique IDs, not time.
-    let mut expected = vec![owner.session_id.into_uuid()];
+    let mut expected = vec![admin.session_id.into_uuid()];
     for index in 0..105 {
         let id = uuid::Uuid::now_v7();
         sqlx::query(
             "INSERT INTO sessions(id,user_id,token_hash,created_at) VALUES($1,$2,$3,'2026-01-01')",
         )
         .bind(id)
-        .bind(owner.user_id.into_uuid())
+        .bind(admin.user_id.into_uuid())
         .bind(infrastructure::postgres::token_hash(&format!(
             "{session}-{index}"
         )))
@@ -245,9 +188,9 @@ async fn scanner_get_does_not_authenticate_and_mutations_require_csrf() {
         .unwrap();
     for (index, user, state) in [
         (0, foreign, "live"),
-        (1, owner.user_id.into_uuid(), "expired"),
-        (2, owner.user_id.into_uuid(), "revoked"),
-        (3, owner.user_id.into_uuid(), "idle"),
+        (1, admin.user_id.into_uuid(), "expired"),
+        (2, admin.user_id.into_uuid(), "revoked"),
+        (3, admin.user_id.into_uuid(), "idle"),
     ] {
         sqlx::query("INSERT INTO sessions(id,user_id,token_hash,expires_at,revoked_at,last_seen_at) VALUES($1,$2,$3,CASE WHEN $4='expired' THEN clock_timestamp()-interval '1 day' ELSE clock_timestamp()+interval '1 day' END,CASE WHEN $4='revoked' THEN clock_timestamp() END,CASE WHEN $4='idle' THEN clock_timestamp()-interval '1 hour' ELSE clock_timestamp() END)")
             .bind(uuid::Uuid::now_v7()).bind(user)
@@ -345,7 +288,7 @@ async fn scanner_get_does_not_authenticate_and_mutations_require_csrf() {
             .unwrap();
         let rows: serde_json::Value = serde_json::from_slice(&body).unwrap();
         assert_eq!(rows.as_array().unwrap().len(), 1);
-        assert_eq!(rows[0]["role"], "owner");
+        assert_eq!(rows[0]["is_admin"], true);
     }
     for cookies in [
         vec![format!(

@@ -10,7 +10,6 @@ pub mod invitations;
 pub mod memberships;
 pub mod organizations;
 pub mod projects;
-pub mod reauthentication;
 pub mod secrets;
 pub mod transaction;
 

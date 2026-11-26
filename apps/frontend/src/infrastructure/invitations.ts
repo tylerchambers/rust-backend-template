@@ -2,7 +2,6 @@ import { infiniteQueryOptions } from "@tanstack/react-query";
 import type { BackendClient } from "rust-backend-template-sdk";
 import { z } from "zod";
 import { type InvitationDraft, invitationStatus } from "../domain/team";
-import { workspaceRole } from "../domain/workspace";
 import { type WriteHeaders, writeHeaders } from "./browser";
 import { nextIdCursor, workspacePageSize } from "./workspacePage";
 import { workspaceBody } from "./workspaceResponse";
@@ -13,12 +12,13 @@ const invitationsPage = z
 		invitationId
 			.extend({
 				email: z.string().min(1).max(254),
-				role: workspaceRole,
+				is_admin: z.boolean(),
 				status: invitationStatus,
 				expires_at: z.iso.datetime({ offset: true }),
 			})
-			.transform(({ expires_at, ...row }) => ({
+			.transform(({ expires_at, is_admin, ...row }) => ({
 				...row,
+				isAdmin: is_admin,
 				expiresAt: expires_at,
 			})),
 	)
@@ -50,14 +50,13 @@ export async function createInvitation(
 	client: BackendClient,
 	organizationId: string,
 	draft: InvitationDraft,
-	proof: string,
 	header: WriteHeaders = writeHeaders(),
 ): Promise<void> {
 	const result = await client.POST(
 		"/v1/organizations/{organization}/invitations",
 		{
 			params: { path: { organization: organizationId }, header },
-			body: { ...draft, proof },
+			body: { email: draft.email, is_admin: draft.isAdmin },
 			redirect: "error",
 		},
 	);
@@ -68,7 +67,6 @@ export async function revokeInvitation(
 	client: BackendClient,
 	organizationId: string,
 	id: string,
-	proof: string,
 	header: WriteHeaders = writeHeaders(),
 ): Promise<void> {
 	workspaceBody(
@@ -79,7 +77,6 @@ export async function revokeInvitation(
 					path: { organization: organizationId, invitation: id },
 					header,
 				},
-				body: { proof },
 				redirect: "error",
 			},
 		),

@@ -1,18 +1,17 @@
 use crate::{
     Actor,
     authority::{AuthorityMutation, TenantAuthority},
-    reauthentication::ProofPurpose,
     transaction::TenantTransaction,
 };
 use async_trait::async_trait;
-use domain::{Error, OrganizationId, Permission, Role, UserId};
+use domain::{Error, OrganizationId, UserId};
 use std::sync::Arc;
 
 #[async_trait]
 pub trait MembershipRepository: Send {
-    async fn member_role(&mut self, user: UserId) -> Result<Role, Error>;
-    async fn owner_count(&mut self) -> Result<i64, Error>;
-    async fn set_role(&mut self, user: UserId, role: Role) -> Result<(), Error>;
+    async fn member_is_admin(&mut self, user: UserId) -> Result<bool, Error>;
+    async fn admin_count(&mut self) -> Result<i64, Error>;
+    async fn set_admin(&mut self, user: UserId, is_admin: bool) -> Result<(), Error>;
     /// Retire existing credentials atomically with an authority change.
     /// The user must be included in the upfront `lock_users` call.
     async fn retire_sessions(&mut self, user: UserId) -> Result<(), Error>;
@@ -50,33 +49,25 @@ impl Memberships {
     pub fn new(uow: Arc<dyn MembershipUnitOfWork>) -> Self {
         Self { uow }
     }
-    /// Remove a member without removing the last owner. Unlike a role change,
+    /// Remove a member without removing the last admin. Unlike a role change,
     /// removal does not retire the user's global sessions.
     ///
     /// # Errors
-    /// Rejects insufficient authority, invalid proof or last-owner removal; propagates transaction errors.
+    /// Rejects insufficient authority or last-admin removal; propagates transaction errors.
     pub async fn remove(
         &self,
         actor: &Actor,
         org: OrganizationId,
         user: UserId,
-        proof: &str,
     ) -> Result<(), Error> {
         let mut tx = self.uow.begin_memberships(org).await?;
         tx.lock_organization().await?;
         tx.lock_users(&[actor.user_id, user]).await?;
-        let caller = tx.current_role(actor, org).await?;
-        let old = tx.member_role(user).await?;
-        if !caller.allows(if old == Role::Owner {
-            Permission::ManageOwners
-        } else {
-            Permission::ManageMembers
-        }) {
+        if !tx.is_admin(actor, org).await? {
             return Err(Error::Forbidden);
         }
-        tx.consume_proof(actor, ProofPurpose::RemoveMember(user), proof)
-            .await?;
-        if old == Role::Owner && tx.owner_count().await? <= 1 {
+        let old = tx.member_is_admin(user).await?;
+        if old && tx.admin_count().await? <= 1 {
             return Err(Error::Conflict);
         }
         tx.remove_member(user).await?;
@@ -85,39 +76,29 @@ impl Memberships {
         tx.commit().await
     }
     /// Change a role and retire affected credentials atomically. A no-op still
-    /// consumes proof and audits, but does not retire sessions. Proof binds the
-    /// target user, not the requested new role.
+    /// records an audit event but does not retire sessions.
     ///
     /// # Errors
-    /// Rejects insufficient authority, invalid proof or last-owner demotion; propagates transaction errors.
+    /// Rejects insufficient authority or last-admin demotion; propagates transaction errors.
     pub async fn change_role(
         &self,
         actor: &Actor,
         org: OrganizationId,
         user: UserId,
-        role: Role,
-        proof: &str,
+        is_admin: bool,
     ) -> Result<(), Error> {
         let mut tx = self.uow.begin_memberships(org).await?;
         tx.lock_organization().await?;
         tx.lock_users(&[actor.user_id, user]).await?;
-        let caller = tx.current_role(actor, org).await?;
-        let old = tx.member_role(user).await?;
-        let permission = if old == Role::Owner || role == Role::Owner {
-            Permission::ManageOwners
-        } else {
-            Permission::ManageMembers
-        };
-        if !caller.allows(permission) {
+        if !tx.is_admin(actor, org).await? {
             return Err(Error::Forbidden);
         }
-        tx.consume_proof(actor, ProofPurpose::ChangeRole(user), proof)
-            .await?;
-        if old == Role::Owner && role != Role::Owner && tx.owner_count().await? <= 1 {
+        let old = tx.member_is_admin(user).await?;
+        if old && !is_admin && tx.admin_count().await? <= 1 {
             return Err(Error::Conflict);
         }
-        tx.set_role(user, role).await?;
-        if old != role {
+        tx.set_admin(user, is_admin).await?;
+        if old != is_admin {
             tx.retire_sessions(user).await?;
         }
         tx.audit(actor, "membership.role_changed", user.into_uuid())

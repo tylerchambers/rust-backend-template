@@ -39,16 +39,21 @@ Keep DSNs out of interactive shell history and logs. `docker compose config` wit
 
 There are no destructive down migrations. A contract/drop migration requires a new compatibility plan and backup/restore exercise. Applied SQL files remain immutable. Migration 2 creates the cluster role `template_app`; a second installation sharing a cluster where that role already exists is not supported by this template's current provisioning boundary. Use a dedicated cluster rather than editing checksums or catching unrelated DDL errors. Migration 7 repairs the prior revision's missing River runtime grants.
 
+The admin-flag migration converts local memberships and invitations:
+`owner` and `admin` become `is_admin=true`; `member` and `viewer` become
+`false`. Former viewers can now write projects. Restart the API and worker
+with the updated client; the old role-based contract is not supported.
+
 ## Authentication and incident response
 
-- Confirmation pages clear link fragments from browser history. Opening a replacement link in the same tab selects the new link; only the confirmation button submits or reveals it.
+- Confirmation pages clear link fragments from browser history. Opening a replacement link in the same tab selects the new link; only the confirmation button submits it.
 - Login links: 256-bit random token, SHA-256 persistence, ten-minute TTL, atomic one-time consumption. GET is inert; sign-in requires an explicit CSRF-protected POST.
-- Reauthentication: five-minute action/user/session/tenant/target binding, consumed atomically with the privileged mutation. For an invitation to join, the target must equal the organization ID. Consuming a proof releases its outstanding-proof slot.
+- Administrative actions require a valid session and admin membership in the target organization. They do not require separate email verification. The browser asks for confirmation before sending the mutation.
 - Sessions: seven-day absolute and thirty-minute idle expiry. Rotation retires the old authentication token but preserves a revocation-only lineage handle. Account-wide revocation checks the current credential in the same transaction that retires sessions. Subsequent revocations preserve the original revocation time and do not duplicate the audit event. Disabled users cannot authenticate.
-- Rate limits: PostgreSQL normalized-email issuance bucket (five per fifteen minutes), source bucket across auth initiation/confirmation/reauthentication (120 per fifteen minutes), five outstanding fresh proofs per user. Configured Redis adds a fail-closed distributed limiter. Unknown tokens have no trustworthy mailbox identity; source admission bounds those confirmations without exposing an account lookup.
-- On suspected mailbox compromise, disable the user through a reviewed deployment/database operation and revoke sessions. No recovery endpoint, email-change flow or alternate credential can bypass mailbox ownership. Session theft permits ordinary operations until expiry/revocation, but not proof-bound membership changes.
+- Rate limits: PostgreSQL normalized-email issuance bucket (five per fifteen minutes) and source bucket across sign-in requests and confirmations (120 per fifteen minutes). Configured Redis adds a fail-closed distributed limiter.
+- A stolen admin session can change that organization's membership until revoked or expired. On suspected compromise, disable the user through a reviewed deployment/database operation and revoke their sessions.
 
-Never enable raw SQL bind logging, request-body logging or SMTP error display. Infrastructure errors map to stable sanitized codes. No log field should contain a mailbox, cookie, raw token, proof, DSN or full magic-link URL.
+Never enable raw SQL bind logging, request-body logging or SMTP error display. No log field should contain a mailbox, cookie, raw token, DSN or full magic-link URL.
 
 ## River
 

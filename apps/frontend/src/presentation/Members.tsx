@@ -1,4 +1,12 @@
-import { Alert, Button, Group, NativeSelect, Stack, Text } from "@mantine/core";
+import {
+	Alert,
+	Button,
+	Group,
+	NativeSelect,
+	Stack,
+	Table,
+	Text,
+} from "@mantine/core";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { useBackend } from "../application/backend";
@@ -6,35 +14,30 @@ import {
 	type MemberChange,
 	useChangeMember,
 } from "../application/teamManagement";
-import {
-	grantableRoles,
-	hasMultipleOwners,
-	type Member,
-	memberAccess,
-} from "../domain/team";
-import type { WorkspaceRole } from "../domain/workspace";
+import { hasMultipleAdmins, type Member } from "../domain/team";
+import { roleLabel } from "../domain/workspace";
 import { memberList } from "../infrastructure/members";
 import {
 	isWorkspaceUnavailableToUser,
 	workspaceError,
 } from "../infrastructure/workspaceResponse";
-import { ProofAction } from "./ProofAction";
+import { ConfirmAction } from "./ConfirmAction";
 
-type Props = { organizationId: string; role: WorkspaceRole };
+type Props = { organizationId: string; isAdmin: boolean };
 
 function MemberActions({
 	organizationId,
-	role,
 	member,
 	onSuccess,
-}: Props & {
+}: {
+	organizationId: string;
 	member: Member;
 	onSuccess: (notice: string) => void;
 }): React.JSX.Element {
 	const changeMember = useChangeMember(organizationId, member.userId);
 	const [draft, setDraft] = useState<MemberChange | null>(null);
 	const label = member.email ?? member.userId;
-	const roles = grantableRoles(role, member.role);
+	const nextIsAdmin = !member.isAdmin;
 	return (
 		<>
 			<Group align="end" gap="sm">
@@ -42,21 +45,16 @@ function MemberActions({
 					label="Change role"
 					aria-label={`Change role for ${label}`}
 					value=""
-					onChange={(event) => {
-						const next = roles.find(
-							(role) => role === event.currentTarget.value,
-						);
-						if (next) setDraft({ action: "change_role", role: next });
-					}}
+					onChange={() =>
+						setDraft({ action: "change_role", isAdmin: nextIsAdmin })
+					}
 				>
 					<option value="" disabled>
 						Select role
 					</option>
-					{roles.map((role) => (
-						<option key={role} value={role}>
-							{role}
-						</option>
-					))}
+					<option value={nextIsAdmin ? "admin" : "member"}>
+						{roleLabel(nextIsAdmin)}
+					</option>
 				</NativeSelect>
 				<Button
 					variant="subtle"
@@ -68,23 +66,21 @@ function MemberActions({
 				</Button>
 			</Group>
 			{draft && (
-				<ProofAction
-					organizationId={organizationId}
-					action={draft.action}
-					target={member.userId}
+				<ConfirmAction
+					destructive={draft.action === "remove_member"}
 					label={
 						draft.action === "change_role" ? "Change role" : "Remove member"
 					}
 					description={
 						draft.action === "change_role"
-							? `Change ${label} from ${member.role} to ${draft.role}? This signs them out of all sessions.`
+							? `Change ${label} from ${roleLabel(member.isAdmin)} to ${roleLabel(draft.isAdmin)}? This signs them out of all sessions.`
 							: `Remove ${label} from this organization? They will lose access to its projects.`
 					}
-					submit={(proof) => changeMember(draft, proof)}
+					submit={() => changeMember(draft)}
 					onSuccess={() => {
 						onSuccess(
 							draft.action === "change_role"
-								? `Changed the role for ${label} to ${draft.role}.`
+								? `Changed the role for ${label} to ${roleLabel(draft.isAdmin)}.`
 								: `Removed ${label}.`,
 						);
 						setDraft(null);
@@ -98,16 +94,17 @@ function MemberActions({
 
 function OrganizationMembers({
 	organizationId,
-	role,
+	isAdmin,
 }: Props): React.JSX.Element {
 	const client = useBackend();
-	const members = useInfiniteQuery(memberList(client, organizationId, role));
+	const members = useInfiniteQuery(memberList(client, organizationId, isAdmin));
 	const [notice, setNotice] = useState("");
 	const rows = members.data?.pages.flat();
-	const multipleOwners = rows !== undefined && hasMultipleOwners(rows);
+	const multipleAdmins = rows !== undefined && hasMultipleAdmins(rows);
 	return (
 		<Stack
 			component="section"
+			miw={0}
 			aria-label="Organization members"
 			aria-busy={members.isFetching}
 		>
@@ -140,43 +137,60 @@ function OrganizationMembers({
 			)}
 			{rows && !isWorkspaceUnavailableToUser(members.error) && (
 				<>
-					{rows.length === 0 ? (
-						<Text>No organization members.</Text>
-					) : (
-						<ul className="record-list" aria-label="Members">
-							{rows.map((member) => {
-								const access = memberAccess(role, member.role, multipleOwners);
-								return (
-									<li key={`${member.userId}:${member.role}`}>
-										<div className="record-row">
-											<div>
+					<Table.ScrollContainer minWidth={isAdmin ? 540 : 0} type="native">
+						<Table aria-label="Members">
+							<Table.Thead>
+								<Table.Tr>
+									<Table.Th scope="col">Member</Table.Th>
+									<Table.Th scope="col">Role</Table.Th>
+									{isAdmin && <Table.Th scope="col">Actions</Table.Th>}
+								</Table.Tr>
+							</Table.Thead>
+							<Table.Tbody>
+								{rows.length === 0 && (
+									<Table.Tr>
+										<Table.Td colSpan={isAdmin ? 3 : 2}>
+											No organization members.
+										</Table.Td>
+									</Table.Tr>
+								)}
+								{rows.map((member) => {
+									const protectedAdmin = member.isAdmin && !multipleAdmins;
+									return (
+										<Table.Tr key={`${member.userId}:${member.isAdmin}`}>
+											<Table.Td>
 												<Text fw={600}>{member.email ?? member.userId}</Text>
-												<Text size="sm" c="dimmed">
-													{member.role}
-													{member.email && ` · ${member.userId}`}
-												</Text>
-											</div>
-											{members.isSuccess && access === "editable" && (
-												<MemberActions
-													organizationId={organizationId}
-													role={role}
-													member={member}
-													onSuccess={setNotice}
-												/>
+												{member.email && (
+													<Text size="sm" c="dimmed">
+														{member.userId}
+													</Text>
+												)}
+											</Table.Td>
+											<Table.Td>{roleLabel(member.isAdmin)}</Table.Td>
+											{isAdmin && (
+												<Table.Td>
+													{members.isSuccess && !protectedAdmin && (
+														<MemberActions
+															organizationId={organizationId}
+															member={member}
+															onSuccess={setNotice}
+														/>
+													)}
+													{protectedAdmin && (
+														<Text size="sm" c="dimmed">
+															{members.hasNextPage
+																? "Load more members to check for another admin."
+																: "The organization must keep at least one admin."}
+														</Text>
+													)}
+												</Table.Td>
 											)}
-											{access === "last-owner" && (
-												<Text size="sm" c="dimmed">
-													{members.hasNextPage
-														? "Load more members to check for another owner."
-														: "The organization must keep at least one owner."}
-												</Text>
-											)}
-										</div>
-									</li>
-								);
-							})}
-						</ul>
-					)}
+										</Table.Tr>
+									);
+								})}
+							</Table.Tbody>
+						</Table>
+					</Table.ScrollContainer>
 					{members.hasNextPage && !members.isFetchNextPageError && (
 						<Button
 							variant="default"
@@ -194,12 +208,12 @@ function OrganizationMembers({
 	);
 }
 
-export function Members({ organizationId, role }: Props): React.JSX.Element {
+export function Members({ organizationId, isAdmin }: Props): React.JSX.Element {
 	return (
 		<OrganizationMembers
-			key={`${organizationId}:${role}`}
+			key={`${organizationId}:${isAdmin}`}
 			organizationId={organizationId}
-			role={role}
+			isAdmin={isAdmin}
 		/>
 	);
 }

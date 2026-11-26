@@ -1,13 +1,16 @@
 import {
 	Alert,
+	Avatar,
 	Button,
-	Group,
+	Menu,
 	Stack,
 	Text,
 	TextInput,
 	Title,
+	UnstyledButton,
 } from "@mantine/core";
-import { type FormEvent, type ReactNode, useState } from "react";
+import { Link } from "@tanstack/react-router";
+import type { FormEvent, ReactNode } from "react";
 import {
 	AccountSessionProvider,
 	useAccountActivity,
@@ -15,7 +18,7 @@ import {
 } from "../application/accountSession";
 import { useIdentity, useSignInLink } from "../application/authentication";
 import { authenticationMessage } from "../infrastructure/authentication";
-import { Sessions } from "./Sessions";
+import { ProjectDesk } from "./ProjectDesk";
 
 function SessionStatus({ text }: { text: string }): React.JSX.Element {
 	return (
@@ -25,12 +28,7 @@ function SessionStatus({ text }: { text: string }): React.JSX.Element {
 	);
 }
 
-type SessionCheck = {
-	checking: boolean;
-	recheck: () => Promise<void>;
-};
-
-function SignIn({ checking, recheck }: SessionCheck): React.JSX.Element {
+function SignIn({ checking }: { checking: boolean }): React.JSX.Element {
 	const { request, requestLink } = useSignInLink(checking);
 	function submit(event: FormEvent<HTMLFormElement>): void {
 		event.preventDefault();
@@ -48,14 +46,13 @@ function SignIn({ checking, recheck }: SessionCheck): React.JSX.Element {
 					<Text role="status">
 						Open the sign-in link sent to <strong>{request.variables}</strong>.
 					</Text>
-					<Group gap="sm">
-						<Button onClick={recheck} loading={checking}>
-							Check session
-						</Button>
-						<Button variant="default" onClick={() => request.reset()}>
-							Use a different email
-						</Button>
-					</Group>
+					<Button
+						className="fit-action"
+						variant="default"
+						onClick={() => request.reset()}
+					>
+						Use a different email
+					</Button>
 				</Stack>
 			) : (
 				<form onSubmit={submit}>
@@ -76,27 +73,51 @@ function SignIn({ checking, recheck }: SessionCheck): React.JSX.Element {
 								{authenticationMessage(request.error)}
 							</Alert>
 						)}
-						<Group gap="sm">
-							<Button
-								type="submit"
-								loading={request.isPending}
-								disabled={checking}
-							>
-								Send sign-in link
-							</Button>
-							<Button
-								type="button"
-								variant="default"
-								onClick={recheck}
-								loading={checking}
-							>
-								Check session
-							</Button>
-						</Group>
+						<Button
+							className="fit-action"
+							type="submit"
+							loading={request.isPending}
+							disabled={checking}
+						>
+							Send sign-in link
+						</Button>
 					</Stack>
 				</form>
 			)}
 		</Stack>
+	);
+}
+
+function ProfileMenu({
+	email,
+	onLogout,
+}: {
+	email: string;
+	onLogout: () => void;
+}): React.JSX.Element {
+	return (
+		<Menu position="bottom-end">
+			<Menu.Target>
+				<UnstyledButton
+					className="profile-button"
+					aria-label={`Profile: ${email}`}
+				>
+					<Avatar size="sm" radius="xl" aria-hidden="true" />
+					<Text component="span" truncate>
+						{email}
+					</Text>
+				</UnstyledButton>
+			</Menu.Target>
+			<Menu.Dropdown>
+				<Menu.Item
+					renderRoot={(props) => <Link to="/account/settings" {...props} />}
+				>
+					Account settings
+				</Menu.Item>
+				<Menu.Divider />
+				<Menu.Item onClick={onLogout}>Log out</Menu.Item>
+			</Menu.Dropdown>
+		</Menu>
 	);
 }
 
@@ -107,13 +128,18 @@ function AccountWorkspace({
 	checking: boolean;
 	children: ReactNode;
 }): React.JSX.Element {
-	const { account, recheck } = useAccountSession();
+	const { account } = useAccountSession();
 	const { changingSession, logout } = useAccountActivity();
-	const [sessionsOpen, setSessionsOpen] = useState(false);
 
 	const verifying = checking || logout.isPending || changingSession;
 	return (
-		<>
+		<ProjectDesk
+			profile={
+				!verifying && (
+					<ProfileMenu email={account.email} onLogout={() => logout.mutate()} />
+				)
+			}
+		>
 			{verifying && (
 				<SessionStatus
 					text={
@@ -127,28 +153,6 @@ function AccountWorkspace({
 			)}
 			<div hidden={verifying}>
 				<Stack gap="lg">
-					<section aria-label="Account">
-						<div className="record-row">
-							<Text>{account.email}</Text>
-							<Group gap="sm">
-								<Button
-									variant="default"
-									aria-expanded={sessionsOpen}
-									aria-controls={sessionsOpen ? "account-sessions" : undefined}
-									onClick={() => setSessionsOpen((open) => !open)}
-								>
-									{sessionsOpen ? "Hide sessions" : "Manage sessions"}
-								</Button>
-								<Button variant="default" onClick={recheck}>
-									Check session
-								</Button>
-								<Button variant="default" onClick={() => logout.mutate()}>
-									Sign out
-								</Button>
-							</Group>
-						</div>
-					</section>
-					{sessionsOpen && <Sessions />}
 					{logout.isError && (
 						<Alert color="red" title="Sign-out not confirmed">
 							{authenticationMessage(logout.error)}
@@ -157,7 +161,7 @@ function AccountWorkspace({
 					{children}
 				</Stack>
 			</div>
-		</>
+		</ProjectDesk>
 	);
 }
 
@@ -167,10 +171,11 @@ export function SessionGate({
 	children: ReactNode;
 }): React.JSX.Element {
 	const { identity, recheck } = useIdentity();
-	if (identity.isPending)
-		return <SessionStatus text="Checking your session…" />;
-	if (identity.isError) {
-		return (
+	let content: ReactNode;
+	if (identity.isPending) {
+		content = <SessionStatus text="Checking your session…" />;
+	} else if (identity.isError) {
+		content = (
 			<Alert title="Session check unavailable" color="orange">
 				<Stack align="flex-start" gap="sm">
 					<Text size="sm">{authenticationMessage(identity.error)}</Text>
@@ -184,15 +189,16 @@ export function SessionGate({
 				</Stack>
 			</Alert>
 		);
+	} else if (identity.data === null) {
+		content = <SignIn checking={identity.isFetching} />;
+	} else {
+		return (
+			<AccountSessionProvider account={identity.data} recheck={recheck}>
+				<AccountWorkspace checking={identity.isFetching}>
+					{children}
+				</AccountWorkspace>
+			</AccountSessionProvider>
+		);
 	}
-	if (identity.data === null) {
-		return <SignIn checking={identity.isFetching} recheck={recheck} />;
-	}
-	return (
-		<AccountSessionProvider account={identity.data} recheck={recheck}>
-			<AccountWorkspace checking={identity.isFetching}>
-				{children}
-			</AccountWorkspace>
-		</AccountSessionProvider>
-	);
+	return <ProjectDesk>{content}</ProjectDesk>;
 }

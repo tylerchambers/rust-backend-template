@@ -1,6 +1,6 @@
 use crate::{Actor, authority::TenantAuthority, transaction::TenantTransaction};
 use async_trait::async_trait;
-use domain::{Error, OrganizationId, Permission, Project, ProjectId};
+use domain::{Error, OrganizationId, Project, ProjectId};
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -30,7 +30,7 @@ pub trait ProjectRepository: Send {
 /// ```compile_fail,E0599
 /// use application::projects::ProjectTransaction;
 /// async fn change(tx: &mut dyn ProjectTransaction, user: domain::UserId) {
-///     tx.set_role(user, domain::Role::Owner).await.unwrap();
+///     tx.set_admin(user, true).await.unwrap();
 /// }
 /// ```
 ///
@@ -74,12 +74,9 @@ impl Projects {
         &self,
         actor: &Actor,
         org: OrganizationId,
-        permission: Permission,
     ) -> Result<Box<dyn ProjectTransaction>, Error> {
         let mut tx = self.uow.begin_projects(org).await?;
-        if !tx.current_role(actor, org).await?.allows(permission) {
-            return Err(Error::Forbidden);
-        }
+        tx.is_admin(actor, org).await?;
         Ok(tx)
     }
     /// Create a project with an atomic audit record and durable change job.
@@ -93,9 +90,7 @@ impl Projects {
         name: String,
     ) -> Result<Project, Error> {
         let project = Project::new(self.ids.project(), org, name)?;
-        let mut tx = self
-            .authorized(actor, org, Permission::WriteProject)
-            .await?;
+        let mut tx = self.authorized(actor, org).await?;
         tx.insert_project(&project).await?;
         tx.enqueue_project_change(project.id, actor.correlation_id)
             .await?;
@@ -120,9 +115,7 @@ impl Projects {
         expected: i64,
         name: String,
     ) -> Result<Project, Error> {
-        let mut tx = self
-            .authorized(actor, org, Permission::WriteProject)
-            .await?;
+        let mut tx = self.authorized(actor, org).await?;
         let mut project = tx.load_project(id).await?;
         project.rename(expected, name)?;
         tx.save_project(&project, expected).await?;
@@ -144,7 +137,7 @@ impl Projects {
         org: OrganizationId,
         id: ProjectId,
     ) -> Result<Project, Error> {
-        let mut tx = self.authorized(actor, org, Permission::ReadProject).await?;
+        let mut tx = self.authorized(actor, org).await?;
         let project = tx.load_project(id).await?;
         tx.commit().await?;
         Ok(project)
@@ -159,7 +152,7 @@ impl Projects {
         org: OrganizationId,
         after: Option<ProjectId>,
     ) -> Result<Vec<Project>, Error> {
-        let mut tx = self.authorized(actor, org, Permission::ReadProject).await?;
+        let mut tx = self.authorized(actor, org).await?;
         if after.is_none()
             && let Some(cache) = &self.cache
             && let Ok(Some(rows)) = cache.get(org).await

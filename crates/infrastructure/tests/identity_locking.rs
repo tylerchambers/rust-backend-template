@@ -8,8 +8,7 @@ use application::Organizations;
 use application::Secrets;
 use application::authentication::IdentityRepository;
 use application::memberships::Memberships;
-use application::reauthentication::{ProofPurpose, ReauthenticationRepository};
-use domain::{OrganizationId, Role};
+use domain::OrganizationId;
 use infrastructure::postgres::Database;
 use infrastructure::system::SystemIds;
 use infrastructure::system::SystemSecrets;
@@ -22,11 +21,13 @@ use uuid::Uuid;
 #[tokio::test]
 async fn identity_locking_regressions() {
     tokio::time::timeout(Duration::from_secs(30), async {
-        application_change_and_proof_are_atomic_without_deadlock().await;
+        login_after_role_change_receives_a_live_session().await;
         shared_actors_in_opposite_organizations_use_one_identity_order().await;
         login_committed_before_change_is_included_in_retirement().await;
-        proof_first_does_not_cycle_on_organization_foreign_key().await;
         authority_expired_during_identity_wait_cannot_publish().await;
+        for remove_first in [false, true] {
+            concurrent_admin_exits_preserve_last_admin(remove_first).await;
+        }
     })
     .await
     .expect("bounded identity-locking regression matrix");
@@ -34,7 +35,6 @@ async fn identity_locking_regressions() {
 
 async fn authority_expired_during_identity_wait_cannot_publish() {
     let f = Fixture::new().await;
-    let proof = f.proof(0, 1, f.org).await;
     let mut barrier = f.admin.begin().await.unwrap();
     sqlx::query("SELECT id FROM users WHERE id=$1 FOR UPDATE")
         .bind(f.actors[1].user_id.into_uuid())
@@ -50,14 +50,10 @@ async fn authority_expired_during_identity_wait_cannot_publish() {
     .unwrap();
     let blocker = pid(&mut barrier).await;
     let service = f.service();
-    let owner = f.actors[0].clone();
+    let admin = f.actors[0].clone();
     let org = f.org;
     let target = f.actors[1].user_id;
-    let change = tokio::spawn(async move {
-        service
-            .change_role(&owner, org, target, Role::Viewer, &proof)
-            .await
-    });
+    let change = tokio::spawn(async move { service.change_role(&admin, org, target, true).await });
     blocked_by(&f.admin, blocker).await;
     // Wait on the database's actual authority deadline, not an arbitrary sleep.
     tokio::time::timeout(Duration::from_secs(5), async {
@@ -85,15 +81,14 @@ async fn authority_expired_during_identity_wait_cannot_publish() {
             .unwrap(),
         Err(domain::Error::Forbidden)
     );
-    let state: (String, bool, i64, bool) = sqlx::query_as(r"
-        SELECT m.role, s.revoked_at IS NULL,
-          (SELECT count(*) FROM audit_events WHERE organization_id=$1 AND action='membership.role_changed'),
-          (SELECT consumed_at IS NULL FROM reauthentication_proofs WHERE organization_id=$1)
+    let state: (bool, bool, i64) = sqlx::query_as(r"
+        SELECT m.is_admin, s.revoked_at IS NULL,
+          (SELECT count(*) FROM audit_events WHERE organization_id=$1 AND action='membership.role_changed')
         FROM memberships m JOIN sessions s ON s.user_id=m.user_id
         WHERE m.organization_id=$1 AND s.id=$2
         ")
         .bind(org.into_uuid()).bind(f.actors[1].session_id.into_uuid()).fetch_one(&f.admin).await.unwrap();
-    assert_eq!(state, ("member".into(), true, 0, true));
+    assert_eq!(state, (false, true, 0));
 }
 
 struct Fixture {
@@ -130,12 +125,14 @@ impl Fixture {
             .create(&actors[0], "Lock regression".into())
             .await
             .unwrap();
-        sqlx::query("INSERT INTO memberships(organization_id,user_id,role) VALUES($1,$2,'member')")
-            .bind(org.into_uuid())
-            .bind(actors[1].user_id.into_uuid())
-            .execute(&admin)
-            .await
-            .unwrap();
+        sqlx::query(
+            "INSERT INTO memberships(organization_id,user_id,is_admin) VALUES($1,$2,false)",
+        )
+        .bind(org.into_uuid())
+        .bind(actors[1].user_id.into_uuid())
+        .execute(&admin)
+        .await
+        .unwrap();
         Self {
             admin,
             db,
@@ -145,19 +142,6 @@ impl Fixture {
     }
     fn service(&self) -> Memberships {
         Memberships::new(self.db.clone())
-    }
-    async fn proof(&self, actor: usize, target: usize, org: OrganizationId) -> String {
-        let proof = SystemSecrets.token();
-        self.db
-            .issue_proof(
-                &self.actors[actor],
-                ProofPurpose::ChangeRole(self.actors[target].user_id),
-                org,
-                &proof,
-            )
-            .await
-            .unwrap();
-        proof
     }
 }
 
@@ -182,9 +166,8 @@ async fn pid(tx: &mut Transaction<'_, Postgres>) -> i32 {
         .unwrap()
 }
 
-async fn application_change_and_proof_are_atomic_without_deadlock() {
+async fn login_after_role_change_receives_a_live_session() {
     let f = Fixture::new().await;
-    let proof = f.proof(0, 1, f.org).await;
     let email: String = sqlx::query_scalar("SELECT email FROM users WHERE id=$1")
         .bind(f.actors[1].user_id.into_uuid())
         .fetch_one(&f.admin)
@@ -210,33 +193,19 @@ async fn application_change_and_proof_are_atomic_without_deadlock() {
         .unwrap();
     let barrier_pid = pid(&mut barrier).await;
     let service = f.service();
-    let owner = f.actors[0].clone();
+    let admin = f.actors[0].clone();
     let target = f.actors[1].clone();
     let org = f.org;
-    let changing = tokio::spawn(async move {
-        service
-            .change_role(&owner, org, target.user_id, Role::Viewer, &proof)
-            .await
-    });
+    let changing =
+        tokio::spawn(async move { service.change_role(&admin, org, target.user_id, true).await });
     let change_pid = blocked_by(&f.admin, barrier_pid).await;
-    let db = f.db.clone();
-    let target = f.actors[1].clone();
-    let issuing = tokio::spawn(async move {
-        db.issue_proof(&target, ProofPurpose::Invite, org, &SystemSecrets.token())
-            .await
-    });
-    let proof_pid = blocked_by(&f.admin, change_pid).await;
     let db = f.db.clone();
     let new_token = SystemSecrets.token();
     let token = new_token.clone();
     let login = tokio::spawn(async move { db.consume_login(&link, &token).await });
-    blocked_by_except(&f.admin, change_pid, proof_pid).await;
+    blocked_by(&f.admin, change_pid).await;
     barrier.commit().await.unwrap();
     let changed = tokio::time::timeout(Duration::from_secs(5), changing)
-        .await
-        .unwrap()
-        .unwrap();
-    let issued = tokio::time::timeout(Duration::from_secs(5), issuing)
         .await
         .unwrap()
         .unwrap();
@@ -247,16 +216,9 @@ async fn application_change_and_proof_are_atomic_without_deadlock() {
     .await
     .unwrap();
     assert_eq!(changed, Ok(()), "application role change must commit");
-    assert!(
-        matches!(
-            issued,
-            Err(domain::Error::Forbidden | domain::Error::Unauthenticated)
-        ),
-        "retired session cannot issue proof: {issued:?}"
-    );
-    let state: (String, bool, i64) = sqlx::query_as("SELECT m.role, s.revoked_at IS NOT NULL, (SELECT count(*) FROM audit_events WHERE organization_id=$1 AND action='membership.role_changed') FROM memberships m JOIN sessions s ON s.user_id=m.user_id WHERE m.organization_id=$1 AND s.id=$2")
+    let state: (bool, bool, i64) = sqlx::query_as("SELECT m.is_admin, s.revoked_at IS NOT NULL, (SELECT count(*) FROM audit_events WHERE organization_id=$1 AND action='membership.role_changed') FROM memberships m JOIN sessions s ON s.user_id=m.user_id WHERE m.organization_id=$1 AND s.id=$2")
         .bind(org.into_uuid()).bind(f.actors[1].session_id.into_uuid()).fetch_one(&f.admin).await.unwrap();
-    assert_eq!(state, ("viewer".into(), true, 1));
+    assert_eq!(state, (true, true, 1));
     let signed_in = tokio::time::timeout(Duration::from_secs(5), login)
         .await
         .unwrap()
@@ -274,14 +236,13 @@ async fn shared_actors_in_opposite_organizations_use_one_identity_order() {
         .create(&f.actors[1], "Other tenant".into())
         .await
         .unwrap();
-    sqlx::query("INSERT INTO memberships(organization_id,user_id,role) VALUES($1,$2,'member')")
+    sqlx::query("INSERT INTO memberships(organization_id,user_id,is_admin) VALUES($1,$2,false)")
         .bind(other.into_uuid())
         .bind(f.actors[0].user_id.into_uuid())
         .execute(&f.admin)
         .await
         .unwrap();
     assert!(f.actors[0].user_id.into_uuid() < f.actors[1].user_id.into_uuid());
-    let proofs = [f.proof(0, 1, f.org).await, f.proof(1, 0, other).await];
     let mut barrier = f.admin.begin().await.unwrap();
     sqlx::query("SELECT id FROM users WHERE id=$1 FOR UPDATE")
         .bind(f.actors[0].user_id.into_uuid())
@@ -297,11 +258,8 @@ async fn shared_actors_in_opposite_organizations_use_one_identity_order() {
         let actor = f.actors[i].clone();
         let target = f.actors[1 - i].user_id;
         let org = if i == 0 { f.org } else { other };
-        let proof = proofs[i].clone();
         changes.push(tokio::spawn(async move {
-            service
-                .change_role(&actor, org, target, Role::Viewer, &proof)
-                .await
+            service.change_role(&actor, org, target, true).await
         }));
         if i == 1 {
             blocked_by(&f.admin, blocker).await;
@@ -311,15 +269,13 @@ async fn shared_actors_in_opposite_organizations_use_one_identity_order() {
     blocked_by_except(&f.admin, blocker, first).await;
     // No global gate: an unrelated identity/tenant progresses while both wait.
     let independent = Fixture::new().await;
-    let proof = independent.proof(0, 1, independent.org).await;
     tokio::time::timeout(
         Duration::from_secs(5),
         independent.service().change_role(
             &independent.actors[0],
             independent.org,
             independent.actors[1].user_id,
-            Role::Viewer,
-            &proof,
+            true,
         ),
     )
     .await
@@ -349,7 +305,6 @@ async fn shared_actors_in_opposite_organizations_use_one_identity_order() {
 
 async fn login_committed_before_change_is_included_in_retirement() {
     let f = Fixture::new().await;
-    let proof = f.proof(0, 1, f.org).await;
     let email: String = sqlx::query_scalar("SELECT email FROM users WHERE id=$1")
         .bind(f.actors[1].user_id.into_uuid())
         .fetch_one(&f.admin)
@@ -370,14 +325,10 @@ async fn login_committed_before_change_is_included_in_retirement() {
     let login = tokio::spawn(async move { db.consume_login(&link, &login_token).await });
     let login_pid = blocked_by(&f.admin, blocker).await;
     let service = f.service();
-    let owner = f.actors[0].clone();
+    let admin = f.actors[0].clone();
     let target = f.actors[1].user_id;
     let org = f.org;
-    let change = tokio::spawn(async move {
-        service
-            .change_role(&owner, org, target, Role::Viewer, &proof)
-            .await
-    });
+    let change = tokio::spawn(async move { service.change_role(&admin, org, target, true).await });
     blocked_by_except(&f.admin, blocker, login_pid).await;
     barrier.commit().await.unwrap();
     let logged_in = tokio::time::timeout(Duration::from_secs(5), login)
@@ -404,44 +355,64 @@ async fn login_committed_before_change_is_included_in_retirement() {
     assert_eq!(live, 0);
 }
 
-async fn proof_first_does_not_cycle_on_organization_foreign_key() {
+async fn concurrent_admin_exits_preserve_last_admin(remove_first: bool) {
     let f = Fixture::new().await;
-    let proof = f.proof(0, 1, f.org).await;
+    let org = f.org;
+    sqlx::query("UPDATE memberships SET is_admin=true WHERE organization_id=$1 AND user_id=$2")
+        .bind(org.into_uuid())
+        .bind(f.actors[1].user_id.into_uuid())
+        .execute(&f.admin)
+        .await
+        .unwrap();
+
+    // Hold the first caller at its identity lock. The other admin uses a
+    // different identity, but cannot check the admin count until the first commits.
     let mut barrier = f.admin.begin().await.unwrap();
-    sqlx::query("SELECT id FROM sessions WHERE id=$1 FOR UPDATE")
-        .bind(f.actors[1].session_id.into_uuid())
+    sqlx::query("SELECT id FROM users WHERE id=$1 FOR UPDATE")
+        .bind(f.actors[0].user_id.into_uuid())
         .execute(&mut *barrier)
         .await
         .unwrap();
     let blocker = pid(&mut barrier).await;
-    let db = f.db.clone();
-    let actor = f.actors[1].clone();
-    let org = f.org;
-    let issuing = tokio::spawn(async move {
-        db.issue_proof(&actor, ProofPurpose::Invite, org, &SystemSecrets.token())
-            .await
-    });
-    let proof_pid = blocked_by(&f.admin, blocker).await;
+    let first = f.actors[0].clone();
     let service = f.service();
-    let owner = f.actors[0].clone();
-    let target = f.actors[1].user_id;
-    let changing = tokio::spawn(async move {
-        service
-            .change_role(&owner, org, target, Role::Viewer, &proof)
-            .await
+    let first_exit = tokio::spawn(async move {
+        if remove_first {
+            service.remove(&first, org, first.user_id).await
+        } else {
+            service.change_role(&first, org, first.user_id, false).await
+        }
     });
-    blocked_by(&f.admin, proof_pid).await;
+    let first_pid = blocked_by(&f.admin, blocker).await;
+    let second = f.actors[1].clone();
+    let service = f.service();
+    let second_exit = tokio::spawn(async move {
+        if remove_first {
+            service
+                .change_role(&second, org, second.user_id, false)
+                .await
+        } else {
+            service.remove(&second, org, second.user_id).await
+        }
+    });
+    blocked_by(&f.admin, first_pid).await;
     barrier.commit().await.unwrap();
-    assert!(
-        tokio::time::timeout(Duration::from_secs(5), issuing)
+    assert_eq!(first_exit.await.unwrap(), Ok(()));
+    assert_eq!(second_exit.await.unwrap(), Err(domain::Error::Conflict));
+
+    let admins: Vec<Uuid> =
+        sqlx::query_scalar("SELECT user_id FROM memberships WHERE organization_id=$1 AND is_admin")
+            .bind(org.into_uuid())
+            .fetch_all(&f.admin)
             .await
-            .unwrap()
-            .unwrap()
-            .is_ok()
-    );
-    tokio::time::timeout(Duration::from_secs(5), changing)
-        .await
-        .unwrap()
-        .unwrap()
-        .unwrap();
+            .unwrap();
+    assert_eq!(admins, [f.actors[1].user_id.into_uuid()]);
+    for (actor, expected_live) in [(&f.actors[0], remove_first), (&f.actors[1], true)] {
+        let live: bool = sqlx::query_scalar("SELECT revoked_at IS NULL FROM sessions WHERE id=$1")
+            .bind(actor.session_id.into_uuid())
+            .fetch_one(&f.admin)
+            .await
+            .unwrap();
+        assert_eq!(live, expected_live);
+    }
 }

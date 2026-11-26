@@ -1,14 +1,14 @@
 use crate::{Actor, authority::TenantAuthority};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use domain::{Error, InvitationId, OrganizationId, Permission, Role, UserId};
+use domain::{Error, InvitationId, OrganizationId, UserId};
 use std::sync::Arc;
 use uuid::Uuid;
 
 pub struct DirectoryMember {
     pub user_id: UserId,
     pub email: String,
-    pub role: Role,
+    pub is_admin: bool,
 }
 
 pub struct AuditEventSummary {
@@ -22,7 +22,7 @@ pub struct AuditEventSummary {
 pub struct InvitationSummary {
     pub id: InvitationId,
     pub email: String,
-    pub role: Role,
+    pub is_admin: bool,
     pub status: InvitationStatus,
     pub expires_at: DateTime<Utc>,
 }
@@ -74,11 +74,7 @@ impl Administration {
         org: OrganizationId,
     ) -> Result<Box<dyn AdminReadTransaction>, Error> {
         let mut tx = self.uow.begin_admin_read(org).await?;
-        if !tx
-            .current_role(actor, org)
-            .await?
-            .allows(Permission::ManageMembers)
-        {
+        if !tx.is_admin(actor, org).await? {
             return Err(Error::Forbidden);
         }
         Ok(tx)
@@ -100,7 +96,7 @@ impl Administration {
         Ok(rows)
     }
 
-    /// Read recorded organization events in event-ID order.
+    /// Read recorded organization events newest first, breaking timestamp ties by descending ID.
     ///
     /// # Errors
     /// Requires current tenant administration authority; propagates storage failures.

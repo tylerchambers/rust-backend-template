@@ -1,7 +1,7 @@
 use crate::metrics::HttpMetrics;
 use application::{
     Authentication, Organizations, Projects, Secrets, administration::Administration,
-    invitations::Invitations, memberships::Memberships, reauthentication::Reauthentication,
+    invitations::Invitations, memberships::Memberships,
 };
 use prometheus_client::registry::Registry;
 use std::sync::Arc;
@@ -16,7 +16,6 @@ pub struct State {
     pub(crate) origin: String,
     pub(crate) invitations: Arc<Invitations>,
     pub(crate) memberships: Arc<Memberships>,
-    pub(crate) reauthentication: Arc<Reauthentication>,
     pub(crate) administration: Arc<Administration>,
 }
 impl State {
@@ -37,7 +36,6 @@ impl State {
         origin: String,
         memberships: Arc<Memberships>,
         invitations: Arc<Invitations>,
-        reauthentication: Arc<Reauthentication>,
         administration: Arc<Administration>,
     ) -> Self {
         Self {
@@ -49,7 +47,6 @@ impl State {
             origin,
             memberships,
             invitations,
-            reauthentication,
             administration,
         }
     }

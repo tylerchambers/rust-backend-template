@@ -44,7 +44,7 @@ export function useProjectRename(
 	const parsed = workspaceName.safeParse(name);
 	const rename = useMutation({
 		mutationFn: (newName: string) => renameProject(client, base, newName),
-		onSuccess: updateList,
+		onSuccess: updateCache,
 	});
 	const hasConflict = isVersionConflict(rename.error);
 	const latest = useQuery({
@@ -54,7 +54,11 @@ export function useProjectRename(
 	});
 	const canSave = !hasConflict && parsed.success && name !== base.name;
 
-	function updateList(updated: Project): void {
+	function updateCache(updated: Project): void {
+		cache.setQueryData(
+			projectDetail(client, updated.organizationId, updated.id).queryKey,
+			(old) => (!old || old.version <= updated.version ? updated : old),
+		);
 		cache.setQueryData(
 			projectList(client, project.organizationId).queryKey,
 			(old) =>
@@ -89,7 +93,7 @@ export function useProjectRename(
 			version: current.version,
 			accept: () => {
 				setBase(current);
-				updateList(current);
+				updateCache(current);
 				rename.reset();
 			},
 		};
@@ -115,7 +119,7 @@ export function useProjectRename(
 		},
 		cancel: () => {
 			if (hasConflict && latest.isSuccess && !latest.isFetching)
-				updateList(latest.data);
+				updateCache(latest.data);
 			onCancel();
 		},
 	};

@@ -54,13 +54,7 @@ async fn magic_tokens_are_single_use_identity_is_unique_and_logout_revokes() {
         );
         assert_eq!(
             memberships
-                .invite(
-                    &actor,
-                    Uuid::now_v7().into(),
-                    invalid,
-                    domain::Role::Member,
-                    "invalid"
-                )
+                .invite(&actor, Uuid::now_v7().into(), invalid, false)
                 .await,
             Err(Error::Invalid)
         );

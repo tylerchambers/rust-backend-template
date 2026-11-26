@@ -6,7 +6,7 @@
 use application::administration::{Administration, InvitationStatus};
 use application::authentication::IdentityRepository;
 use application::{Actor, Secrets};
-use domain::{Error, OrganizationId, Role};
+use domain::{Error, OrganizationId};
 use infrastructure::postgres::{Database, migrations};
 use infrastructure::system::SystemSecrets;
 use sqlx::PgPool;
@@ -65,9 +65,8 @@ async fn seed(pool: &PgPool, tenant: &Tenant) {
     .await
     .unwrap();
     sqlx::query(
-        "INSERT INTO memberships(organization_id,user_id,role)
-         SELECT $1,id,CASE n WHEN 1 THEN 'owner' WHEN 2 THEN 'admin'
-                             WHEN 4 THEN 'viewer' ELSE 'member' END
+        "INSERT INTO memberships(organization_id,user_id,is_admin)
+         SELECT $1,id,n=1
          FROM unnest($2::uuid[]) WITH ORDINALITY AS seed(id,n) ORDER BY n DESC",
     )
     .bind(org)
@@ -76,8 +75,8 @@ async fn seed(pool: &PgPool, tenant: &Tenant) {
     .await
     .unwrap();
     sqlx::query(
-        "INSERT INTO invitations(id,organization_id,email,role,token_hash,expires_at,accepted_at,revoked_at)
-         SELECT id,$1,id::text || '@example.test','viewer',sha256(uuid_send(id)),
+        "INSERT INTO invitations(id,organization_id,email,is_admin,token_hash,expires_at,accepted_at,revoked_at)
+         SELECT id,$1,id::text || '@example.test',n%2=1,sha256(uuid_send(id)),
                 CASE WHEN n<=3 THEN now()-interval '1 day' ELSE now()+interval '1 day' END,
                 CASE WHEN n=1 THEN now()-interval '2 days' END,
                 CASE WHEN n=2 THEN now()-interval '2 days' END
@@ -90,7 +89,8 @@ async fn seed(pool: &PgPool, tenant: &Tenant) {
     .unwrap();
     sqlx::query(
         "INSERT INTO audit_events(id,organization_id,actor_id,action,subject,occurred_at,correlation_id)
-         SELECT id,$1,$2,'membership.role_changed',subject,TIMESTAMPTZ 'epoch',
+         SELECT id,$1,$2,'membership.role_changed',subject,
+                TIMESTAMPTZ 'epoch' + (n % 2) * interval '1 second',
                 CASE WHEN n>1 THEN id END
          FROM unnest($3::uuid[],$4::uuid[]) WITH ORDINALITY AS seed(id,subject,n) ORDER BY n DESC",
     )
@@ -147,6 +147,35 @@ async fn assert_pages<T>(
     rows
 }
 
+async fn assert_event_pages(
+    service: &Administration,
+    actor: &Actor,
+    local: &Tenant,
+    other: &Tenant,
+) {
+    let fetch = async |after| service.audit_events(actor, local.org, after).await.unwrap();
+    let mut events = fetch(None).await;
+    assert_eq!(events.len(), 50);
+    let last = fetch(events.last().map(|row| row.id)).await;
+    assert_eq!(last.len(), 1);
+    assert!(fetch(Some(last[0].id)).await.is_empty());
+    assert!(fetch(Some(other.events[25])).await.is_empty());
+    events.extend(last);
+
+    // The odd-numbered fixture rows are newer. Equal timestamps span the page boundary.
+    let newest_first = (0..51)
+        .rev()
+        .filter(|i| i % 2 == 0)
+        .chain((0..51).rev().filter(|i| i % 2 == 1));
+    for (row, i) in events.iter().zip(newest_first) {
+        assert_eq!(row.id, local.events[i]);
+        assert_eq!(row.actor_id.into_uuid(), local.users[0]);
+        assert_eq!(row.action, "membership.role_changed");
+        assert_eq!(row.subject, local.users[i]);
+        assert_eq!(row.occurred_at.timestamp(), i64::from(i % 2 == 0));
+    }
+}
+
 async fn assert_authorized(
     service: &Administration,
     actor: &Actor,
@@ -167,7 +196,7 @@ async fn assert_authorized(
     .await;
     for (i, row) in invitations.iter().enumerate() {
         assert_eq!(row.email, format!("{}@example.test", local.invitations[i]));
-        assert_eq!(row.role, Role::Viewer);
+        assert_eq!(row.is_admin, i.is_multiple_of(2));
         assert!(matches!(
             (i, &row.status),
             (0, InvitationStatus::Accepted)
@@ -178,19 +207,7 @@ async fn assert_authorized(
         assert_eq!(row.expires_at < chrono::Utc::now(), i < 3);
     }
 
-    let events = assert_pages(
-        &local.events,
-        other.events[25],
-        async |after| service.audit_events(actor, local.org, after).await.unwrap(),
-        |row| row.id,
-    )
-    .await;
-    for (i, row) in events.iter().enumerate() {
-        assert_eq!(row.actor_id.into_uuid(), local.users[0]);
-        assert_eq!(row.action, "membership.role_changed");
-        assert_eq!(row.subject, local.users[i]);
-        assert_eq!(row.occurred_at, chrono::DateTime::UNIX_EPOCH);
-    }
+    assert_event_pages(service, actor, local, other).await;
 
     let directory = assert_pages(
         &local.users,
@@ -206,13 +223,7 @@ async fn assert_authorized(
     .await;
     for (i, row) in directory.iter().enumerate() {
         assert_eq!(row.email, format!("{}@example.test", local.users[i]));
-        let role = match i {
-            0 => Role::Owner,
-            1 => Role::Admin,
-            3 => Role::Viewer,
-            _ => Role::Member,
-        };
-        assert_eq!(row.role, role);
+        assert_eq!(row.is_admin, i == 0);
     }
 }
 
@@ -251,17 +262,13 @@ async fn admin_reads_enforce_tenant_authority_and_page_without_mutating_history(
     assert_eq!(role, "template_app");
     let db = Arc::new(Database::new(runtime).unwrap());
     let service = Administration::new(db.clone());
-    let owner = login(&db, local.users[0]).await;
-    let admin = login(&db, local.users[1]).await;
-    let member = login(&db, local.users[2]).await;
-    let viewer = login(&db, local.users[3]).await;
+    let admin = login(&db, local.users[0]).await;
+    let member = login(&db, local.users[1]).await;
     let nonmember = login(&db, Uuid::now_v7()).await;
 
     let before = snapshot(&setup, local.org).await;
-    for actor in [&owner, &admin] {
-        assert_authorized(&service, actor, &local, &other).await;
-    }
-    for actor in [&member, &viewer, &nonmember] {
+    assert_authorized(&service, &admin, &local, &other).await;
+    for actor in [&member, &nonmember] {
         assert_forbidden(&service, actor, local.org).await;
     }
     assert_forbidden(&service, &admin, other.org).await;

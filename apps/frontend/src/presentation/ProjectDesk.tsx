@@ -1,11 +1,13 @@
-import { Anchor, Box, Container, Group } from "@mantine/core";
+import { Box, Container, Group } from "@mantine/core";
 import type { JSX, ReactNode } from "react";
 
 export function ProjectDesk({
-	homeHref,
+	homeHref = "#/",
+	profile,
 	children,
 }: {
-	homeHref: string;
+	homeHref?: string;
+	profile?: ReactNode;
 	children: ReactNode;
 }): JSX.Element {
 	return (
@@ -23,9 +25,7 @@ export function ProjectDesk({
 						<a href={homeHref} className="wordmark">
 							Project desk
 						</a>
-						<Anchor href="/openapi.json" size="sm">
-							API contract
-						</Anchor>
+						{profile}
 					</Group>
 				</Container>
 			</Box>

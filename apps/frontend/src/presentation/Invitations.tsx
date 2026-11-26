@@ -1,57 +1,36 @@
-import {
-	Alert,
-	Button,
-	Group,
-	NativeSelect,
-	Stack,
-	Text,
-	TextInput,
-	Title,
-} from "@mantine/core";
+import { Alert, Button, Stack, Table, Text, Title } from "@mantine/core";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { useState } from "react";
+import { useBackend } from "../application/backend";
 import { useInvitationManagement } from "../application/teamManagement";
-import {
-	canRevokeInvitation,
-	grantableRoles,
-	type InvitationDraft,
-	reviewInvitation,
-} from "../domain/team";
-import { canManageTeam, type WorkspaceRole } from "../domain/workspace";
+import { canRevokeInvitation } from "../domain/team";
+import { roleLabel } from "../domain/workspace";
+import { invitationList } from "../infrastructure/invitations";
 import {
 	isWorkspaceUnavailableToUser,
 	workspaceError,
 } from "../infrastructure/workspaceResponse";
-import { ProofAction } from "./ProofAction";
+import { ConfirmAction } from "./ConfirmAction";
 
-type Selection =
-	| { action: "invite"; draft: InvitationDraft }
-	| { action: "revoke_invitation"; id: string };
-
-function ManageInvitations({
+export function Invitations({
 	organizationId,
-	role,
 }: {
 	organizationId: string;
-	role: WorkspaceRole;
 }): React.JSX.Element {
-	const { history, invite, revoke } = useInvitationManagement(organizationId);
+	const history = useInfiniteQuery(
+		invitationList(useBackend(), organizationId),
+	);
+	const { revoke } = useInvitationManagement(organizationId);
 	const rows = history.data?.pages.flat();
-	const [email, setEmail] = useState("");
-	const [offeredRole, setOfferedRole] = useState<WorkspaceRole>("viewer");
-	const [selection, setSelection] = useState<Selection | null>(null);
+	const [selectedId, setSelectedId] = useState<string | null>(null);
 	const [notice, setNotice] = useState("");
-	const review = reviewInvitation(email, offeredRole, role);
-	const roles = grantableRoles(role);
-	const selected =
-		selection?.action === "revoke_invitation" &&
-		!rows?.some(
-			(row) => row.id === selection.id && canRevokeInvitation(row.status),
-		)
-			? null
-			: selection;
+	const selected = rows?.find(
+		(row) => row.id === selectedId && canRevokeInvitation(row.status),
+	);
 
 	return (
-		<Stack gap="lg">
+		<Stack component="section" gap="sm" aria-label="Invitation history">
+			<Title order={2}>Invitations</Title>
 			{notice && !isWorkspaceUnavailableToUser(history.error) && (
 				<Text role="status">{notice}</Text>
 			)}
@@ -79,132 +58,68 @@ function ManageInvitations({
 					</Button>
 				</Alert>
 			)}
-			{history.isSuccess && (
-				<Stack component="section" gap="sm" aria-label="New invitation">
-					<Title order={2}>New invitation</Title>
-					<form
-						className="entry-form"
-						onSubmit={(event) => {
-							event.preventDefault();
-							if (selected || review.status !== "ready") return;
-							setNotice("");
-							setSelection({ action: "invite", draft: review.draft });
-						}}
-					>
-						<Stack gap="sm">
-							<TextInput
-								label="Recipient email"
-								type="email"
-								required
-								maxLength={254}
-								autoCapitalize="none"
-								spellCheck={false}
-								value={email}
-								error={
-									email && review.status === "invalid-email"
-										? "Enter a valid email address."
-										: undefined
-								}
-								onChange={(event) => setEmail(event.currentTarget.value)}
-							/>
-							<NativeSelect
-								label="Invitation role"
-								data={roles}
-								value={offeredRole}
-								onChange={(event) => {
-									const next = roles.find(
-										(role) => role === event.currentTarget.value,
-									);
-									if (next) setOfferedRole(next);
-								}}
-							/>
-							<Button
-								type="submit"
-								className="fit-action"
-								disabled={review.status !== "ready"}
-							>
-								Review invitation
-							</Button>
-						</Stack>
-					</form>
-					{selected?.action === "invite" && (
-						<ProofAction
-							organizationId={organizationId}
-							action="invite"
-							target={organizationId}
-							label="Send invitation"
-							description={`Invite ${selected.draft.email} as ${selected.draft.role}?`}
-							submit={(proof) => invite(selected.draft, proof)}
-							onCancel={() => setSelection(null)}
+			{rows && !isWorkspaceUnavailableToUser(history.error) && (
+				<>
+					<Table.ScrollContainer type="native" minWidth={600}>
+						<Table aria-label="Invitations">
+							<Table.Thead>
+								<Table.Tr>
+									<Table.Th scope="col">Recipient</Table.Th>
+									<Table.Th scope="col">Role</Table.Th>
+									<Table.Th scope="col">Status</Table.Th>
+									<Table.Th scope="col">Expires</Table.Th>
+									<Table.Th scope="col">Actions</Table.Th>
+								</Table.Tr>
+							</Table.Thead>
+							<Table.Tbody>
+								{rows.length === 0 && (
+									<Table.Tr>
+										<Table.Td colSpan={5}>No invitations yet.</Table.Td>
+									</Table.Tr>
+								)}
+								{rows.map((row) => (
+									<Table.Tr key={row.id}>
+										<Table.Td>{row.email}</Table.Td>
+										<Table.Td>{roleLabel(row.isAdmin)}</Table.Td>
+										<Table.Td>{row.status}</Table.Td>
+										<Table.Td>
+											<time dateTime={row.expiresAt}>
+												{new Date(row.expiresAt).toLocaleString()}
+											</time>
+										</Table.Td>
+										<Table.Td>
+											{history.isSuccess && canRevokeInvitation(row.status) && (
+												<Button
+													variant="subtle"
+													color="red"
+													aria-label={`Revoke invitation for ${row.email}`}
+													onClick={() => {
+														setNotice("");
+														setSelectedId(row.id);
+													}}
+												>
+													Revoke
+												</Button>
+											)}
+										</Table.Td>
+									</Table.Tr>
+								))}
+							</Table.Tbody>
+						</Table>
+					</Table.ScrollContainer>
+					{history.isSuccess && selected && (
+						<ConfirmAction
+							key={selected.id}
+							destructive
+							label="Revoke invitation"
+							description={`Revoke the ${roleLabel(selected.isAdmin)} invitation for ${selected.email}?`}
+							submit={() => revoke(selected.id)}
+							onCancel={() => setSelectedId(null)}
 							onSuccess={() => {
-								setNotice(`Invitation queued for ${selected.draft.email}.`);
-								setEmail("");
-								setOfferedRole("viewer");
-								setSelection(null);
+								setNotice(`Invitation for ${selected.email} revoked.`);
+								setSelectedId(null);
 							}}
 						/>
-					)}
-				</Stack>
-			)}
-			{rows && !isWorkspaceUnavailableToUser(history.error) && (
-				<Stack component="section" aria-label="Invitation history" gap="sm">
-					<Title order={2}>Invitation history</Title>
-					{rows.length === 0 ? (
-						<Text>No invitations yet.</Text>
-					) : (
-						<ul className="record-list" aria-label="Invitations">
-							{rows.map((row) => (
-								<li key={row.id}>
-									<div className="record-row">
-										<div>
-											<Group gap="sm">
-												<Text fw={600}>{row.email}</Text>
-												<Text size="sm">{row.status}</Text>
-											</Group>
-											<Text size="sm" c="dimmed">
-												{row.role} · Expires{" "}
-												<time dateTime={row.expiresAt}>
-													{new Date(row.expiresAt).toLocaleString()}
-												</time>
-											</Text>
-										</div>
-										{history.isSuccess && canRevokeInvitation(row.status) && (
-											<Button
-												variant="subtle"
-												color="red"
-												aria-label={`Revoke invitation for ${row.email}`}
-												onClick={() => {
-													setNotice("");
-													setSelection({
-														action: "revoke_invitation",
-														id: row.id,
-													});
-												}}
-											>
-												Revoke
-											</Button>
-										)}
-									</div>
-									{history.isSuccess &&
-										selected?.action === "revoke_invitation" &&
-										selected.id === row.id && (
-											<ProofAction
-												organizationId={organizationId}
-												action="revoke_invitation"
-												target={row.id}
-												label="Revoke invitation"
-												description={`Revoke the ${row.role} invitation for ${row.email}?`}
-												submit={(proof) => revoke(row.id, proof)}
-												onCancel={() => setSelection(null)}
-												onSuccess={() => {
-													setNotice(`Invitation for ${row.email} revoked.`);
-													setSelection(null);
-												}}
-											/>
-										)}
-								</li>
-							))}
-						</ul>
 					)}
 					{history.hasNextPage && !history.isFetchNextPageError && (
 						<Button
@@ -217,27 +132,8 @@ function ManageInvitations({
 							Load more invitations
 						</Button>
 					)}
-				</Stack>
+				</>
 			)}
 		</Stack>
-	);
-}
-
-export function Invitations({
-	organizationId,
-	role,
-}: {
-	organizationId: string;
-	role: WorkspaceRole;
-}): React.JSX.Element {
-	if (!canManageTeam(role)) {
-		return <Text>Only owners and admins can manage invitations.</Text>;
-	}
-	return (
-		<ManageInvitations
-			key={`${organizationId}:${role}`}
-			organizationId={organizationId}
-			role={role}
-		/>
 	);
 }

@@ -1,6 +1,5 @@
-import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import type { InvitationDraft } from "../domain/team";
-import type { WorkspaceRole } from "../domain/workspace";
 import { auditEventsKey } from "../infrastructure/audit";
 import {
 	createInvitation,
@@ -18,24 +17,18 @@ import { useAccountSession } from "./accountSession";
 import { useBackend } from "./backend";
 
 export type MemberChange =
-	| { action: "change_role"; role: WorkspaceRole }
+	| { action: "change_role"; isAdmin: boolean }
 	| { action: "remove_member" };
 
 export function useChangeMember(organizationId: string, userId: string) {
 	const client = useBackend();
 	const cache = useQueryClient();
 	const { account, recheck } = useAccountSession();
-	return async (change: MemberChange, proof: string): Promise<void> => {
+	return async (change: MemberChange): Promise<void> => {
 		if (change.action === "change_role") {
-			await changeMemberRole(
-				client,
-				organizationId,
-				userId,
-				change.role,
-				proof,
-			);
+			await changeMemberRole(client, organizationId, userId, change.isAdmin);
 		} else {
-			await removeMember(client, organizationId, userId, proof);
+			await removeMember(client, organizationId, userId);
 		}
 		const refresh = [
 			cache.invalidateQueries({ queryKey: memberListKey(organizationId) }),
@@ -58,7 +51,6 @@ export function useInvitationManagement(organizationId: string) {
 	const client = useBackend();
 	const cache = useQueryClient();
 	const options = invitationList(client, organizationId);
-	const history = useInfiniteQuery(options);
 	async function refreshAfter(write: Promise<void>): Promise<void> {
 		await write;
 		void cache.invalidateQueries({ queryKey: options.queryKey });
@@ -67,10 +59,9 @@ export function useInvitationManagement(organizationId: string) {
 		});
 	}
 	return {
-		history,
-		invite: (draft: InvitationDraft, proof: string) =>
-			refreshAfter(createInvitation(client, organizationId, draft, proof)),
-		revoke: (id: string, proof: string) =>
-			refreshAfter(revokeInvitation(client, organizationId, id, proof)),
+		invite: (draft: InvitationDraft) =>
+			refreshAfter(createInvitation(client, organizationId, draft)),
+		revoke: (id: string) =>
+			refreshAfter(revokeInvitation(client, organizationId, id)),
 	};
 }

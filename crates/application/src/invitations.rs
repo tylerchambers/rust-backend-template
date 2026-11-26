@@ -1,11 +1,10 @@
 use crate::{
     Actor,
     authority::{AuthorityMutation, TenantAuthority},
-    reauthentication::ProofPurpose,
     transaction::TenantTransaction,
 };
 use async_trait::async_trait;
-use domain::{Error, InvitationId, OrganizationId, Permission, Role};
+use domain::{Error, InvitationId, OrganizationId};
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -27,7 +26,7 @@ pub trait InvitationRepository: Send {
         &mut self,
         id: InvitationId,
         email: &str,
-        role: Role,
+        is_admin: bool,
         expires_at: chrono::DateTime<chrono::Utc>,
     ) -> Result<(), Error>;
     /// Validate the live actor and matching mailbox, then conditionally consume
@@ -53,7 +52,7 @@ pub trait InvitationRepository: Send {
 /// ```compile_fail,E0599
 /// use application::invitations::InvitationTransaction;
 /// async fn change(tx: &mut dyn InvitationTransaction, user: domain::UserId) {
-///     tx.set_role(user, domain::Role::Owner).await.unwrap();
+///     tx.set_admin(user, true).await.unwrap();
 /// }
 /// ```
 pub trait InvitationTransaction:
@@ -89,34 +88,27 @@ impl Invitations {
     /// Publish an invitation and its delivery job atomically.
     ///
     /// # Errors
-    /// Rejects invalid email, insufficient authority or invalid proof; propagates transaction errors.
+    /// Rejects invalid email or insufficient authority; propagates transaction errors.
     pub async fn invite(
         &self,
         actor: &Actor,
         org: OrganizationId,
         email: &str,
-        role: Role,
-        proof: &str,
+        is_admin: bool,
     ) -> Result<InvitationId, Error> {
         let email = domain::EmailAddress::parse(email)?;
         let email = email.as_str();
         let mut tx = self.uow.begin_invitations(org).await?;
         tx.lock_organization().await?;
         tx.lock_users(&[actor.user_id]).await?;
-        let caller = tx.current_role(actor, org).await?;
-        if !caller.allows(if role == Role::Owner {
-            Permission::ManageOwners
-        } else {
-            Permission::ManageMembers
-        }) {
+        if !tx.is_admin(actor, org).await? {
             return Err(Error::Forbidden);
         }
-        tx.consume_proof(actor, ProofPurpose::Invite, proof).await?;
         let id = self.ids.invitation();
         tx.insert_invitation(
             id,
             email,
-            role,
+            is_admin,
             self.clock.now() + chrono::Duration::hours(24),
         )
         .await?;
@@ -146,30 +138,22 @@ impl Invitations {
             .await?;
         tx.commit().await
     }
-    /// Revoke an invitation under the organization lock. Managing members is
-    /// sufficient even when the invitation offered the owner role.
+    /// Revoke an invitation under the organization lock.
     ///
     /// # Errors
-    /// Rejects insufficient authority or invalid proof; propagates lookup and transaction errors.
+    /// Rejects insufficient authority; propagates lookup and transaction errors.
     pub async fn revoke_invitation(
         &self,
         actor: &Actor,
         org: OrganizationId,
         id: InvitationId,
-        proof: &str,
     ) -> Result<(), Error> {
         let mut tx = self.uow.begin_invitations(org).await?;
         tx.lock_organization().await?;
         tx.lock_users(&[actor.user_id]).await?;
-        if !tx
-            .current_role(actor, org)
-            .await?
-            .allows(Permission::ManageMembers)
-        {
+        if !tx.is_admin(actor, org).await? {
             return Err(Error::Forbidden);
         }
-        tx.consume_proof(actor, ProofPurpose::RevokeInvitation(id), proof)
-            .await?;
         tx.revoke_invitation(id).await?;
         tx.audit(actor, "invitation.revoked", id.into_uuid())
             .await?;

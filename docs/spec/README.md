@@ -15,4 +15,4 @@ Read-only external planning snapshots; source URLs and stable ticket IDs remain 
 - [Authentication RFC](41105668422d815ca38ef56e4867359d.md)
 - [Jobs and caching RFC](41105668422d8129a1c2c075dea7959c.md)
 
-Use the [current architecture](../adr-001.md) for implemented ownership and scope. In particular, current identity has one verified email, built-in roles, no recovery/passkeys and no mutable active tenant. The conceptual model and older endpoint ideas describe a broader historical design, not missing implementation requirements. Explicit owner decisions supersede these snapshots.
+Use the [current architecture](../adr-001.md) for implemented scope. A membership now has one admin flag; the old role matrix and privileged email proofs are historical. Identity still uses one verified email with no recovery/passkeys or mutable active tenant.

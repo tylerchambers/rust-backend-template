@@ -157,94 +157,6 @@
         ]
       }
     },
-    "/v1/auth/reauth/confirmation": {
-      "get": {
-        "tags": [
-          "reauthentication"
-        ],
-        "operationId": "proof_confirmation",
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "text/html": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Stable JSON error envelope, including transport, authentication, authorization and availability failures",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/auth/reauth/request": {
-      "post": {
-        "tags": [
-          "reauthentication"
-        ],
-        "operationId": "request_proof",
-        "parameters": [
-          {
-            "name": "Origin",
-            "in": "header",
-            "description": "Exact configured public origin",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "x-csrf-token",
-            "in": "header",
-            "description": "Current csrf cookie value; required with matching csrf cookie",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ProofRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "202": {
-            "description": ""
-          },
-          "default": {
-            "description": "Stable JSON error envelope, including transport, authentication, authorization and availability failures",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "session": []
-          }
-        ]
-      }
-    },
     "/v1/auth/request": {
       "post": {
         "tags": [
@@ -719,7 +631,7 @@
           {
             "name": "after",
             "in": "query",
-            "description": "Exclusive event ID cursor. Up to 50 rows in ascending ID order, not commit order; continue with the last ID until empty.",
+            "description": "Last event ID from the previous page. Returns up to 50 older events ordered by occurred_at DESC, then id DESC. An unknown or out-of-organization cursor returns an empty page.",
             "required": false,
             "schema": {
               "type": "string",
@@ -1010,16 +922,6 @@
             }
           }
         ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RevokeInvitationRequest"
-              }
-            }
-          },
-          "required": true
-        },
         "responses": {
           "204": {
             "description": ""
@@ -1204,16 +1106,6 @@
             }
           }
         ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RemoveMemberRequest"
-              }
-            }
-          },
-          "required": true
-        },
         "responses": {
           "204": {
             "description": ""
@@ -1638,21 +1530,11 @@
       "ChangeMemberRoleRequest": {
         "type": "object",
         "required": [
-          "role",
-          "proof"
+          "is_admin"
         ],
         "properties": {
-          "proof": {
-            "type": "string"
-          },
-          "role": {
-            "type": "string",
-            "enum": [
-              "owner",
-              "admin",
-              "member",
-              "viewer"
-            ]
+          "is_admin": {
+            "type": "boolean"
           }
         },
         "additionalProperties": false
@@ -1702,20 +1584,14 @@
         "required": [
           "user_id",
           "email",
-          "role"
+          "is_admin"
         ],
         "properties": {
           "email": {
             "type": "string"
           },
-          "role": {
-            "type": "string",
-            "enum": [
-              "owner",
-              "admin",
-              "member",
-              "viewer"
-            ]
+          "is_admin": {
+            "type": "boolean"
           },
           "user_id": {
             "type": "string",
@@ -1750,24 +1626,14 @@
         "type": "object",
         "required": [
           "email",
-          "role",
-          "proof"
+          "is_admin"
         ],
         "properties": {
           "email": {
             "type": "string"
           },
-          "proof": {
-            "type": "string"
-          },
-          "role": {
-            "type": "string",
-            "enum": [
-              "owner",
-              "admin",
-              "member",
-              "viewer"
-            ]
+          "is_admin": {
+            "type": "boolean"
           }
         },
         "additionalProperties": false
@@ -1798,7 +1664,7 @@
         "required": [
           "id",
           "email",
-          "role",
+          "is_admin",
           "status",
           "expires_at"
         ],
@@ -1814,14 +1680,8 @@
             "type": "string",
             "format": "uuid"
           },
-          "role": {
-            "type": "string",
-            "enum": [
-              "owner",
-              "admin",
-              "member",
-              "viewer"
-            ]
+          "is_admin": {
+            "type": "boolean"
           },
           "status": {
             "$ref": "#/components/schemas/InvitationStatusResponse"
@@ -1856,17 +1716,11 @@
         "type": "object",
         "required": [
           "user_id",
-          "role"
+          "is_admin"
         ],
         "properties": {
-          "role": {
-            "type": "string",
-            "enum": [
-              "owner",
-              "admin",
-              "member",
-              "viewer"
-            ]
+          "is_admin": {
+            "type": "boolean"
           },
           "user_id": {
             "type": "string",
@@ -1891,24 +1745,18 @@
         "required": [
           "id",
           "name",
-          "role"
+          "is_admin"
         ],
         "properties": {
           "id": {
             "type": "string",
             "format": "uuid"
           },
+          "is_admin": {
+            "type": "boolean"
+          },
           "name": {
             "type": "string"
-          },
-          "role": {
-            "type": "string",
-            "enum": [
-              "owner",
-              "admin",
-              "member",
-              "viewer"
-            ]
           }
         }
       },
@@ -1942,47 +1790,6 @@
           }
         }
       },
-      "ProofRequest": {
-        "type": "object",
-        "required": [
-          "action",
-          "target",
-          "organization_id"
-        ],
-        "properties": {
-          "action": {
-            "type": "string",
-            "enum": [
-              "change_role",
-              "invite",
-              "revoke_invitation",
-              "remove_member"
-            ]
-          },
-          "organization_id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "target": {
-            "type": "string",
-            "format": "uuid",
-            "description": "For `invite`, use `organization_id`; for `revoke_invitation`, use the invitation ID.\nFor `change_role` and `remove_member`, use the affected user's ID."
-          }
-        },
-        "additionalProperties": false
-      },
-      "RemoveMemberRequest": {
-        "type": "object",
-        "required": [
-          "proof"
-        ],
-        "properties": {
-          "proof": {
-            "type": "string"
-          }
-        },
-        "additionalProperties": false
-      },
       "RenameProjectRequest": {
         "type": "object",
         "required": [
@@ -1996,18 +1803,6 @@
           "version": {
             "type": "integer",
             "format": "int64"
-          }
-        },
-        "additionalProperties": false
-      },
-      "RevokeInvitationRequest": {
-        "type": "object",
-        "required": [
-          "proof"
-        ],
-        "properties": {
-          "proof": {
-            "type": "string"
           }
         },
         "additionalProperties": false

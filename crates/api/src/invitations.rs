@@ -2,8 +2,6 @@ use crate::{
     authentication::actor,
     cookies::csrf_cookie,
     error::{ApiError, ErrorBody},
-    memberships::role,
-    openapi::role_schema,
     pagination::UuidCursor,
     state::State,
 };
@@ -43,8 +41,7 @@ impl From<InvitationStatus> for InvitationStatusResponse {
 pub struct InvitationSummaryResponse {
     id: Uuid,
     email: String,
-    #[schema(schema_with = role_schema)]
-    role: domain::Role,
+    is_admin: bool,
     status: InvitationStatusResponse,
     expires_at: DateTime<Utc>,
 }
@@ -78,7 +75,7 @@ pub(crate) async fn list_invitations(
             .map(|row| InvitationSummaryResponse {
                 id: row.id.into_uuid(),
                 email: row.email,
-                role: row.role,
+                is_admin: row.is_admin,
                 status: row.status.into(),
                 expires_at: row.expires_at,
             })
@@ -90,9 +87,7 @@ pub(crate) async fn list_invitations(
 #[serde(deny_unknown_fields)]
 pub struct InvitationRequest {
     email: String,
-    #[schema(schema_with = role_schema)]
-    role: String,
-    proof: String,
+    is_admin: bool,
 }
 
 #[utoipa::path(
@@ -104,7 +99,6 @@ pub struct InvitationRequest {
         ("organization"=Uuid,Path),
         ("invitation"=Uuid,Path),
     ),
-    request_body=RevokeInvitationRequest,
     security(("session"=[])),
     responses(
         (status="default",description="Stable JSON error envelope, including transport, authentication, authorization and availability failures",body=ErrorBody),
@@ -115,12 +109,11 @@ pub(crate) async fn revoke_invitation(
     Extract(state): Extract<State>,
     Path((org, id)): Path<(Uuid, Uuid)>,
     headers: HeaderMap,
-    Json(input): Json<RevokeInvitationRequest>,
 ) -> Result<StatusCode, ApiError> {
     let actor = actor(&state, &headers).await?;
     state
         .invitations
-        .revoke_invitation(&actor, org.into(), id.into(), &input.proof)
+        .revoke_invitation(&actor, org.into(), id.into())
         .await?;
     Ok(StatusCode::NO_CONTENT)
 }
@@ -149,13 +142,7 @@ pub(crate) async fn invite(
     let actor = actor(&state, &headers).await?;
     let id = state
         .invitations
-        .invite(
-            &actor,
-            org.into(),
-            &input.email,
-            role(&input.role)?,
-            &input.proof,
-        )
+        .invite(&actor, org.into(), &input.email, input.is_admin)
         .await?;
     Ok((
         StatusCode::CREATED,
@@ -209,12 +196,6 @@ pub(crate) async fn invitation_confirmation(Extract(state): Extract<State>) -> R
         Html(html),
     )
         .into_response()
-}
-
-#[derive(Deserialize, ToSchema)]
-#[serde(deny_unknown_fields)]
-pub struct RevokeInvitationRequest {
-    proof: String,
 }
 
 #[derive(Deserialize, ToSchema)]

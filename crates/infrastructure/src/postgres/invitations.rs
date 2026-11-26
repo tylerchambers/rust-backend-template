@@ -1,8 +1,6 @@
-use super::{
-    Database, authentication::token_hash, memberships::role_name, transaction::TenantWork,
-};
+use super::{Database, authentication::token_hash, transaction::TenantWork};
 use application::Actor;
-use domain::{Error, InvitationId, Role};
+use domain::{Error, InvitationId};
 use uuid::Uuid;
 fn storage(error: sqlx::Error) -> Error {
     super::errors::unavailable(error, "memberships")
@@ -65,20 +63,20 @@ impl application::invitations::InvitationRepository for TenantWork {
         &mut self,
         id: InvitationId,
         email: &str,
-        role: Role,
+        is_admin: bool,
         expires_at: chrono::DateTime<chrono::Utc>,
     ) -> Result<(), Error> {
         use application::Secrets;
         sqlx::query(
             r"
-            INSERT INTO invitations(id,organization_id,email,role,token_hash,expires_at)
+            INSERT INTO invitations(id,organization_id,email,is_admin,token_hash,expires_at)
             VALUES($1,$2,$3,$4,$5,$6)
             ",
         )
         .bind(id.into_uuid())
         .bind(self.organization)
         .bind(email)
-        .bind(role_name(role))
+        .bind(is_admin)
         .bind(token_hash(&crate::system::SystemSecrets.token()))
         .bind(expires_at)
         .execute(&mut *self.tx)
@@ -114,7 +112,7 @@ impl application::invitations::InvitationRepository for TenantWork {
         let email = super::authority::live_email(&mut self.tx, actor)
             .await?
             .ok_or(Error::Unauthenticated)?;
-        let role: Option<String> = sqlx::query_scalar(
+        let is_admin: Option<bool> = sqlx::query_scalar(
             r"
             UPDATE invitations
             SET accepted_at=clock_timestamp()
@@ -125,7 +123,7 @@ impl application::invitations::InvitationRepository for TenantWork {
             AND accepted_at IS NULL
             AND revoked_at IS NULL
             AND expires_at>clock_timestamp()
-            RETURNING role
+            RETURNING is_admin
             ",
         )
         .bind(id.into_uuid())
@@ -137,14 +135,14 @@ impl application::invitations::InvitationRepository for TenantWork {
         .map_err(storage)?;
         sqlx::query(
             r"
-            INSERT INTO memberships(organization_id,user_id,role)
+            INSERT INTO memberships(organization_id,user_id,is_admin)
             VALUES($1,$2,$3)
             ON CONFLICT(organization_id,user_id) DO NOTHING
             ",
         )
         .bind(self.organization)
         .bind(actor.user_id.into_uuid())
-        .bind(role.ok_or(Error::Forbidden)?)
+        .bind(is_admin.ok_or(Error::Forbidden)?)
         .execute(&mut *self.tx)
         .await
         .map_err(storage)?;

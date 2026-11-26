@@ -51,22 +51,20 @@ pub(crate) async fn live_email(
 use super::transaction::TenantWork;
 use application::authority::AuthorityMutation;
 use application::authority::TenantAuthority;
-use application::reauthentication::ProofPurpose;
 use async_trait::async_trait;
-use domain::UserId;
-use domain::{OrganizationId, Role};
+use domain::{OrganizationId, UserId};
 use uuid::Uuid;
 #[async_trait]
 impl TenantAuthority for TenantWork {
-    async fn current_role(
+    async fn is_admin(
         &mut self,
         actor: &Actor,
         organization: OrganizationId,
-    ) -> Result<Role, Error> {
+    ) -> Result<bool, Error> {
         super::authority::lock_actor(&mut self.tx, actor).await?;
-        let role: Option<String> = sqlx::query_scalar(
+        let is_admin: Option<bool> = sqlx::query_scalar(
             r"
-            SELECT role FROM memberships
+            SELECT is_admin FROM memberships
             WHERE organization_id=$1 AND user_id=$2
             FOR SHARE
             ",
@@ -79,7 +77,7 @@ impl TenantAuthority for TenantWork {
         super::authority::live_email(&mut self.tx, actor)
             .await?
             .ok_or(Error::Forbidden)?;
-        super::memberships::role(role.as_deref().ok_or(Error::Forbidden)?)
+        is_admin.ok_or(Error::Forbidden)
     }
 }
 
@@ -96,8 +94,7 @@ impl AuthorityMutation for TenantWork {
         Ok(())
     }
     async fn lock_organization(&mut self) -> Result<(), Error> {
-        // Serialize mutations without blocking FK KEY SHARE checks from proof
-        // insertion (which already owns an identity lock). IDs never change.
+        // Serialize administration decisions without blocking foreign key checks.
         sqlx::query("SELECT id FROM organizations WHERE id=$1 FOR NO KEY UPDATE")
             .bind(self.organization)
             .fetch_optional(&mut *self.tx)
@@ -105,13 +102,5 @@ impl AuthorityMutation for TenantWork {
             .map_err(storage)?
             .ok_or(Error::NotFound)?;
         Ok(())
-    }
-    async fn consume_proof(
-        &mut self,
-        actor: &Actor,
-        purpose: ProofPurpose,
-        token: &str,
-    ) -> Result<(), Error> {
-        self.consume_proof_record(actor, purpose, token).await
     }
 }

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-// Reuse the browser journey's signed-in owner and viewer, including their real cookies.
+// Reuse the browser journey's signed-in admin and member, including their real cookies.
 async function tenantClient(context, origin) {
 	const csrf = (await context.cookies()).find(
 		(cookie) => cookie.name === "csrf",
@@ -24,29 +24,40 @@ async function tenantClient(context, origin) {
 }
 
 export async function checkTenantAccess({
-	owner,
-	viewer,
+	adminContext,
+	memberContext,
 	origin,
 	org,
 	invitee,
 	invitationId,
 	invitationToken,
-	mailText,
+	projectId,
 }) {
-	const admin = await tenantClient(owner, origin);
-	const guest = await tenantClient(viewer, origin);
+	const admin = await tenantClient(adminContext, origin);
+	const member = await tenantClient(memberContext, origin);
 	const base = `/v1/organizations/${org}`;
 	const projects = `${base}/projects`;
-	const account = await guest.get("/v1/me");
+	const account = await member.get("/v1/me");
 	assert.equal(account.email, invitee);
-	await guest.post(
+	await member.post(
 		`${base}/invitations/${invitationId}/accept`,
 		{ token: invitationToken },
 		403,
 	);
-	await guest.post(projects, { name: "Not allowed" }, 403);
+	const adminAccount = await admin.get("/v1/me");
+	const adminPath = `${base}/members/${adminAccount.user_id}`;
+	await admin.post(`${adminPath}/role`, { is_admin: false }, 409);
+	await admin.post(`${adminPath}/remove`, undefined, 409);
+	for (const [path, body] of [
+		[`${base}/invitations`, { email: adminAccount.email, is_admin: true }],
+		[`${base}/invitations/${invitationId}/revoke`, undefined],
+		[`${base}/members/${account.user_id}/role`, { is_admin: true }],
+		[`${adminPath}/remove`, undefined],
+	]) {
+		assert.deepEqual(await member.post(path, body, 403), { code: "forbidden" });
+	}
 	for (const list of ["invitations", "audit-events", "member-directory"]) {
-		assert.deepEqual(await guest.get(`${base}/${list}`, 403), {
+		assert.deepEqual(await member.get(`${base}/${list}`, 403), {
 			code: "forbidden",
 		});
 		for (const query of ["after=invalid", "offset=1"]) {
@@ -59,20 +70,19 @@ export async function checkTenantAccess({
 	assert.deepEqual(invitation, {
 		id: invitationId,
 		email: invitee,
-		role: "viewer",
+		is_admin: false,
 		status: "accepted",
 		expires_at: invitation.expires_at,
 	});
 	assert.match(invitation.expires_at, /(?:Z|\+00:00)$/);
-	const [project] = await guest.get(projects);
 	assert.equal(
-		(await guest.get(`${projects}/${project.id}`)).name,
+		(await member.get(`${projects}/${projectId}`)).name,
 		"Renamed project",
 	);
 	const events = await admin.get(`${base}/audit-events`);
 	const changed = events.find(
 		(event) =>
-			event.action === "project.updated" && event.subject === project.id,
+			event.action === "project.updated" && event.subject === projectId,
 	);
 	assert.ok(changed);
 	assert.deepEqual(Object.keys(changed).sort(), [
@@ -82,7 +92,7 @@ export async function checkTenantAccess({
 		"occurred_at",
 		"subject",
 	]);
-	assert.equal(changed.actor_id, (await admin.get("/v1/me")).user_id);
+	assert.equal(changed.actor_id, adminAccount.user_id);
 	assert.match(changed.occurred_at, /(?:Z|\+00:00)$/);
 
 	const other = await admin.post(
@@ -92,61 +102,70 @@ export async function checkTenantAccess({
 	);
 	const foreignPath = `/v1/organizations/${other.id}/projects`;
 	const foreign = await admin.post(foreignPath, { name: "Foreign" }, 201);
-	assert.deepEqual(await guest.get(`${foreignPath}/${foreign.id}`, 403), {
+	assert.deepEqual(await member.get(`${foreignPath}/${foreign.id}`, 403), {
 		code: "forbidden",
 	});
 	for (const id of [foreign.id, crypto.randomUUID()]) {
-		assert.deepEqual(await guest.get(`${projects}/${id}`, 404), {
+		assert.deepEqual(await member.get(`${projects}/${id}`, 404), {
 			code: "not_found",
 		});
 	}
-	assert.deepEqual(await guest.get(`${projects}/invalid`, 400), {
+	assert.deepEqual(await member.get(`${projects}/invalid`, 400), {
 		code: "invalid_input",
 	});
 	for (const path of [projects, `${base}/members`, "/v1/organizations"]) {
 		await admin.get(`${path}?after=invalid`, 400);
 	}
 
-	const ids = [project.id];
-	for (let i = 0; i < 50; i++) {
+	const ids = (await member.get(projects)).map((row) => row.id);
+	assert.equal(ids.length, 2);
+	for (let i = ids.length; i < 51; i++) {
 		const row = await admin.post(projects, { name: `Page ${i}` }, 201);
 		ids.push(row.id);
 	}
 	ids.sort();
-	const first = await guest.get(projects);
+	const first = await member.get(projects);
 	assert.deepEqual(
 		first.map((row) => row.id),
 		ids.slice(0, 50),
 	);
-	const next = await guest.get(`${projects}?after=${first.at(-1).id}`);
+	const next = await member.get(`${projects}?after=${first.at(-1).id}`);
 	assert.deepEqual(
 		next.map((row) => row.id),
 		ids.slice(50),
 	);
-	assert.deepEqual(await guest.get(`${projects}?after=${next[0].id}`), []);
-	const fromForeign = await guest.get(`${projects}?after=${foreign.id}`);
+	assert.deepEqual(await member.get(`${projects}?after=${next[0].id}`), []);
+	const fromForeign = await member.get(`${projects}?after=${foreign.id}`);
 	assert.deepEqual(
 		fromForeign.map((row) => row.id),
 		ids.filter((id) => id > foreign.id).slice(0, 50),
 	);
 
-	const team = await owner.newPage();
-	await team.goto(`/#/organizations/${org}`);
-	await team.getByRole("tab", { name: "Members" }).click();
-	await team.getByLabel(`Change role for ${invitee}`).selectOption("member");
-	await team.getByRole("button", { name: "Email me a proof" }).click();
-	const proof = /confirmation#([a-f0-9]{64})/.exec(
-		await mailText("Confirm privileged operation"),
-	)?.[1];
-	assert.ok(proof);
-	await team.getByLabel("Email proof").fill(proof);
-	await team.getByRole("button", { name: "Change role", exact: true }).click();
-	await team.getByText(`Changed the role for ${invitee} to member.`).waitFor();
+	const team = await adminContext.newPage();
+	await team.goto(`/#/organizations/${org}/settings`);
+	await team
+		.getByText("The organization must keep at least one admin.")
+		.waitFor();
+	await team
+		.getByLabel(`Change role for ${invitee}`)
+		.selectOption({ label: "Admin" });
+	await team
+		.getByRole("dialog", { name: "Change role" })
+		.getByRole("button", { name: "Change role", exact: true })
+		.click();
+	await team
+		.getByRole("table", { name: "Members", exact: true })
+		.getByRole("row")
+		.filter({ hasText: invitee })
+		.getByRole("cell", { name: "Admin", exact: true })
+		.waitFor();
 	await team.close();
 	const directory = await admin.get(`${base}/member-directory`);
 	assert.deepEqual(
 		directory.find((member) => member.user_id === account.user_id),
-		{ ...account, role: "member" },
+		{ ...account, is_admin: true },
 	);
-	assert.deepEqual(await guest.get("/v1/me", 401), { code: "unauthenticated" });
+	assert.deepEqual(await member.get("/v1/me", 401), {
+		code: "unauthenticated",
+	});
 }

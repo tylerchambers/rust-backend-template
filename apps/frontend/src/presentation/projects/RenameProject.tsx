@@ -2,6 +2,10 @@ import { Alert, Button, Group, Stack, Text, TextInput } from "@mantine/core";
 import type { Project } from "../../infrastructure/projects";
 import { useProjectRename } from "./useProjectRename";
 
+function focusName(input: HTMLInputElement | null): void {
+	input?.focus();
+}
+
 export function RenameProject({
 	project,
 	onSaved,
@@ -24,7 +28,9 @@ export function RenameProject({
 		>
 			<Stack gap="sm">
 				<TextInput
-					label="New project name"
+					aria-label="New project name"
+					ref={focusName}
+					size="lg"
 					description={
 						edit.base.version !== project.version
 							? `Editing version ${edit.base.version}: ${edit.base.name}`

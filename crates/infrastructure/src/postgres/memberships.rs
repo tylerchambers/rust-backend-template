@@ -1,26 +1,9 @@
 use super::transaction::TenantWork;
 use application::memberships::MembershipRepository;
 use async_trait::async_trait;
-use domain::{Error, Role, UserId};
+use domain::{Error, UserId};
 fn storage(error: sqlx::Error) -> Error {
     super::errors::unavailable(error, "memberships")
-}
-pub(crate) fn role(value: &str) -> Result<Role, Error> {
-    match value {
-        "owner" => Ok(Role::Owner),
-        "admin" => Ok(Role::Admin),
-        "member" => Ok(Role::Member),
-        "viewer" => Ok(Role::Viewer),
-        _ => Err(Error::Unavailable),
-    }
-}
-pub(super) fn role_name(role: Role) -> &'static str {
-    match role {
-        Role::Owner => "owner",
-        Role::Admin => "admin",
-        Role::Member => "member",
-        Role::Viewer => "viewer",
-    }
 }
 #[async_trait]
 impl MembershipRepository for TenantWork {
@@ -40,29 +23,27 @@ impl MembershipRepository for TenantWork {
             .map_err(storage)?;
         Ok(())
     }
-    async fn member_role(&mut self, user: UserId) -> Result<Role, Error> {
-        let value: Option<String> = sqlx::query_scalar(
-            "SELECT role FROM memberships WHERE organization_id=$1 AND user_id=$2",
+    async fn member_is_admin(&mut self, user: UserId) -> Result<bool, Error> {
+        sqlx::query_scalar(
+            "SELECT is_admin FROM memberships WHERE organization_id=$1 AND user_id=$2",
         )
         .bind(self.organization)
         .bind(user.into_uuid())
         .fetch_optional(&mut *self.tx)
         .await
-        .map_err(storage)?;
-        role(&value.ok_or(Error::NotFound)?)
+        .map_err(storage)?
+        .ok_or(Error::NotFound)
     }
-    async fn owner_count(&mut self) -> Result<i64, Error> {
-        sqlx::query_scalar(
-            "SELECT count(*) FROM memberships WHERE organization_id=$1 AND role='owner'",
-        )
-        .bind(self.organization)
-        .fetch_one(&mut *self.tx)
-        .await
-        .map_err(storage)
+    async fn admin_count(&mut self) -> Result<i64, Error> {
+        sqlx::query_scalar("SELECT count(*) FROM memberships WHERE organization_id=$1 AND is_admin")
+            .bind(self.organization)
+            .fetch_one(&mut *self.tx)
+            .await
+            .map_err(storage)
     }
-    async fn set_role(&mut self, user: UserId, role: Role) -> Result<(), Error> {
-        sqlx::query("UPDATE memberships SET role=$1,version=version+1 WHERE organization_id=$2 AND user_id=$3")
-            .bind(role_name(role))
+    async fn set_admin(&mut self, user: UserId, is_admin: bool) -> Result<(), Error> {
+        sqlx::query("UPDATE memberships SET is_admin=$1,version=version+1 WHERE organization_id=$2 AND user_id=$3")
+            .bind(is_admin)
             .bind(self.organization)
             .bind(user.into_uuid())
             .execute(&mut *self.tx)

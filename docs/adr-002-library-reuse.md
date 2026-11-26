@@ -1,5 +1,8 @@
 # ADR 002: library-owned transport, parsing and metrics
 
+This record describes the library decision at the time. For the current
+admin flag and session-based administrative authorization, see [ADR 001](adr-001.md).
+
 ## Decision
 
 Use maintained libraries for syntax and instrumentation, while retaining the application's transactional security records. This refactor starts from `4f297b24b2f7a5ff5d75f9a639d142588e891fc3` on `refactor/library-owned-infrastructure`. There is no deployed-data compatibility requirement, but stable session identity, credential secrecy, revocation lineage and proof/authority transactions are explicit security contracts, not incidental architecture.

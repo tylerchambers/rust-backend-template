@@ -37,7 +37,7 @@ async fn every_tenant_table_hides_other_tenants_and_discovery_is_read_only_local
             .execute(&pool)
             .await
             .unwrap();
-        sqlx::query("INSERT INTO memberships(organization_id,user_id,role) VALUES($1,$2,'owner')")
+        sqlx::query("INSERT INTO memberships(organization_id,user_id,is_admin) VALUES($1,$2,true)")
             .bind(org)
             .bind(u)
             .execute(&pool)
@@ -50,7 +50,7 @@ async fn every_tenant_table_hides_other_tenants_and_discovery_is_read_only_local
             .unwrap();
         sqlx::query("INSERT INTO project_index(project_id,organization_id,name,version) VALUES($1,$1,'RLS',1)").bind(org).execute(&pool).await.unwrap();
         sqlx::query("INSERT INTO audit_events(id,organization_id,actor_id,action,subject) VALUES($1,$1,$2,'test',$1)").bind(org).bind(u).execute(&pool).await.unwrap();
-        sqlx::query("INSERT INTO invitations(id,organization_id,email,role,token_hash,expires_at) VALUES($1,$1,'rls@example.test','viewer',$2,clock_timestamp()+interval '1 hour')").bind(org).bind(infrastructure::postgres::token_hash(&org.to_string())).execute(&pool).await.unwrap();
+        sqlx::query("INSERT INTO invitations(id,organization_id,email,is_admin,token_hash,expires_at) VALUES($1,$1,'rls@example.test',false,$2,clock_timestamp()+interval '1 hour')").bind(org).bind(infrastructure::postgres::token_hash(&org.to_string())).execute(&pool).await.unwrap();
     }
     let tables = [
         ("organizations", "id"),

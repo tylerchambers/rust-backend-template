@@ -192,7 +192,7 @@ impl application::invitations::InvitationMailer for FailingMail {
 }
 async fn retries_reach_terminal_state(pool: &sqlx::PgPool, organization_id: Uuid) {
     let invitation_id = Uuid::now_v7();
-    sqlx::query("INSERT INTO invitations(id,organization_id,email,role,token_hash,expires_at) VALUES($1,$2,'poison@example.test','viewer',$3,clock_timestamp()+interval '1 hour')")
+    sqlx::query("INSERT INTO invitations(id,organization_id,email,is_admin,token_hash,expires_at) VALUES($1,$2,'poison@example.test',false,$3,clock_timestamp()+interval '1 hour')")
         .bind(invitation_id).bind(organization_id).bind(vec![0_u8;32]).execute(pool).await.unwrap();
     let client = infrastructure::river::client::worker_client(
         Database::new(pool.clone()).unwrap(),

@@ -1,12 +1,10 @@
 #![allow(clippy::unwrap_used, reason = "Contract assertions fail immediately")]
 
-const OPERATIONS: [(&str, &str, &str); 27] = [
+const OPERATIONS: [(&str, &str, &str); 25] = [
     ("post", "/v1/auth/request", "request_login"),
     ("post", "/v1/auth/confirm", "confirm"),
     ("get", "/v1/auth/confirmation", "confirmation"),
     ("post", "/v1/auth/logout", "logout"),
-    ("post", "/v1/auth/reauth/request", "request_proof"),
-    ("get", "/v1/auth/reauth/confirmation", "proof_confirmation"),
     ("get", "/v1/me", "get_me"),
     ("get", "/v1/auth/sessions", "sessions"),
     (
@@ -123,12 +121,12 @@ fn semantically_distinct_commands_have_resource_owned_schemas() {
             "AcceptInvitationRequest",
         ),
         (
-            "/v1/organizations/{organization}/invitations/{invitation}/revoke",
-            "RevokeInvitationRequest",
+            "/v1/organizations/{organization}/invitations",
+            "InvitationRequest",
         ),
         (
-            "/v1/organizations/{organization}/members/{user}/remove",
-            "RemoveMemberRequest",
+            "/v1/organizations/{organization}/members/{user}/role",
+            "ChangeMemberRoleRequest",
         ),
     ] {
         assert_eq!(
@@ -139,6 +137,33 @@ fn semantically_distinct_commands_have_resource_owned_schemas() {
         assert_eq!(
             contract["components"]["schemas"][schema]["additionalProperties"], false,
             "{schema}"
+        );
+    }
+    for path in [
+        "/v1/organizations/{organization}/invitations/{invitation}/revoke",
+        "/v1/organizations/{organization}/members/{user}/remove",
+    ] {
+        assert!(
+            contract["paths"][path]["post"].get("requestBody").is_none(),
+            "{path}"
+        );
+    }
+    for schema in [
+        "ChangeMemberRoleRequest",
+        "InvitationRequest",
+        "InvitationSummaryResponse",
+        "MemberSummaryResponse",
+        "DirectoryMemberResponse",
+        "OrganizationSummaryResponse",
+    ] {
+        let schema = &contract["components"]["schemas"][schema];
+        assert_eq!(schema["properties"]["is_admin"]["type"], "boolean");
+        assert!(
+            schema["required"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|key| key == "is_admin")
         );
     }
     assert_eq!(

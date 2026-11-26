@@ -6,8 +6,8 @@ share projects. It includes a JSON API, a background worker and a React workspac
 The example application supports:
 
 - Passwordless email sign-in and server-side sessions, with session rotation and revocation.
-- Organizations, email invitations and owner/admin/member/viewer roles.
-- Creating, listing and renaming projects, with version checks to prevent lost updates.
+- Organizations with email invitations and one admin flag per membership.
+- Creating, opening and renaming projects, with version checks to prevent lost updates.
 - Tenant isolation through PostgreSQL row-level security, plus audit records for identity and membership changes.
 - Background invitation delivery, project indexing and identity cleanup through River.
 
@@ -30,6 +30,8 @@ just dev
 This starts PostgreSQL and Mailpit, runs migrations, builds the frontend and
 starts the API and worker. Open [Project desk](http://localhost:58039/) and
 enter your email. A new account starts with no organizations.
+Choose **New organization** above the table to create one. After creation,
+the table shows your organization and your role.
 
 For the sample organizations, run `just seed` before first signing in as
 `owner@example.test`. The seed is optional; startup never overwrites project edits.
@@ -38,18 +40,18 @@ without deleting the database.
 
 Find the email at <http://localhost:58029> and open its link. Choose
 **Confirm sign in** in Project desk. Your workspace opens in the same tab.
-The Projects tab lets you create or rename projects; the Members tab shows
-member IDs and roles. Owners and admins can also see member emails, manage
-roles and invitations, and read the organization’s audit events.
+Every member can create projects, open them from the Projects table, and rename
+them. Admins can also invite people, change admin access, remove members, and
+read the organization’s audit events. Each organization must keep one admin.
+The breadcrumb trail above the page title links to each parent. From an invitation,
+choose **Settings** to return to members or the organization name to return to projects.
 
-For an invitation or membership change, review the action in the confirmation
-dialog and request an email proof. Check the action and target in the email,
-reveal the proof, and paste it into the dialog. Each proof is single-use and
-expires in five minutes. Recipients sign in with the invited email address
-and accept from their invitation link.
+Open the cog beside the organization name to see its members. Admins can review
+audit events there or choose **Invite member** and confirm the recipient and access.
+The recipient signs in with the invited email address and accepts the invitation.
 
-Open the session controls next to your signed-in email to list or revoke
-sessions, rotate the current credential, or sign out everywhere. Use
+Open your profile menu in the header to log out. Choose **Account settings**
+to review active sessions, rotate the current credential, or sign out everywhere. Use
 `localhost` consistently: the frontend and [API](http://localhost:58039/openapi.json)
 share the origin and cookies. Development email stays in the capture service.
 

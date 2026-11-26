@@ -13,7 +13,7 @@ use application::{
     transaction::TenantTransaction,
 };
 use async_trait::async_trait;
-use domain::{Error, InvitationId, OrganizationId, ProjectId, Role, UserId};
+use domain::{Error, InvitationId, OrganizationId, ProjectId, UserId};
 use std::sync::{Arc, Mutex};
 use uuid::Uuid;
 
@@ -49,7 +49,7 @@ impl OrganizationUnitOfWork for Discovery {
 
 #[async_trait]
 impl TenantAuthority for DiscoveryWork {
-    async fn current_role(&mut self, _: &Actor, _: OrganizationId) -> Result<Role, Error> {
+    async fn is_admin(&mut self, _: &Actor, _: OrganizationId) -> Result<bool, Error> {
         Err(Error::Forbidden)
     }
 }
@@ -77,7 +77,7 @@ impl OrganizationRepository for DiscoveryWork {
             vec![OrganizationSummary {
                 id,
                 name: "Discovered".into(),
-                role: Role::Member,
+                is_admin: false,
             }]
         } else {
             vec![]
@@ -92,7 +92,7 @@ impl OrganizationRepository for DiscoveryWork {
         Err(Error::Forbidden)
     }
 
-    async fn insert_owner(&mut self, _: OrganizationId, _: UserId) -> Result<(), Error> {
+    async fn insert_admin(&mut self, _: OrganizationId, _: UserId) -> Result<(), Error> {
         Err(Error::Forbidden)
     }
 }
@@ -145,7 +145,7 @@ async fn discovery_uses_account_scope_and_preserves_exclusive_cursor() {
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].id, Uuid::from_u128(2).into());
     assert_eq!(rows[0].name, "Discovered");
-    assert_eq!(rows[0].role, Role::Member);
+    assert!(!rows[0].is_admin);
     assert!(*committed.lock().unwrap());
     assert!(
         service

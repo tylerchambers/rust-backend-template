@@ -6,7 +6,7 @@ if (!container) throw new Error("Run seed tests with just integration");
 const seed = await Bun.file(
 	new URL("../../dev/seed.sql", import.meta.url),
 ).text();
-const owner = "00000000-0000-7000-8000-000000000001";
+const admin = "00000000-0000-7000-8000-000000000001";
 const north = "00000000-0000-7000-8000-000000000101";
 const project = "00000000-0000-7000-8000-000000001001";
 
@@ -42,16 +42,18 @@ test("rerunning the seed leaves both the example and unrelated rows unchanged", 
 	expect(before).toContain("South example");
 	expect(
 		(
-			await sql("SELECT count(*) FROM memberships WHERE role='owner'").text()
+			await sql(
+				`SELECT count(*) FROM memberships WHERE user_id='${admin}' AND is_admin`,
+			).text()
 		).trim(),
 	).toBe("2");
 	await sql(seed);
 	expect(await snapshot()).toBe(before);
 });
 
-test("a conflicting user prevents publication of new organizations and ownership", async () => {
+test("a conflicting user prevents publication of organizations and admin memberships", async () => {
 	await sql(
-		`INSERT INTO users(id,email) VALUES ('${owner}', 'conflict@example.test')`,
+		`INSERT INTO users(id,email) VALUES ('${admin}', 'conflict@example.test')`,
 	);
 	const before = await snapshot();
 	const result = await sql(seed).nothrow();
@@ -61,7 +63,7 @@ test("a conflicting user prevents publication of new organizations and ownership
 });
 
 for (const [table, change] of [
-	["users", `UPDATE users SET email='other@example.test' WHERE id='${owner}'`],
+	["users", `UPDATE users SET email='other@example.test' WHERE id='${admin}'`],
 	[
 		"organizations",
 		`UPDATE organizations SET name='Other' WHERE id='${north}'`,
@@ -69,7 +71,7 @@ for (const [table, change] of [
 	["projects", `UPDATE projects SET name='Other' WHERE id='${project}'`],
 	[
 		"memberships",
-		`UPDATE memberships SET role='member' WHERE organization_id='${north}'`,
+		`UPDATE memberships SET is_admin=false WHERE organization_id='${north}'`,
 	],
 ]) {
 	test(`the seed rejects conflicting ${table} without changing existing rows`, async () => {
@@ -83,7 +85,7 @@ for (const [table, change] of [
 	});
 }
 
-test("terminating the seed backend during a project insert rolls back ownership", async () => {
+test("terminating the seed backend during a project insert rolls back admin memberships", async () => {
 	const before = await snapshot();
 	await sql(`
 		CREATE FUNCTION interrupt_seed() RETURNS trigger LANGUAGE plpgsql AS $$

@@ -1,5 +1,6 @@
-import { Alert, Button, Stack, Text, TextInput } from "@mantine/core";
+import { Alert, Button, Group, Stack, TextInput, Title } from "@mantine/core";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useBackend } from "../../application/backend";
 import { workspaceName } from "../../domain/workspace";
@@ -13,17 +14,20 @@ export function CreateProject({
 }): React.JSX.Element {
 	const client = useBackend();
 	const cache = useQueryClient();
+	const navigate = useNavigate();
+	const projectsPage = {
+		to: "/organizations/$organizationId",
+		params: { organizationId },
+	} as const;
 	const [name, setName] = useState("");
 	const parsed = workspaceName.safeParse(name);
 	const create = useMutation({
 		mutationFn: (newName: string) =>
 			createProject(client, organizationId, newName),
-		onSuccess: async () => {
-			setName("");
-			await cache.invalidateQueries({
+		onSuccess: () =>
+			cache.invalidateQueries({
 				queryKey: projectList(client, organizationId).queryKey,
-			});
-		},
+			}),
 	});
 	return (
 		<form
@@ -31,10 +35,15 @@ export function CreateProject({
 			aria-label="Create project"
 			onSubmit={(event) => {
 				event.preventDefault();
-				if (parsed.success && !create.isPending) create.mutate(parsed.data);
+				if (parsed.success && !create.isPending) {
+					create.mutate(parsed.data, {
+						onSuccess: () => void navigate({ ...projectsPage, replace: true }),
+					});
+				}
 			}}
 		>
 			<Stack gap="sm">
+				<Title order={1}>New project</Title>
 				<TextInput
 					label="Project name"
 					required
@@ -55,19 +64,16 @@ export function CreateProject({
 						{workspaceError(create.error)}
 					</Alert>
 				)}
-				{create.isSuccess && (
-					<Text role="status" size="sm">
-						Created {create.data.name}.
-					</Text>
-				)}
-				<Button
-					type="submit"
-					className="fit-action"
-					disabled={!parsed.success}
-					loading={create.isPending}
-				>
-					Create project
-				</Button>
+				<Group>
+					<Button
+						type="submit"
+						disabled={!parsed.success}
+						loading={create.isPending}
+					>
+						Create project
+					</Button>
+					{!create.isPending && <Link {...projectsPage}>Cancel</Link>}
+				</Group>
 			</Stack>
 		</form>
 	);

@@ -1,40 +1,19 @@
 import { z } from "zod";
-import { canManageTeam, type WorkspaceRole, workspaceRole } from "./workspace";
 
-export type Member = { userId: string; role: WorkspaceRole; email?: string };
+export type Member = { userId: string; isAdmin: boolean; email?: string };
 
-export function hasMultipleOwners(members: readonly Member[]): boolean {
-	let found = false;
+export function hasMultipleAdmins(members: readonly Member[]): boolean {
+	let firstAdminId: string | undefined;
 	for (const member of members) {
-		if (member.role !== "owner") continue;
-		if (found) return true;
-		found = true;
+		if (!member.isAdmin) continue;
+		if (firstAdminId !== undefined && firstAdminId !== member.userId)
+			return true;
+		firstAdminId = member.userId;
 	}
 	return false;
 }
 
-export function memberAccess(
-	actor: WorkspaceRole,
-	target: WorkspaceRole,
-	multipleOwners: boolean,
-): "editable" | "last-owner" | "read-only" {
-	if (!canManageTeam(actor)) return "read-only";
-	if (target !== "owner") return "editable";
-	if (actor !== "owner") return "read-only";
-	return multipleOwners ? "editable" : "last-owner";
-}
-
-export function grantableRoles(
-	actor: WorkspaceRole,
-	current?: WorkspaceRole,
-): WorkspaceRole[] {
-	if (!canManageTeam(actor)) return [];
-	return workspaceRole.options.filter(
-		(role) => role !== current && (role !== "owner" || actor === "owner"),
-	);
-}
-
-export type InvitationDraft = { email: string; role: WorkspaceRole };
+export type InvitationDraft = { email: string; isAdmin: boolean };
 
 export const invitationStatus = z.enum([
 	"pending",
@@ -50,7 +29,7 @@ export function canRevokeInvitation(
 }
 
 type InvitationReview =
-	| { status: "invalid-email" | "invalid-role" }
+	| { status: "invalid-email" }
 	| { status: "ready"; draft: InvitationDraft };
 
 const invitationEmail = z
@@ -71,11 +50,9 @@ const invitationEmail = z
 
 export function reviewInvitation(
 	email: string,
-	role: WorkspaceRole,
-	actor: WorkspaceRole,
+	isAdmin: boolean,
 ): InvitationReview {
 	const recipient = invitationEmail.safeParse(email);
 	if (!recipient.success) return { status: "invalid-email" };
-	if (!grantableRoles(actor).includes(role)) return { status: "invalid-role" };
-	return { status: "ready", draft: { email: recipient.data, role } };
+	return { status: "ready", draft: { email: recipient.data, isAdmin } };
 }

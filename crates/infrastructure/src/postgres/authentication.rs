@@ -166,7 +166,6 @@ impl Database {
             .execute(&self.pool)
             .await
             .map_err(storage)?;
-        self.cleanup_reauthentication_proofs().await?;
         sqlx::query(
             "DELETE FROM auth_limits WHERE window_start<clock_timestamp()-interval '1 day'",
         )

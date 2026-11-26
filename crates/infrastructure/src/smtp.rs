@@ -104,19 +104,6 @@ impl application::invitations::InvitationMailer for SmtpMailer {
     }
 }
 #[async_trait]
-impl application::reauthentication::ReauthenticationMailer for SmtpMailer {
-    async fn send_proof(
-        &self,
-        email: &str,
-        purpose: application::reauthentication::ProofPurpose,
-        org: domain::OrganizationId,
-        token: &str,
-    ) -> Result<(), Error> {
-        let (action, target) = purpose.binding(org);
-        self.send_message(email,"Confirm privileged operation",format!("This proof authorizes {action} on {target} in organization {org}. It expires in five minutes and is bound to your requesting session.\n{}/v1/auth/reauth/confirmation#{}",self.origin,token)).await
-    }
-}
-#[async_trait]
 impl LoginMailer for SmtpMailer {
     async fn send_login(&self, email: &str, token: &str) -> Result<(), Error> {
         self.send_message(email, "Confirm sign in", format!("Open Project desk and choose Confirm sign in. This link expires in 10 minutes.\n{}/sign-in#{}\nIgnore this email if you did not request it.", self.origin, token)).await

@@ -47,38 +47,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/auth/reauth/confirmation": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["proof_confirmation"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/auth/reauth/request": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["request_proof"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/auth/request": {
         parameters: {
             query?: never;
@@ -386,9 +354,7 @@ export interface components {
             subject: string;
         };
         ChangeMemberRoleRequest: {
-            proof: string;
-            /** @enum {string} */
-            role: "owner" | "admin" | "member" | "viewer";
+            is_admin: boolean;
         };
         CreateOrganizationRequest: {
             name: string;
@@ -403,8 +369,7 @@ export interface components {
         };
         DirectoryMemberResponse: {
             email: string;
-            /** @enum {string} */
-            role: "owner" | "admin" | "member" | "viewer";
+            is_admin: boolean;
             /** Format: uuid */
             user_id: string;
         };
@@ -417,9 +382,7 @@ export interface components {
         };
         InvitationRequest: {
             email: string;
-            proof: string;
-            /** @enum {string} */
-            role: "owner" | "admin" | "member" | "viewer";
+            is_admin: boolean;
         };
         InvitationResponse: {
             /** Format: uuid */
@@ -433,8 +396,7 @@ export interface components {
             expires_at: string;
             /** Format: uuid */
             id: string;
-            /** @enum {string} */
-            role: "owner" | "admin" | "member" | "viewer";
+            is_admin: boolean;
             status: components["schemas"]["InvitationStatusResponse"];
         };
         LoginConfirmationRequest: {
@@ -444,8 +406,7 @@ export interface components {
             email: string;
         };
         MemberSummaryResponse: {
-            /** @enum {string} */
-            role: "owner" | "admin" | "member" | "viewer";
+            is_admin: boolean;
             /** Format: uuid */
             user_id: string;
         };
@@ -456,9 +417,8 @@ export interface components {
         OrganizationSummaryResponse: {
             /** Format: uuid */
             id: string;
+            is_admin: boolean;
             name: string;
-            /** @enum {string} */
-            role: "owner" | "admin" | "member" | "viewer";
         };
         ProjectResponse: {
             archived: boolean;
@@ -470,28 +430,10 @@ export interface components {
             /** Format: int64 */
             version: number;
         };
-        ProofRequest: {
-            /** @enum {string} */
-            action: "change_role" | "invite" | "revoke_invitation" | "remove_member";
-            /** Format: uuid */
-            organization_id: string;
-            /**
-             * Format: uuid
-             * @description For `invite`, use `organization_id`; for `revoke_invitation`, use the invitation ID.
-             *     For `change_role` and `remove_member`, use the affected user's ID.
-             */
-            target: string;
-        };
-        RemoveMemberRequest: {
-            proof: string;
-        };
         RenameProjectRequest: {
             name: string;
             /** Format: int64 */
             version: number;
-        };
-        RevokeInvitationRequest: {
-            proof: string;
         };
     };
     responses: never;
@@ -591,69 +533,6 @@ export interface operations {
         requestBody?: never;
         responses: {
             204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Stable JSON error envelope, including transport, authentication, authorization and availability failures */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-        };
-    };
-    proof_confirmation: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/html": string;
-                };
-            };
-            /** @description Stable JSON error envelope, including transport, authentication, authorization and availability failures */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-        };
-    };
-    request_proof: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Exact configured public origin */
-                Origin: string;
-                /** @description Current csrf cookie value; required with matching csrf cookie */
-                "x-csrf-token": string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ProofRequest"];
-            };
-        };
-        responses: {
-            202: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -974,7 +853,7 @@ export interface operations {
     list_audit_events: {
         parameters: {
             query?: {
-                /** @description Exclusive event ID cursor. Up to 50 rows in ascending ID order, not commit order; continue with the last ID until empty. */
+                /** @description Last event ID from the previous page. Returns up to 50 older events ordered by occurred_at DESC, then id DESC. An unknown or out-of-organization cursor returns an empty page. */
                 after?: string;
             };
             header?: never;
@@ -1129,11 +1008,7 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RevokeInvitationRequest"];
-            };
-        };
+        requestBody?: never;
         responses: {
             204: {
                 headers: {
@@ -1233,11 +1108,7 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RemoveMemberRequest"];
-            };
-        };
+        requestBody?: never;
         responses: {
             204: {
                 headers: {

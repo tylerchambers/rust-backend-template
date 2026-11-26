@@ -17,7 +17,6 @@ test("typed errors and HTML pages follow the published contract", async () => {
 	expect(organization.error?.code).toBe("forbidden");
 	for (const path of [
 		"/v1/auth/confirmation",
-		"/v1/auth/reauth/confirmation",
 		"/v1/invitations/confirmation",
 	] as const) {
 		const page = await client.GET(path, { parseAs: "text" });

@@ -5,7 +5,7 @@
 use crate::State;
 use application::{
     Authentication, Organizations, Projects, administration::Administration,
-    invitations::Invitations, memberships::Memberships, reauthentication::Reauthentication,
+    invitations::Invitations, memberships::Memberships,
 };
 use axum::{
     Router,
@@ -69,14 +69,10 @@ fn test_state() -> State {
             .unwrap(),
     );
     State::new(
-        Arc::new(Authentication::new(
-            db.clone(),
-            mail.clone(),
-            secrets.clone(),
-        )),
+        Arc::new(Authentication::new(db.clone(), mail, secrets.clone())),
         Arc::new(Organizations::new(db.clone(), ids.clone())),
         Arc::new(Projects::new(db.clone(), ids.clone())),
-        secrets.clone(),
+        secrets,
         "http://localhost".into(),
         Arc::new(Memberships::new(db.clone())),
         Arc::new(Invitations::new(
@@ -84,7 +80,6 @@ fn test_state() -> State {
             ids,
             Arc::new(infrastructure::system::SystemClock),
         )),
-        Arc::new(Reauthentication::new(db.clone(), mail, secrets)),
         Arc::new(Administration::new(db)),
     )
 }
@@ -134,21 +129,14 @@ async fn every_documented_method_is_mounted_on_the_router() {
 #[tokio::test]
 async fn confirmation_pages_render_assets_without_issuing_a_session() {
     let app = crate::router(test_state());
-    for (path, expected, csrf) in [
+    for (path, expected) in [
         (
             "/v1/auth/confirmation",
             include_str!("../pages/authentication.html"),
-            true,
-        ),
-        (
-            "/v1/auth/reauth/confirmation",
-            include_str!("../pages/reauthentication.html"),
-            false,
         ),
         (
             "/v1/invitations/confirmation",
             include_str!("../pages/invitation.html"),
-            true,
         ),
     ] {
         let response = app
@@ -179,9 +167,8 @@ async fn confirmation_pages_render_assets_without_issuing_a_session() {
                 .any(|value| value.starts_with("__Host-session=")),
             "{path}"
         );
-        assert_eq!(
+        assert!(
             cookies.iter().any(|value| value.starts_with("csrf=")),
-            csrf,
             "{path}"
         );
         let body = axum::body::to_bytes(response.into_body(), 4096)

@@ -5,7 +5,7 @@ use crate::{
     invitations, memberships,
     organizations::{self, CreateOrganizationRequest, OrganizationResponse},
     projects::{self, CreateProjectRequest, ProjectResponse, RenameProjectRequest},
-    reauthentication, sessions,
+    sessions,
 };
 use utoipa::OpenApi;
 
@@ -26,7 +26,6 @@ use utoipa::OpenApi;
         projects::list_projects,
         projects::get_project,
         projects::rename_project,
-        reauthentication::request_proof,
         invitations::revoke_invitation,
         memberships::remove_member,
         invitations::list_invitations,
@@ -37,7 +36,6 @@ use utoipa::OpenApi;
         sessions::rotate,
         sessions::revoke_all,
         sessions::revoke_session,
-        reauthentication::proof_confirmation,
         invitations::invitation_confirmation
     ),
     modifiers(&ContractSecurity),
@@ -54,12 +52,6 @@ use utoipa::OpenApi;
     ))
 )]
 pub struct Contract;
-pub(crate) fn role_schema() -> utoipa::openapi::schema::Object {
-    utoipa::openapi::schema::ObjectBuilder::new()
-        .schema_type(utoipa::openapi::schema::Type::String)
-        .enum_values(Some(["owner", "admin", "member", "viewer"]))
-        .build()
-}
 struct ContractSecurity;
 impl utoipa::Modify for ContractSecurity {
     fn modify(&self, contract: &mut utoipa::openapi::OpenApi) {

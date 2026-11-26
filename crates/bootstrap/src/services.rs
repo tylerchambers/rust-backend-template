@@ -5,7 +5,6 @@ use application::Projects;
 use application::administration::Administration;
 use application::invitations::Invitations;
 use application::memberships::Memberships;
-use application::reauthentication::Reauthentication;
 use infrastructure::InfraResult;
 use infrastructure::postgres::Database;
 use infrastructure::smtp::SmtpMailer;
@@ -66,7 +65,7 @@ impl ServerServices {
         let db = Arc::new(Database::new(pool.clone()).map_err(|_| Failure::Dependency)?);
         let secrets = Arc::new(SystemSecrets);
         let mail = config.mail().map_err(|_| Failure::Configuration)?;
-        let mut auth = Authentication::new(db.clone(), mail.clone(), secrets.clone());
+        let mut auth = Authentication::new(db.clone(), mail, secrets.clone());
         let mut projects = Projects::new(db.clone(), Arc::new(SystemIds));
         let mut redis_metrics = None;
         if let Ok(url) = std::env::var("REDIS_URL") {
@@ -86,7 +85,7 @@ impl ServerServices {
             Arc::new(auth),
             Arc::new(Organizations::new(db.clone(), Arc::new(SystemIds))),
             Arc::new(projects),
-            secrets.clone(),
+            secrets,
             config.origin.clone(),
             Arc::new(Memberships::new(db.clone())),
             Arc::new(Invitations::new(
@@ -94,7 +93,6 @@ impl ServerServices {
                 Arc::new(SystemIds),
                 Arc::new(SystemClock),
             )),
-            Arc::new(Reauthentication::new(db.clone(), mail, secrets)),
             Arc::new(Administration::new(db.clone())),
         );
         Ok(Self {
